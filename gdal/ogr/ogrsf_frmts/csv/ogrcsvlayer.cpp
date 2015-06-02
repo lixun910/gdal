@@ -33,6 +33,9 @@
 #include "cpl_string.h"
 #include "cpl_csv.h"
 #include "ogr_p.h"
+#include <locale>
+#include <iostream>
+
 
 CPL_CVSID("$Id$");
 
@@ -296,6 +299,23 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
     }
 
 /* -------------------------------------------------------------------- */
+/*      Search a csvt file for types                                */
+/* -------------------------------------------------------------------- */
+    char** papszFieldTypes = NULL;
+    if (!bNew) {
+        char* dname = CPLStrdup(CPLGetDirname(pszFilename));
+        char* fname = CPLStrdup(CPLGetBasename(pszFilename));
+        VSILFILE* fpCSVT = VSIFOpenL(CPLFormFilename(dname, fname, ".csvt"), "r");
+        CPLFree(dname);
+        CPLFree(fname);
+        if (fpCSVT!=NULL) {
+            VSIRewindL(fpCSVT);
+            papszFieldTypes = OGRCSVReadParseLineL(fpCSVT, ',', FALSE,FALSE);
+            VSIFCloseL(fpCSVT);
+        }
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Check if the first record seems to be field definitions or      */
 /*      not.  We assume it is field definitions if none of the          */
 /*      values are strictly numeric.                                    */
@@ -357,6 +377,57 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
                 nFlags |= CSLT_ALLOWEMPTYTOKENS;
             papszTokens = CSLTokenizeString2( pszLine, szDelimiter,  nFlags );
             nFieldCount = CSLCount( papszTokens );
+        }
+
+        if ( papszFieldTypes == NULL )
+        {
+            /* detect field type from second line of the file */
+            char **papszTmpTokens = NULL;
+            int nFieldCount=0, iField;
+            CPLValueType eFieldType;
+
+            pszLine = CPLReadLineL( fpCSV );
+            if ( pszLine != NULL )
+            {
+                 
+                /* Detect and remove UTF-8 BOM marker if found (#4623) */
+                if (pszLine[0] == (char)0xEF &&
+                    pszLine[1] == (char)0xBB &&
+                    pszLine[2] == (char)0xBF)
+                {
+                    pszLine += 3;
+                }
+
+                /* tokenize the strings and preserve quotes, so we can separate string from numeric */
+                /* this is only used in the test for bHasFeldNames (bug #4361) */
+                papszTmpTokens = CSLTokenizeString2( pszLine, szDelimiter, 
+                                                  (CSLT_HONOURSTRINGS |
+                                                   CSLT_ALLOWEMPTYTOKENS ) );
+                nFieldCount = CSLCount( papszTmpTokens );
+
+                /* initialize papszFieldTypes */
+                papszFieldTypes = (char **)CPLMalloc((nFieldCount+1)*sizeof(char*));
+                char** papszTmp = papszFieldTypes;
+
+                for( iField = 0; iField < nFieldCount; iField++ )
+                {
+                    eFieldType = CPLGetValueType(papszTmpTokens[iField]);
+                    if ( eFieldType == CPL_VALUE_INTEGER )
+                    {
+                        *papszTmp = CPLStrdup("Integer");
+                    } 
+                    else if ( eFieldType == CPL_VALUE_REAL)  
+                    {
+                        *papszTmp = CPLStrdup("Real");
+                    }
+                    else
+                        *papszTmp = CPLStrdup("String");
+                    papszTmp++;
+                }
+                *papszTmp = NULL;
+                /* tokenize without quotes to get the actual values */
+                CSLDestroy( papszTmpTokens );
+            }
         }
     }
     else
@@ -428,23 +499,6 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
         }
     }
 
-
-/* -------------------------------------------------------------------- */
-/*      Search a csvt file for types                                */
-/* -------------------------------------------------------------------- */
-    char** papszFieldTypes = NULL;
-    if (!bNew) {
-        char* dname = CPLStrdup(CPLGetDirname(pszFilename));
-        char* fname = CPLStrdup(CPLGetBasename(pszFilename));
-        VSILFILE* fpCSVT = VSIFOpenL(CPLFormFilename(dname, fname, ".csvt"), "r");
-        CPLFree(dname);
-        CPLFree(fname);
-        if (fpCSVT!=NULL) {
-            VSIRewindL(fpCSVT);
-            papszFieldTypes = OGRCSVReadParseLineL(fpCSVT, ',', FALSE,FALSE);
-            VSIFCloseL(fpCSVT);
-        }
-    }
 
 /* -------------------------------------------------------------------- */
 /*      Optionaly auto-detect types                                     */
@@ -1126,6 +1180,11 @@ OGRFeature * OGRCSVLayer::GetNextUnfilteredFeature()
     poFeature = new OGRFeature( poFeatureDefn );
 
 /* -------------------------------------------------------------------- */
+/*      Get user specified decimal_point.                               */
+/* -------------------------------------------------------------------- */
+    const char* decimal_point = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", ".");
+
+/* -------------------------------------------------------------------- */
 /*      Set attributes for any indicated attribute records.             */
 /* -------------------------------------------------------------------- */
     int         iAttr;
@@ -1190,9 +1249,35 @@ OGRFeature * OGRCSVLayer::GetNextUnfilteredFeature()
                         *chComma = '.';
                 }
                 eType = CPLGetValueType(papszTokens[iAttr]);
-                if ( eType == CPL_VALUE_INTEGER || eType == CPL_VALUE_REAL )
+                if ( eType == CPL_VALUE_INTEGER || eType == CPL_VALUE_REAL ||
+                     eType == CPL_VALUE_STRING)
                 {
-                    poFeature->SetField( iOGRField, papszTokens[iAttr] );
+                    //poFeature->SetField( iOGRField, papszTokens[iAttr] );
+			// Get number of decimals
+			int has_decimal = 0;
+			int len = 0;
+			int len_integers = 0;
+			int len_decimals = 0;
+			char* p1 = papszTokens[iAttr];
+			while (*p1) 
+			{
+			    if (*p1 == decimal_point[0]) has_decimal = 1;
+			    if (has_decimal == 0) len_integers += 1;
+			    p1 += 1;
+			    len += 1;
+			}
+			len_decimals = len - len_integers - 1; 
+			if ( len_decimals > poFeatureDefn->GetFieldDefn(iAttr)->GetPrecision() ) 
+			{
+			    poFeatureDefn->GetFieldDefn(iAttr)->SetPrecision(len_decimals);
+			}
+			if ( len > poFeatureDefn->GetFieldDefn(iAttr)->GetWidth() ) 
+			{
+			    poFeatureDefn->GetFieldDefn(iAttr)->SetWidth(len);
+			}
+
+                    poFeature->SetField( iOGRField, CPLAtofLocale(papszTokens[iAttr]) );
+
                     if( !bWarningBadTypeOrWidth &&
                         (eFieldType == OFTInteger || eFieldType == OFTInteger64) && eType == CPL_VALUE_REAL )
                     {
@@ -1897,7 +1982,33 @@ OGRErr OGRCSVLayer::ICreateFeature( OGRFeature *poNewFeature )
         }
         else if (poFeatureDefn->GetFieldDefn(iField)->GetType() == OFTReal)
         {
-            pszEscaped = CPLStrdup(poNewFeature->GetFieldAsString(iField));
+            /* Use user setup number locale */
+            const char* field_string =  poNewFeature->GetFieldAsString(iField);
+            const char* decimal_point = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", ".");
+            if ( decimal_point[0] != '.' ) 
+            {
+                int field_len = strlen(field_string)+1; 
+                if ( decimal_point[0] == ',' )
+                    field_len += 2; // add double quotes
+                pszEscaped = (char*) CPLMalloc(field_len);
+
+                if ( decimal_point[0] == ',' )
+                {
+                    pszEscaped[0] = '"';
+                    strcpy( pszEscaped+1, field_string );
+                    pszEscaped[field_len-2] = '"';
+                    pszEscaped[field_len-1] = '\0';
+                } else 
+                {
+                    strcpy( pszEscaped, field_string );
+                }
+
+                char* pszCDecimalPoint = strchr(pszEscaped, '.');
+                if (pszCDecimalPoint)
+                    *pszCDecimalPoint = decimal_point[0];
+            } else {
+                pszEscaped = CPLStrdup(poNewFeature->GetFieldAsString(iField));
+            }
         }
         else
         {

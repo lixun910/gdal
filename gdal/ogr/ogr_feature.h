@@ -272,9 +272,12 @@ class CPL_DLL OGRFeature
     OGRField            *pauFields;
 
   protected: 
+    long                nFields;
     char *              m_pszStyleString;
     OGRStyleTable       *m_poStyleTable;
     char *              m_pszTmpFieldValue;
+    
+    void                UpdateFields();
     
   public:
                         OGRFeature( OGRFeatureDefn * );
@@ -312,6 +315,8 @@ class CPL_DLL OGRFeature
     int                 IsFieldSet( int iField );
     
     void                UnsetField( int iField );
+    
+    OGRErr              DeleteField( int iField );  
     
     OGRField           *GetRawFieldRef( int i ) { return pauFields + i; }
 

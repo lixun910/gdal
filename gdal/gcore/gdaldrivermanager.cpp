@@ -116,7 +116,7 @@ GDALDriverManager::GDALDriverManager()
 /*      other mechanisms such as environment variables will have        */
 /*      been employed.                                                  */
 /* -------------------------------------------------------------------- */
-    if( CPLGetConfigOption( "GDAL_DATA", NULL ) != NULL )
+    if( CPLGetConfigOption( "GEODA_GDAL_DATA", NULL ) != NULL )
     {
         // this one is picked up automatically by finder initialization.
     }
