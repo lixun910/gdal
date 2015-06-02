@@ -137,7 +137,7 @@ OGRPGTableLayer::OGRPGTableLayer( OGRPGDataSource *poDSIn,
 
     bGeometryInformationSet = FALSE;
 
-    bLaunderColumnNames = TRUE;
+    bLaunderColumnNames = FALSE;
     bPreservePrecision = TRUE;
     bCopyActive = FALSE;
     bUseCopy = USE_COPY_UNSET;  // unknown

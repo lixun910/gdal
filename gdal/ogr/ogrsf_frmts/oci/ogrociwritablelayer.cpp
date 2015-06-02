@@ -362,6 +362,43 @@ OGRErr OGROCIWritableLayer::CreateField( OGRFieldDefn *poFieldIn, int bApproxOK 
 }
 
 /************************************************************************/
+/*                            DeleteField()                             */
+/************************************************************************/
+OGRErr OGROCIWritableLayer::DeleteField( int iFieldToDelete )
+{
+    // XXX
+    if (iFieldToDelete < 0 || iFieldToDelete >= poFeatureDefn->GetFieldCount())
+    {
+        CPLError( CE_Failure, CPLE_NotSupported,
+                  "Invalid field index");
+        return OGRERR_FAILURE;
+    }
+        
+    ResetReading();
+
+    const char* pszFieldName = poFeatureDefn->GetFieldDefn(iFieldToDelete)->GetNameRef();
+
+/* -------------------------------------------------------------------- */
+/*      Delete selected field.                                          */
+/* -------------------------------------------------------------------- */
+    OGROCISession  *poSession = poDS->GetSession();
+    OGROCIStringBuf     oCommand;
+    OGROCIStatement     oDelField( poSession );
+
+    oCommand.MakeRoomFor( 40 + strlen(poFeatureDefn->GetName())
+                          + strlen(pszFieldName) );
+    sprintf( oCommand.GetString(), "ALTER TABLE %s DROP COLUMN \"%s\"",
+             poFeatureDefn->GetName(), pszFieldName);
+    if( oDelField.Execute( oCommand.GetString() ) != CE_None )
+        return OGRERR_FAILURE;
+
+    poFeatureDefn->DeleteFieldDefn( iFieldToDelete );
+
+    return OGRERR_NONE;
+}
+
+
+/************************************************************************/
 /*                            SetDimension()                            */
 /************************************************************************/
 

@@ -110,7 +110,8 @@ OGROCITableLayer::~OGROCITableLayer()
 {
     int   i;
 
-    SyncToDisk();
+    //XXX for performance issue, we don't want to write back to database by default
+    //SyncToDisk();
 
     CPLFree( panWriteFIDs );
     if( papWriteFields != NULL )
@@ -823,11 +824,85 @@ OGRErr OGROCITableLayer::ISetFeature( OGRFeature *poFeature )
         return OGRERR_FAILURE;
     }
 
-    OGRErr eErr = DeleteFeature(poFeature->GetFID());
-    if( eErr != OGRERR_NONE )
-        return eErr;
+    //OGRErr eErr = DeleteFeature(poFeature->GetFID());
+    //if( eErr != OGRERR_NONE )
+    //    return eErr;
 
-    return CreateFeature( poFeature );
+    //return CreateFeature( poFeature );
+    
+    //XXX for future only update certain fields
+    int i, bNeedUpdate = FALSE;
+    
+    OGROCISession      *poSession = poDS->GetSession();
+    char                *pszCommand;
+    OGROCIStatement     oCmdStatement( poDS->GetSession() );
+    unsigned int        nCommandBufSize;
+
+    nCommandBufSize = 10000;
+    pszCommand = (char *) CPLMalloc(nCommandBufSize);
+   
+    sprintf( pszCommand, "UPDATE %s SET ", poFeatureDefn->GetName() );
+    int nOffset = strlen(pszCommand);
+    
+    for ( i=0 ; i < poFeature->GetFieldCount(); ++i )
+    {
+        OGRFieldDefn *poFldDefn = poFeature->GetFieldDefnRef(i);
+        const char *pszStrValue = poFeature->GetFieldAsString(i);
+        if( poFldDefn->GetType() == OFTInteger
+            || poFldDefn->GetType() == OFTReal )
+        {
+            if ( pszStrValue[0] != '\0' )
+            {
+                sprintf( pszCommand+nOffset, "%s=", poFldDefn->GetNameRef());
+                nOffset += strlen(pszCommand+nOffset);
+                
+                sprintf( pszCommand+nOffset, "%s," , pszStrValue );
+                nOffset += strlen(pszCommand+nOffset);
+            }
+        }
+        else 
+        {
+            int         iChar;
+
+            sprintf( pszCommand+nOffset, "%s='", poFldDefn->GetNameRef() );
+            nOffset += strlen(pszCommand+nOffset);
+                
+            for( iChar = 0; pszStrValue[iChar] != '\0'; iChar++ )
+            {
+                if( pszStrValue[iChar] == '\'' )
+                {
+                    pszCommand[nOffset++] = '\'';
+                    pszCommand[nOffset++] = pszStrValue[iChar];
+                }
+                else
+                    pszCommand[nOffset++] = pszStrValue[iChar];
+            }
+            pszCommand[nOffset] = '\0';
+            strcat( pszCommand+nOffset, "'," );
+        }
+        
+        nOffset += strlen(pszCommand+nOffset);
+    }
+    
+    pszCommand[ strlen(pszCommand) - 1 ] = 0; 
+    --nOffset;
+    
+    sprintf( pszCommand+nOffset, " WHERE \"%s\" = %d", pszFIDName, poFeature->GetFID() );
+   
+    if ( oCmdStatement.Execute( pszCommand ) == CE_None )
+    {
+        //for ( i=0 ; i < poFeature->GetFieldCount(); ++i )
+        //{
+        //    if ( poFeature->IsFieldUpdate(i) )
+        //        poFeature->ResetFieldUpdate(i);
+        //}
+        CPLFree( pszCommand );
+        return OGRERR_NONE;
+    }
+     
+    CPLFree( pszCommand );
+    return OGRERR_FAILURE;
+        
 }
 
 /************************************************************************/
@@ -1310,33 +1385,11 @@ OGRErr OGROCITableLayer::GetExtent(OGREnvelope *psExtent, int bForce)
     CPLAssert( NULL != pszGeomName );
 
     OGROCIStringBuf oCommand;
-    oCommand.Appendf( 1000, "SELECT "
-                      "MIN(SDO_GEOM.SDO_MIN_MBR_ORDINATE(t.%s,m.DIMINFO,1)) AS MINX,"
-                      "MIN(SDO_GEOM.SDO_MIN_MBR_ORDINATE(t.%s,m.DIMINFO,2)) AS MINY,"
-                      "MAX(SDO_GEOM.SDO_MAX_MBR_ORDINATE(t.%s,m.DIMINFO,1)) AS MAXX,"
-                      "MAX(SDO_GEOM.SDO_MAX_MBR_ORDINATE(t.%s,m.DIMINFO,2)) AS MAXY "
-                      "FROM ALL_SDO_GEOM_METADATA m, ",
-                      pszGeomName, pszGeomName, pszGeomName, pszGeomName );
-
-    if( osOwner != "" )
-    {
-        oCommand.Appendf( 500, " %s.%s t ",
-                          osOwner.c_str(), osTableName.c_str() );
-    }
-    else
-    {
-        oCommand.Appendf( 500, " %s t ",
-                          osTableName.c_str() );
-    }
-
-    oCommand.Appendf( 500, "WHERE m.TABLE_NAME = UPPER('%s') AND m.COLUMN_NAME = UPPER('%s')",
-                      osTableName.c_str(), pszGeomName );
-
-    if( osOwner != "" )
-    {
-        oCommand.Appendf( 500, " AND OWNER = UPPER('%s')", osOwner.c_str() );
-    }
-
+    oCommand.Appendf( 1000, "SELECT t.X, t.Y FROM"
+                      "(SELECT SDO_TUNE.EXTENT_OF('%s','%s') AS GEOM FROM DUAL) m,"
+                      "TABLE(SDO_UTIL.GETVERTICES(m.GEOM)) t",
+                      osTableName.c_str(), pszGeomName);
+                      
 /* -------------------------------------------------------------------- */
 /*      Execute query command.                                          */
 /* -------------------------------------------------------------------- */
@@ -1347,17 +1400,26 @@ OGRErr OGROCITableLayer::GetExtent(OGREnvelope *psExtent, int bForce)
     
     if( oGetExtent.Execute( oCommand.GetString() ) == CE_None )
     {
+        // As querying the bounding box, the results return 2 rows
+        // First row is the (MINX, MINY)
+        // Second row is the (MAXX, MAXY) 
+        
         char **papszRow = oGetExtent.SimpleFetchRow();
 
         if( papszRow != NULL
-            && papszRow[0] != NULL && papszRow[1] != NULL
-            && papszRow[2] != NULL && papszRow[3] != NULL )
+            && papszRow[0] != NULL && papszRow[1] != NULL )
         {
             psExtent->MinX = CPLAtof(papszRow[0]);
             psExtent->MinY = CPLAtof(papszRow[1]);
-            psExtent->MaxX = CPLAtof(papszRow[2]);
-            psExtent->MaxY = CPLAtof(papszRow[3]);
-
+            err = OGRERR_NONE;
+        }
+        
+        papszRow = oGetExtent.SimpleFetchRow();
+        if( papszRow != NULL
+            && papszRow[0] != NULL && papszRow[1] != NULL )
+        {
+            psExtent->MaxX = CPLAtof(papszRow[0]);
+            psExtent->MaxY = CPLAtof(papszRow[1]);
             err = OGRERR_NONE;
         }
     }

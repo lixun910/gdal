@@ -1090,8 +1090,8 @@ const char * GDALDefaultCSVFilename( const char *pszBasename )
         if( CPLGetConfigOption("GEOTIFF_CSV",NULL) != NULL )
             CPLPushFinderLocation( CPLGetConfigOption("GEOTIFF_CSV",NULL));
 
-        if( CPLGetConfigOption("GDAL_DATA",NULL) != NULL )
-            CPLPushFinderLocation( CPLGetConfigOption("GDAL_DATA",NULL) );
+        if( CPLGetConfigOption("GEODA_GDAL_DATA",NULL) != NULL )
+            CPLPushFinderLocation( CPLGetConfigOption("GEODA_GDAL_DATA",NULL) );
 
         pszResult = CPLFindFile( "epsg_csv", pszBasename );
 

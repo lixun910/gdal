@@ -2,7 +2,6 @@
 
 include ../../../GDALmake.opt
 LNK_FLAGS += -arch x86_64
-FGDB_HOME = /Users/xun/Downloads/FileGDB_API
 FGDB_INC = -I$(FGDB_HOME)/include
 EXTRA_LIBS += -L$(FGDB_HOME)/lib -lfgdbunixrtl -lFileGDBAPI
 
@@ -10,7 +9,7 @@ OBJ	=	FGdbDatasource.o FGdbDriver.o FGdbLayer.o FGdbUtils.o FGdbResultLayer.o
 
 PLUGIN_SO   =   ogr_FileGDB.so
 
-CPPFLAGS	:=	-I../generic  $(FGDB_INC) $(CPPFLAGS)
+CPPFLAGS	:=	-I../generic  $(GDAL_INCLUDE) $(FGDB_INC) $(CPPFLAGS)
 
 default:	$(O_OBJ:.o=.$(OBJ_EXT))
 

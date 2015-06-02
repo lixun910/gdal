@@ -82,6 +82,7 @@ const char CPL_DLL *CPLReadLine2L( VSILFILE * , int nMaxCols, char** papszOption
 /*      (THESE FUNCTIONS ARE NOT LOCALE AWARE!).                        */
 /* -------------------------------------------------------------------- */
 double CPL_DLL CPLAtof(const char *);
+double CPL_DLL CPLAtofLocale(const char *);
 double CPL_DLL CPLAtofDelim(const char *, char);
 double CPL_DLL CPLStrtod(const char *, char **);
 double CPL_DLL CPLStrtodDelim(const char *, char **, char);

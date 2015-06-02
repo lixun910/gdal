@@ -213,7 +213,8 @@ int OGROCIDataSource::Open( const char * pszNewName,
         OGROCIStatement oGetTables( poSession );
 
         if( oGetTables.Execute( 
-            "SELECT TABLE_NAME, OWNER FROM ALL_SDO_GEOM_METADATA" ) 
+            //"SELECT TABLE_NAME, OWNER FROM ALL_SDO_GEOM_METADATA" ) 
+            "SELECT TABLE_NAME FROM USER_TABLES WHERE TABLE_NAME NOT LIKE '%$%'" )
             == CE_None )
         {
             char **papszRow;
@@ -222,11 +223,11 @@ int OGROCIDataSource::Open( const char * pszNewName,
             {
                 char szFullTableName[100];
 
-                if( EQUAL(papszRow[1],pszUserid) )
+                //if( EQUAL(papszRow[1],pszUserid) )
                     strcpy( szFullTableName, papszRow[0] );
-                else
-                    sprintf( szFullTableName, "%s.%s", 
-                             papszRow[1], papszRow[0] );
+                //else
+                //    sprintf( szFullTableName, "%s.%s", 
+                //             papszRow[1], papszRow[0] );
 
                 if( CSLFindString( papszTableList, szFullTableName ) == -1 )
                     papszTableList = CSLAddString( papszTableList, 

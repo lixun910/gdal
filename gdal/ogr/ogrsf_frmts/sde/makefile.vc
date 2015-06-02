@@ -5,6 +5,8 @@ PLUGIN_DLL = ogr_SDE.dll
 
 GDAL_ROOT	=	..\..\..
 
+GDALIB = $(GDAL_ROOT)\gdal_i.lib
+
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
 default:	$(OBJ)
