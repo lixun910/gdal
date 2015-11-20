@@ -58,9 +58,9 @@
 #define POSTGIS15_MULTISURFACE  15  /* instead of 12 */
 
 /* Has been deprecated. Can only be used in very specific circumstances */
-#ifdef GDAL_COMPILATION
+//#ifdef GDAL_COMPILATION
 #define wkb25DBitInternalUse 0x80000000
-#endif
+//#endif
 
 /* -------------------------------------------------------------------- */
 /*      helper function for parsing well known text format vector objects.*/
