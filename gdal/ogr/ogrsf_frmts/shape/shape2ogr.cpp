@@ -932,7 +932,7 @@ OGRFeatureDefn *SHPReadOGRFeatureDefn( const char * pszName,
                 oField.SetType( OFTReal );
         }
         else if( eDBFType == FTInteger )
-            oField.SetType( OFTInteger );
+            oField.SetType( OFTInteger64 );
         else
             oField.SetType( OFTString );
 
