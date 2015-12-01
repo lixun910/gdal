@@ -414,7 +414,12 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
                     eFieldType = CPLGetValueType(papszTmpTokens[iField]);
                     if ( eFieldType == CPL_VALUE_INTEGER )
                     {
-                        *papszTmp = CPLStrdup("Integer");
+                        *papszTmp = CPLStrdup("Integer64");
+                        //GIntBig nVal = CPLAtoGIntBig(papszTmpTokens[iField]);
+                    	//if( (GIntBig)(int)nVal != nVal )
+                        //    *papszTmp = CPLStrdup("Integer64");
+                    	//else
+                        //    *papszTmp = CPLStrdup("Integer");
                     } 
                     else if ( eFieldType == CPL_VALUE_REAL)  
                     {
