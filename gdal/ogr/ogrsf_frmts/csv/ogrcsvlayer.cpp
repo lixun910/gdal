@@ -566,9 +566,6 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
 
 
 /* -------------------------------------------------------------------- */
-<<<<<<< HEAD
-/*      Optionaly auto-detect types                                     */
-=======
 /*      Search a csvt file for types                                    */
 /* -------------------------------------------------------------------- */
     char** papszFieldTypes = NULL;
@@ -587,7 +584,6 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
 
 /* -------------------------------------------------------------------- */
 /*      Optionally auto-detect types                                    */
->>>>>>> OSGeo/trunk
 /* -------------------------------------------------------------------- */
     if( !bNew && papszFieldTypes == NULL &&
         CSLTestBoolean(CSLFetchNameValueDef(papszOpenOptions,

@@ -72,12 +72,8 @@ OGRFeature::OGRFeature( OGRFeatureDefn * poDefnIn ) :
     nFields = poDefn->GetFieldCount();
 
     // Allocate array of fields and initialize them to the unset special value
-<<<<<<< HEAD
-    pauFields = (OGRField *) CPLCalloc( nFields, sizeof(OGRField) );
-=======
     pauFields = (OGRField *) VSI_MALLOC_VERBOSE( poDefn->GetFieldCount() *
                                         sizeof(OGRField) );
->>>>>>> OSGeo/trunk
 
     papoGeometries = (OGRGeometry **) VSI_CALLOC_VERBOSE( poDefn->GetGeomFieldCount(),
                                         sizeof(OGRGeometry*) );
@@ -3008,12 +3004,8 @@ void OGR_F_SetFieldInteger64( OGRFeatureH hFeat, int iField, GIntBig nValue )
 void OGRFeature::SetField( int iField, double dfValue )
 
 {
-<<<<<<< HEAD
     UpdateFields();
-    OGRFieldDefn        *poFDefn = poDefn->GetFieldDefn( iField );
-=======
     OGRFieldDefn *poFDefn = poDefn->GetFieldDefn( iField );
->>>>>>> OSGeo/trunk
 
     if( poFDefn == NULL )
         return;
@@ -3998,15 +3990,12 @@ void OGR_F_SetFieldDateTimeEx( OGRFeatureH hFeat, int iField,
 void OGRFeature::SetField( int iField, OGRField * puValue )
 
 {
-<<<<<<< HEAD
     UpdateFields();
     OGRFieldDefn        *poFDefn = poDefn->GetFieldDefn( iField );
-=======
-    SetFieldInternal( iField, puValue );
+    //SetFieldInternal( iField, puValue );
 }
 
 bool OGRFeature::SetFieldInternal( int iField, OGRField * puValue )
->>>>>>> OSGeo/trunk
 
 {
     OGRFieldDefn        *poFDefn = poDefn->GetFieldDefn( iField );

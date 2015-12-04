@@ -2427,23 +2427,18 @@ CPLValueType CPLGetValueType(const char* pszValue)
                  "XXeYYYYYYYYYYYYYYYYYYY" that evaluates to infinity
     */
 
-<<<<<<< HEAD
     int bFoundDot = FALSE;
     int bFoundExponent = FALSE;
     int bIsLastCharExponent = FALSE;
     int bIsReal = FALSE;
 
-    //if (pszValue == NULL)
-    //    return CPL_VALUE_STRING;
     // locale member
     const char* separator = CPLGetConfigOption("GDAL_LOCALE_SEPARATOR", "");
     const char* decimal = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", ".");
     int separator_len = strlen(separator);
     int decimal_len = strlen(decimal);
-=======
     if (pszValue == NULL)
         return CPL_VALUE_STRING;
->>>>>>> OSGeo/trunk
 
     const char* pszValueInit = pszValue;
 

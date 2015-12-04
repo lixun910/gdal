@@ -38,13 +38,10 @@
 #pragma warning( disable : 4201 ) /* nonstandard extension used : nameless struct/union */
 #endif
 #include <my_sys.h>
-<<<<<<< HEAD
 #include <my_default.h>
-=======
 #ifdef _MSC_VER
 #pragma warning( pop ) 
 #endif
->>>>>>> OSGeo/trunk
 
 #include "cpl_conv.h"
 #include "cpl_string.h"
