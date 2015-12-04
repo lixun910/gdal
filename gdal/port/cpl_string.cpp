@@ -2427,11 +2427,6 @@ CPLValueType CPLGetValueType(const char* pszValue)
                  "XXeYYYYYYYYYYYYYYYYYYY" that evaluates to infinity
     */
 
-    int bFoundDot = FALSE;
-    int bFoundExponent = FALSE;
-    int bIsLastCharExponent = FALSE;
-    int bIsReal = FALSE;
-
     // locale member
     const char* separator = CPLGetConfigOption("GDAL_LOCALE_SEPARATOR", "");
     const char* decimal = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", ".");
