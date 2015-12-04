@@ -78,6 +78,7 @@ public:
     // virtual methods for the no data value
     double GetNoDataValue(int *pbSuccess=NULL);
     CPLErr SetNoDataValue(double dfNoData);
+    virtual CPLErr DeleteNoDataValue();
 
     // virtual methods for RATs
     GDALRasterAttributeTable *GetDefaultRAT();
@@ -91,7 +92,7 @@ public:
     GDALColorInterp GetColorInterpretation();
     CPLErr SetColorInterpretation(GDALColorInterp gdalinterp);
 
-    // virtual mthods for band masks
+    // Virtual methods for band masks.
     CPLErr CreateMaskBand(int nFlags);
     GDALRasterBand* GetMaskBand();
     int GetMaskFlags();

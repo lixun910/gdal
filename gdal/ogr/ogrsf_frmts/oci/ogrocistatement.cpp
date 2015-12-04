@@ -2,8 +2,8 @@
  * $Id$
  *
  * Project:  Oracle Spatial Driver
- * Purpose:  Implementation of OGROCIStatement, which encapsulates the 
- *           preparation, executation and fetching from an SQL statement.
+ * Purpose:  Implementation of OGROCIStatement, which encapsulates the
+ *           preparation, execution and fetching from an SQL statement.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
@@ -150,7 +150,7 @@ CPLErr OGROCIStatement::Prepare( const char *pszSQLStatement )
 /* -------------------------------------------------------------------- */
     if( poSession->Failed(
         OCIStmtPrepare( hStatement, poSession->hError, 
-                        (text *) pszSQLStatement, strlen(pszSQLStatement),
+                        (text *) pszSQLStatement, static_cast<unsigned int>(strlen(pszSQLStatement)),
                         (ub4)OCI_NTV_SYNTAX, (ub4)OCI_DEFAULT ),
         "OCIStmtPrepare" ) )
         return CE_Failure;
@@ -287,8 +287,8 @@ CPLErr OGROCIStatement::Execute( const char *pszSQLStatement,
 /* -------------------------------------------------------------------- */
 /*      Count the columns.                                              */
 /* -------------------------------------------------------------------- */
-    for( nRawColumnCount = 0; TRUE; nRawColumnCount++ )
-    {                                                           
+    for( nRawColumnCount = 0; true; nRawColumnCount++ )
+    {
         OCIParam     *hParmDesc;
 
         if( OCIParamGet( hStatement, OCI_HTYPE_STMT, poSession->hError, 

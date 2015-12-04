@@ -328,7 +328,7 @@ int OGRSDELayer::NeedLayerInfo()
 /*      Fetch coordinate reference system.                              */
 /* -------------------------------------------------------------------- */
     SE_coordref_create( &hCoordRef );
-    
+
     nSDEErr = SE_layerinfo_get_coordref( hLayerInfo, hCoordRef );
     if( nSDEErr != SE_SUCCESS )
     {
@@ -349,10 +349,10 @@ int OGRSDELayer::NeedLayerInfo()
             poSRS->morphFromESRI();
         }
 
-	LFLOAT falsex, falsey, xyunits;
-	nSDEErr = SE_coordref_get_xy( hCoordRef, &falsex, &falsey, &xyunits );
-	CPLDebug( "SDE", "SE_coordref_get_xy(%s) = %g/%g/%g",
-		  pszDbTableName, falsex, falsey, xyunits );
+        LFLOAT falsex, falsey, xyunits;
+        nSDEErr = SE_coordref_get_xy( hCoordRef, &falsex, &falsey, &xyunits );
+        CPLDebug( "SDE", "SE_coordref_get_xy(%s) = %g/%g/%g",
+                  pszDbTableName, falsex, falsey, xyunits );
     }
 
     return TRUE;
@@ -369,7 +369,7 @@ OGRwkbGeometryType OGRSDELayer::DiscoverLayerType()
 
     int nSDEErr;
     LONG nShapeTypeMask = 0;
-  
+
 /* -------------------------------------------------------------------- */
 /*      Check layerinfo flags to establish what geometry types may      */
 /*      occur.                                                          */
@@ -1596,21 +1596,21 @@ OGRGeometry *OGRSDELayer::TranslateSDEGeometry( SE_SHAPE hShape )
 	  int iPart;
 
           CPLAssert( nPartCount == nSubPartCount );
-              
+
           for( iPart = 0; iPart < nPartCount; iPart++ )
           {
               OGRLineString *poLine = new OGRLineString();
               int i, nLineVertCount;
 
-              CPLAssert( panParts[iPart] == iPart ); // 1:1 correspondance
-          
+              CPLAssert( panParts[iPart] == iPart ); // 1:1 correspondence
+
               if( iPart == nPartCount-1 )
                   nLineVertCount = nPointCount - panSubParts[iPart];
               else
                   nLineVertCount = panSubParts[iPart+1] - panSubParts[iPart];
 
               poLine->setNumPoints( nLineVertCount );
-              
+
               for( i = 0; i < nLineVertCount; i++ )
               {
                   int iVert = i + panSubParts[iPart];
@@ -2025,7 +2025,7 @@ OGRFeature *OGRSDELayer::GetNextFeature()
 /* -------------------------------------------------------------------- */
 /*      Fetch the next record.                                          */
 /* -------------------------------------------------------------------- */
-    while( TRUE )
+    while( true )
     {
         nSDEErr = SE_stream_fetch( hStream );
         if( nSDEErr == SE_FINISHED )

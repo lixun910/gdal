@@ -69,11 +69,8 @@ class gml_geom_unit:
             gdaltest.post_reason( 'WKT from GML (%s) does not match clean WKT (%s).\ngml was (%s)' % (gml_wkt, clean_wkt, gml) )
             return 'fail'
 
-        geom_wkt.Destroy()
-        geom_gml.Destroy()
-
         return 'success'
-        
+
 ###############################################################################
 # Test geometries with extra spaces at the end, as sometimes are generated
 # by ESRI WFS software.
@@ -85,8 +82,6 @@ def gml_space_test():
        or geom.GetPointCount() != 8:
         gdaltest.post_reason( 'GML not correctly parsed' )
         return 'fail'
-
-    geom.Destroy()
 
     return 'success'
 
@@ -185,7 +180,7 @@ def gml_posList_line3d_2():
         return 'fail'
 
     return 'success'
-    
+
 ###############################################################################
 # Test GML 3.x "polygon" element for a point.
 
@@ -201,7 +196,7 @@ def gml_polygon():
     return 'success'
 
 ###############################################################################
-# Private utility function to conver WKT to GML with assigned WGS 84 as SRS
+# Private utility function to convert WKT to GML with assigned WGS 84 as SRS.
 
 def _CreateGMLWithSRSFromWkt(wkt, epsg):
 
@@ -2042,6 +2037,33 @@ def gml_OGRMultiCurve():
 
     return 'success'
 
+###############################################################################
+# Test write support for GML namespace declaration
+
+def gml_write_gml_ns():
+
+    geom = ogr.CreateGeometryFromWkt('POINT(500000 4500000)')
+    gml = geom.ExportToGML( options = ['NAMESPACE_DECL=YES'] )
+    expected_gml = '<gml:Point xmlns:gml="http://www.opengis.net/gml"><gml:coordinates>500000,4500000</gml:coordinates></gml:Point>'
+    if gml != expected_gml:
+        gdaltest.post_reason('got %s, instead of %s' % (gml, expected_gml))
+        return 'fail'
+
+    geom = ogr.CreateGeometryFromWkt('POINT(500000 4500000)')
+    gml = geom.ExportToGML( options = ['FORMAT=GML3', 'NAMESPACE_DECL=YES'] )
+    expected_gml = '<gml:Point xmlns:gml="http://www.opengis.net/gml"><gml:pos>500000 4500000</gml:pos></gml:Point>'
+    if gml != expected_gml:
+        gdaltest.post_reason('got %s, instead of %s' % (gml, expected_gml))
+        return 'fail'
+
+    geom = ogr.CreateGeometryFromWkt('POINT(500000 4500000)')
+    gml = geom.ExportToGML( options = ['FORMAT=GML32', 'GMLID=foo', 'NAMESPACE_DECL=YES'] )
+    expected_gml = '<gml:Point xmlns:gml="http://www.opengis.net/gml/3.2" gml:id="foo"><gml:pos>500000 4500000</gml:pos></gml:Point>'
+    if gml != expected_gml:
+        gdaltest.post_reason('got %s, instead of %s' % (gml, expected_gml))
+        return 'fail'
+
+    return 'success'
 
 ###############################################################################
 # When imported build a list of units based on the files available.
@@ -2114,6 +2136,7 @@ gdaltest_list.append( gml_OGRCompoundCurve )
 gdaltest_list.append( gml_OGRCurvePolygon )
 gdaltest_list.append( gml_OGRMultiSurface )
 gdaltest_list.append( gml_OGRMultiCurve )
+gdaltest_list.append( gml_write_gml_ns )
 
 if __name__ == '__main__':
 
@@ -2122,4 +2145,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

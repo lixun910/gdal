@@ -1340,8 +1340,8 @@ OGRSpatialReference* TABFile::GetSpatialRefFromTABProj(const TABProjInfo& sTABPr
     }
     else if( strlen(psDatumInfo->pszOGCDatumName) > 0 )
     {
-        strncpy( szDatumName, psDatumInfo->pszOGCDatumName,
-                 sizeof(szDatumName) );
+        CPLStrlcpy( szDatumName, psDatumInfo->pszOGCDatumName,
+                    sizeof(szDatumName) );
 
         /* For LCC, standard parallel 1 and 2 can be switched indifferently */
         /* So the MapInfo order and the EPSG order are not generally identical */
@@ -1689,7 +1689,7 @@ int TABFile::GetTABProjFromSpatialRef(const OGRSpatialReference* poSpatialRef,
         nParmCount = 3;
 
         if( ABS((ABS(parms[1]) - 90)) > 0.001 )
-            sTABProj.nProjId = 28;
+            sTABProj.nProjId = 29;
     }
 
     else if( EQUAL(pszProjection,SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP) )
@@ -1919,7 +1919,7 @@ int TABFile::GetTABProjFromSpatialRef(const OGRSpatialReference* poSpatialRef,
      * We know the MIF datum number, and need to look it up to
      * translate into datum parameters.
      *----------------------------------------------------------------*/
-    else if( EQUALN(pszWKTDatum,"MIF ",4)
+    else if( STARTS_WITH_CI(pszWKTDatum, "MIF ")
              && atoi(pszWKTDatum+4) != 999
              && atoi(pszWKTDatum+4) != 9999 )
     {
@@ -1946,12 +1946,12 @@ int TABFile::GetTABProjFromSpatialRef(const OGRSpatialReference* poSpatialRef,
     /*-----------------------------------------------------------------
      * We have the MIF datum parameters, and apply those directly.
      *----------------------------------------------------------------*/
-    else if( EQUALN(pszWKTDatum,"MIF ",4)
+    else if( STARTS_WITH_CI(pszWKTDatum, "MIF ")
              && (atoi(pszWKTDatum+4) == 999 || atoi(pszWKTDatum+4) == 9999) )
     {
         char **papszFields;
 
-        sTABProj.nDatumId = atoi(pszWKTDatum+4);
+        sTABProj.nDatumId = static_cast<GInt16>(atoi(pszWKTDatum+4));
         papszFields =
             CSLTokenizeStringComplex( pszWKTDatum+4, ",", FALSE, TRUE);
 
@@ -2055,6 +2055,19 @@ int TABFile::GetTABProjFromSpatialRef(const OGRSpatialReference* poSpatialRef,
                 }
             }
         }
+    }
+
+    // Google Merc
+    if( (poSpatialRef->GetAuthorityName(NULL) != NULL &&
+        EQUAL(poSpatialRef->GetAuthorityName(NULL), "EPSG") &&
+        poSpatialRef->GetAuthorityCode(NULL) != NULL &&
+        atoi(poSpatialRef->GetAuthorityCode(NULL)) == 3857) ||
+        (poSpatialRef->GetExtension(NULL, "PROJ4") != NULL &&
+         EQUAL(poSpatialRef->GetExtension(NULL, "PROJ4"),
+               "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs")) )
+    {
+        sTABProj.nDatumId = 157;
+        sTABProj.nEllipsoidId = 54;
     }
     
     /*-----------------------------------------------------------------

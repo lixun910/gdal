@@ -20,10 +20,10 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -41,7 +41,8 @@
  * Fixed crash when trying to get the same mitab mif feature twice (GDAL #3765)
  *
  * Revision 1.56  2010-10-12 19:02:40  aboudreault
- * Fixed incomplet patch to handle differently indented lines in mif files (gdal #3694)
+ * Fixed incomplete patch to handle differently indented lines in MIF
+ * files (gdal #3694).
  *
  * Revision 1.55  2010-10-08 18:50:52  aboudreault
  * Fixed handle differently indented lines in mif files. (GDAL bug #3694)
@@ -53,7 +54,8 @@
  * Fixed MIF driver: doesn't create a layer defn at layer creation (bug 2180)
  *
  * Revision 1.52  2010-01-07 20:39:12  aboudreault
- * Added support to handle duplicate field names, Added validation to check if a field name start with a number (bug 2141)
+ * Added support to handle duplicate field names, Added validation to check if
+ * a field name start with a number (bug 2141).
  *
  * Revision 1.51  2009-07-27 14:08:41  dmorissette
  * Fixed dataset version check in AddFieldNative for type TABFDateTime
@@ -100,7 +102,7 @@
  * Added support for reading collections from MIF files (bug 1126)
  *
  * Revision 1.38  2004/02/27 21:04:14  fwarmerdam
- * dont write MIF header if file is readonly - gdal bugzilla 509
+ * Do not write MIF header if file is readonly - gdal bugzilla 509
  *
  * Revision 1.37  2003/12/19 07:54:50  fwarmerdam
  * write mif header on close if not already written out
@@ -247,6 +249,11 @@ MIFFile::MIFFile()
     m_nPoints = m_nLines = m_nRegions = m_nTexts = 0;
 
     m_bExtentsSet = FALSE;
+    m_eAccessMode = TABRead;
+    m_dXMin = 0;
+    m_dYMin = 0;
+    m_dXMax = 0;
+    m_dYMax = 0;
 }
 
 /**********************************************************************
@@ -313,7 +320,7 @@ int MIFFile::Open(const char *pszFname, TABAccess eAccess,
      * Make sure filename has a .MIF or .MID extension... 
      *----------------------------------------------------------------*/
     m_pszFname = CPLStrdup(pszFname);
-    nFnameLen = strlen(m_pszFname);
+    nFnameLen = static_cast<int>(strlen(m_pszFname));
     if (nFnameLen > 4 && (strcmp(m_pszFname+nFnameLen-4, ".MID")==0 ||
                      strcmp(m_pszFname+nFnameLen-4, ".MIF")==0 ) )
         strcpy(m_pszFname+nFnameLen-4, ".MIF");
@@ -531,7 +538,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
      * Parse header until we find the "Data" line
      *----------------------------------------------------------------*/
     while (((pszLine = m_poMIFFile->GetLine()) != NULL) &&
-           ((bAllColumnsRead == FALSE) || !EQUALN(pszLine,"Data",4)))
+           ((bAllColumnsRead == FALSE) || !STARTS_WITH_CI(pszLine, "Data")))
     {       
         if (bColumns == TRUE && nColumns >0)
         {
@@ -549,7 +556,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
                 bColumns = FALSE;
             }
         }
-        else if (EQUALN(pszLine,"VERSION",7))
+        else if (STARTS_WITH_CI(pszLine, "VERSION"))
         {
             papszToken = CSLTokenizeStringComplex(pszLine," ()\t",TRUE,FALSE); 
             bColumns = FALSE; bCoordSys = FALSE;
@@ -559,7 +566,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
             CSLDestroy(papszToken);
         
         }
-        else if (EQUALN(pszLine,"CHARSET",7))
+        else if (STARTS_WITH_CI(pszLine, "CHARSET"))
         {
             papszToken = CSLTokenizeStringComplex(pszLine," ()\t",TRUE,FALSE); 
             bColumns = FALSE; bCoordSys = FALSE;
@@ -572,7 +579,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
             CSLDestroy(papszToken);
         
         }
-        else if (EQUALN(pszLine,"DELIMITER",9))
+        else if (STARTS_WITH_CI(pszLine, "DELIMITER"))
         {
             papszToken = CSLTokenizeStringComplex(pszLine," ()\t",TRUE,FALSE); 
              bColumns = FALSE; bCoordSys = FALSE;
@@ -585,19 +592,19 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
           CSLDestroy(papszToken);
         
         }
-        else if (EQUALN(pszLine,"UNIQUE",6))
+        else if (STARTS_WITH_CI(pszLine, "UNIQUE"))
         {
             bColumns = FALSE; bCoordSys = FALSE;
           
             m_pszUnique = CPLStrdup(pszLine + 6);
         }
-        else if (EQUALN(pszLine,"INDEX",5))
+        else if (STARTS_WITH_CI(pszLine, "INDEX"))
         {
             bColumns = FALSE; bCoordSys = FALSE;
           
             m_pszIndex = CPLStrdup(pszLine + 5);
         }
-        else if (EQUALN(pszLine,"COORDSYS",8) )
+        else if (STARTS_WITH_CI(pszLine, "COORDSYS") )
         {
             bCoordSys = TRUE;
             m_pszCoordSys = CPLStrdup(pszLine + 9);
@@ -617,7 +624,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
             }
             CSLDestroy( papszFields );
         }
-        else if (EQUALN(pszLine,"TRANSFORM",9))
+        else if (STARTS_WITH_CI(pszLine, "TRANSFORM"))
         {
             papszToken = CSLTokenizeStringComplex(pszLine," ,\t",TRUE,FALSE); 
             bColumns = FALSE; bCoordSys = FALSE;
@@ -636,7 +643,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
             }
             CSLDestroy(papszToken);
         }
-        else if (EQUALN(pszLine,"COLUMNS",7))
+        else if (STARTS_WITH_CI(pszLine, "COLUMNS"))
         {
             papszToken = CSLTokenizeStringComplex(pszLine," ()\t",TRUE,FALSE); 
             bCoordSys = FALSE;
@@ -680,7 +687,7 @@ int MIFFile::ParseMIFHeader(int* pbIsEmpty)
     }
 
     if ((pszLine = m_poMIFFile->GetLastLine()) == NULL || 
-        EQUALN(m_poMIFFile->GetLastLine(),"DATA",4) == FALSE)
+        STARTS_WITH_CI(m_poMIFFile->GetLastLine(), "DATA") == FALSE)
     {
         CPLError(CE_Failure, CPLE_NotSupported,
                  "DATA keyword not found in %s.  File may be corrupt.",
@@ -876,7 +883,7 @@ void MIFFile::ResetReading()
     m_poMIFFile->Rewind();
 
     while ((pszLine = m_poMIFFile->GetLine()) != NULL)
-      if (EQUALN(pszLine,"DATA",4))
+      if (STARTS_WITH_CI(pszLine, "DATA"))
         break;
 
     while ((pszLine = m_poMIFFile->GetLine()) != NULL)
@@ -920,7 +927,7 @@ void MIFFile::PreParseFile()
     m_poMIFFile->Rewind();
 
     while ((pszLine = m_poMIFFile->GetLine()) != NULL)
-      if (EQUALN(pszLine,"DATA",4))
+      if (STARTS_WITH_CI(pszLine, "DATA"))
         break;
 
     m_nPoints = m_nLines = m_nRegions = m_nTexts = 0;
@@ -937,7 +944,7 @@ void MIFFile::PreParseFile()
         CSLDestroy(papszToken);
         papszToken = CSLTokenizeString2(pszLine, " \t", CSLT_HONOURSTRINGS);
 
-        if (EQUALN(pszLine,"POINT",5))
+        if (STARTS_WITH_CI(pszLine, "POINT"))
         {
             m_nPoints++;
             if (CSLCount(papszToken) == 3)
@@ -947,11 +954,11 @@ void MIFFile::PreParseFile()
             }
               
         }
-        else if (EQUALN(pszLine,"LINE",4) ||
-                 EQUALN(pszLine,"RECT",4) ||
-                 EQUALN(pszLine,"ROUNDRECT",9) ||
-                 EQUALN(pszLine,"ARC",3) ||
-                 EQUALN(pszLine,"ELLIPSE",7))
+        else if (STARTS_WITH_CI(pszLine, "LINE") ||
+                 STARTS_WITH_CI(pszLine, "RECT") ||
+                 STARTS_WITH_CI(pszLine, "ROUNDRECT") ||
+                 STARTS_WITH_CI(pszLine, "ARC") ||
+                 STARTS_WITH_CI(pszLine, "ELLIPSE"))
         {
             if (CSLCount(papszToken) == 5)
             {
@@ -962,17 +969,17 @@ void MIFFile::PreParseFile()
                              m_poMIFFile->GetYTrans(CPLAtof(papszToken[4])));
             }
         }
-        else if (EQUALN(pszLine,"REGION",6) )
+        else if (STARTS_WITH_CI(pszLine, "REGION") )
         {
             m_nRegions++;
             bPLine = TRUE;
         }
-        else if( EQUALN(pszLine,"PLINE",5))
+        else if( STARTS_WITH_CI(pszLine, "PLINE"))
         {
             m_nLines++;
             bPLine = TRUE;
         }
-        else if (EQUALN(pszLine,"TEXT",4)) 
+        else if (STARTS_WITH_CI(pszLine, "TEXT")) 
         {
             m_nTexts++;
             bText = TRUE;
@@ -1005,7 +1012,7 @@ void MIFFile::PreParseFile()
     m_poMIFFile->Rewind();
 
     while ((pszLine = m_poMIFFile->GetLine()) != NULL)
-      if (EQUALN(pszLine,"DATA",4))
+      if (STARTS_WITH_CI(pszLine, "DATA"))
         break;
 
     while ((pszLine = m_poMIFFile->GetLine()) != NULL)
@@ -1364,7 +1371,7 @@ TABFeature *MIFFile::GetFeatureRef(GIntBig nFeatureId)
         return NULL;
     }
 
-    if ( (GIntBig)(int)nFeatureId != nFeatureId || GotoFeature((int)nFeatureId)!= 0 )
+    if ( !CPL_INT64_FITS_ON_INT32(nFeatureId) || GotoFeature((int)nFeatureId)!= 0 )
     {
         CPLError(CE_Failure, CPLE_IllegalArg,
                  "GetFeatureRef() failed: invalid feature id " CPL_FRMT_GIB, 
@@ -1385,11 +1392,11 @@ TABFeature *MIFFile::GetFeatureRef(GIntBig nFeatureId)
 
         m_nCurFeatureId = m_nPreloadedId;
 
-        if (EQUALN(pszLine,"NONE",4))
+        if (STARTS_WITH_CI(pszLine, "NONE"))
         {
             m_poCurFeature = new TABFeature(m_poDefn);
         }
-        else if (EQUALN(pszLine,"POINT",5))
+        else if (STARTS_WITH_CI(pszLine, "POINT"))
         {
             // Special case, we need to know two lines to decide the type
             char **papszToken;
@@ -1411,7 +1418,7 @@ TABFeature *MIFFile::GetFeatureRef(GIntBig nFeatureId)
                 CSLDestroy(papszToken);
                 papszToken = CSLTokenizeStringComplex(pszLine," ,()\t",
                                                       TRUE,FALSE);
-                if (CSLCount(papszToken)> 0 &&EQUALN(papszToken[0],"SYMBOL",6))
+                if (CSLCount(papszToken)> 0 &&STARTS_WITH_CI(papszToken[0], "SYMBOL"))
                 {
                     switch (CSLCount(papszToken))
                     {
@@ -1443,37 +1450,37 @@ TABFeature *MIFFile::GetFeatureRef(GIntBig nFeatureId)
                 m_poCurFeature = new TABPoint(m_poDefn);
             }
         }
-        else if (EQUALN(pszLine,"LINE",4) ||
-                 EQUALN(pszLine,"PLINE",5))
+        else if (STARTS_WITH_CI(pszLine, "LINE") ||
+                 STARTS_WITH_CI(pszLine, "PLINE"))
         {
             m_poCurFeature = new TABPolyline(m_poDefn);
         }
-        else if (EQUALN(pszLine,"REGION",6))
+        else if (STARTS_WITH_CI(pszLine, "REGION"))
         {
             m_poCurFeature = new TABRegion(m_poDefn);
         }  
-        else if (EQUALN(pszLine,"ARC",3))
+        else if (STARTS_WITH_CI(pszLine, "ARC"))
         { 
             m_poCurFeature = new TABArc(m_poDefn);
         }
-        else if (EQUALN(pszLine,"TEXT",4))
+        else if (STARTS_WITH_CI(pszLine, "TEXT"))
         {
             m_poCurFeature = new TABText(m_poDefn);
         }
-        else if (EQUALN(pszLine,"RECT",4) ||
-                 EQUALN(pszLine,"ROUNDRECT",9))
+        else if (STARTS_WITH_CI(pszLine, "RECT") ||
+                 STARTS_WITH_CI(pszLine, "ROUNDRECT"))
         {
             m_poCurFeature = new TABRectangle(m_poDefn);
         }
-        else if (EQUALN(pszLine,"ELLIPSE",7))
+        else if (STARTS_WITH_CI(pszLine, "ELLIPSE"))
         {
             m_poCurFeature = new TABEllipse(m_poDefn);       
         }
-        else if (EQUALN(pszLine,"MULTIPOINT",10))
+        else if (STARTS_WITH_CI(pszLine, "MULTIPOINT"))
         {
             m_poCurFeature = new TABMultiPoint(m_poDefn);       
         }
-        else if (EQUALN(pszLine,"COLLECTION",10))
+        else if (STARTS_WITH_CI(pszLine, "COLLECTION"))
         {
             m_poCurFeature = new TABCollection(m_poDefn);       
         }
@@ -2062,7 +2069,7 @@ int MIFFile::SetMIFCoordSys(const char * pszMIFCoordSys)
     int         iBounds;
 
     // Extract the word 'COORDSYS' if present
-    if (EQUALN(pszMIFCoordSys,"COORDSYS",8) )
+    if (STARTS_WITH_CI(pszMIFCoordSys, "COORDSYS") )
     {
         pszCoordSys = CPLStrdup(pszMIFCoordSys + 9);
     }
@@ -2115,7 +2122,7 @@ OGRSpatialReference *MIFFile::GetSpatialRef()
 /**********************************************************************
  *                   MIFFile::UpdateExtents()
  *
- * Private Methode used to update the dataset extents
+ * Private method used to update the dataset extents.
  **********************************************************************/
 void MIFFile::UpdateExtents(double dfX, double dfY)
 {

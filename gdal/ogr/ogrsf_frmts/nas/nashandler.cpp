@@ -75,18 +75,20 @@
 /*                             NASHandler()                             */
 /************************************************************************/
 
-NASHandler::NASHandler( NASReader *poReader )
-
-{
-    m_poReader = poReader;
-    m_pszCurField = NULL;
-    m_pszGeometry = NULL;
-    m_nGeomAlloc = m_nGeomLen = 0;
-    m_nDepthFeature = m_nDepthElement = m_nDepth = 0;
-    m_bIgnoreFeature = FALSE;
-    m_bInUpdate = FALSE;
-    m_bInUpdateProperty = FALSE;
-}
+NASHandler::NASHandler( NASReader *poReader ) :
+    m_poReader(poReader),
+    m_pszCurField(NULL),
+    m_pszGeometry(NULL),
+    m_nGeomAlloc(0),
+    m_nGeomLen(0),
+    m_nGeometryDepth(0),
+    m_nDepth(0),
+    m_nDepthFeature(0),
+    m_bIgnoreFeature(false),
+    m_bInUpdate(false),
+    m_bInUpdateProperty(false),
+    m_nDepthElement(0)
+{ }
 
 /************************************************************************/
 /*                            ~NASHandler()                             */
@@ -212,7 +214,7 @@ void NASHandler::startElement(CPL_UNUSED const XMLCh* const uri,
         }
 
         strcat( m_pszGeometry+m_nGeomLen, ">" );
-        m_nGeomLen += strlen(m_pszGeometry+m_nGeomLen);
+        m_nGeomLen += static_cast<int>(strlen(m_pszGeometry+m_nGeomLen));
     }
 
 /* -------------------------------------------------------------------- */
@@ -228,14 +230,14 @@ void NASHandler::startElement(CPL_UNUSED const XMLCh* const uri,
         if ( pszFilteredClassName != NULL &&
              strcmp("Delete", pszFilteredClassName) != 0 )
         {
-            m_bIgnoreFeature = TRUE;
+            m_bIgnoreFeature = true;
             m_nDepthFeature = m_nDepth;
             m_nDepth ++;
 
             return;
         }
 
-        m_bIgnoreFeature = FALSE;
+        m_bIgnoreFeature = false;
 
         m_poReader->PushFeature( "Delete", attrs );
 
@@ -301,14 +303,14 @@ void NASHandler::startElement(CPL_UNUSED const XMLCh* const uri,
         if ( pszFilteredClassName != NULL &&
              strcmp(szElementName, pszFilteredClassName) != 0 )
         {
-            m_bIgnoreFeature = TRUE;
+            m_bIgnoreFeature = true;
             m_nDepthFeature = m_nDepth;
             m_nDepth ++;
 
             return;
         }
 
-        m_bIgnoreFeature = FALSE;
+        m_bIgnoreFeature = false;
 
         m_poReader->PushFeature( szElementName, attrs );
 
@@ -343,13 +345,13 @@ void NASHandler::startElement(CPL_UNUSED const XMLCh* const uri,
 
         if( EQUAL(szElementName,"Update") )
         {
-            m_bInUpdate = TRUE;
+            m_bInUpdate = true;
         }
     }
 
     else if ( m_bInUpdate && EQUAL(szElementName, "Property") )
     {
-        m_bInUpdateProperty = TRUE;
+        m_bInUpdateProperty = true;
     }
 
     else if ( m_bInUpdateProperty && ( EQUAL(szElementName, "Name" ) || EQUAL(szElementName, "Value" ) ) )
@@ -434,7 +436,7 @@ void NASHandler::endElement(CPL_UNUSED const XMLCh* const uri,
     {
         if (m_nDepth == m_nDepthFeature)
         {
-            m_bIgnoreFeature = FALSE;
+            m_bIgnoreFeature = false;
             m_nDepthFeature = 0;
         }
         return;
@@ -494,7 +496,7 @@ void NASHandler::endElement(CPL_UNUSED const XMLCh* const uri,
 
            m_osLastPropertyName = "";
            m_osLastPropertyValue = "";
-           m_bInUpdateProperty = FALSE;
+           m_bInUpdateProperty = false;
        }
 
        poState->PopPath();
@@ -504,7 +506,7 @@ void NASHandler::endElement(CPL_UNUSED const XMLCh* const uri,
 
    if ( m_bInUpdate && EQUAL( szElementName, "Update" ) )
    {
-       m_bInUpdate = FALSE;
+       m_bInUpdate = false;
    }
 
 /* -------------------------------------------------------------------- */
@@ -541,7 +543,7 @@ void NASHandler::endElement(CPL_UNUSED const XMLCh* const uri,
         strcat( m_pszGeometry+m_nGeomLen, "</" );
         tr_strcpy( m_pszGeometry+m_nGeomLen+2, localname );
         strcat( m_pszGeometry+m_nGeomLen+nLNLen+2, ">" );
-        m_nGeomLen += strlen(m_pszGeometry+m_nGeomLen);
+        m_nGeomLen += static_cast<int>(strlen(m_pszGeometry+m_nGeomLen));
 
         if( poState->m_nPathLength == m_nGeometryDepth+1 )
         {
@@ -637,7 +639,7 @@ void NASHandler::endElement(CPL_UNUSED const XMLCh* const uri,
             poState->PopPath();
         else
         {
-            CPLAssert( FALSE );
+            CPLAssert( false );
         }
     }
 }
@@ -658,7 +660,7 @@ void NASHandler::characters( const XMLCh* const chars_in,
 
     if( m_pszCurField != NULL )
     {
-        int     nCurFieldLength = strlen(m_pszCurField);
+        int     nCurFieldLength = static_cast<int>(strlen(m_pszCurField));
 
         if (nCurFieldLength == 0)
         {
@@ -672,7 +674,7 @@ void NASHandler::characters( const XMLCh* const chars_in,
         if( m_pszCurField == NULL )
         {
             m_pszCurField = pszTranslated;
-            nCurFieldLength = strlen(m_pszCurField);
+            nCurFieldLength = static_cast<int>(strlen(m_pszCurField));
         }
         else
         {
@@ -702,7 +704,7 @@ void NASHandler::characters( const XMLCh* const chars_in,
         }
 
         tr_strcpy( m_pszGeometry+m_nGeomLen, chars );
-        m_nGeomLen += strlen(m_pszGeometry+m_nGeomLen);
+        m_nGeomLen += static_cast<int>(strlen(m_pszGeometry+m_nGeomLen));
     }
 }
 
@@ -727,7 +729,7 @@ void NASHandler::fatalError( const SAXParseException &exception)
 /*                         IsGeometryElement()                          */
 /************************************************************************/
 
-int NASHandler::IsGeometryElement( const char *pszElement )
+bool NASHandler::IsGeometryElement( const char *pszElement )
 
 {
     return strcmp(pszElement,"Polygon") == 0

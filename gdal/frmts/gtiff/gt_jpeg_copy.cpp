@@ -79,7 +79,7 @@ static int IsBaselineDCTJPEG(VSILFILE* fp)
     }
 
     int nOffset = 2;
-    while(TRUE)
+    while( true )
     {
         VSIFSeekL(fp, nOffset, SEEK_SET);
         if (VSIFReadL(abyBuf, 1, 4, fp) != 4 ||
@@ -507,7 +507,7 @@ static CPLErr GTIFF_CopyBlockFromJPEG(TIFF* hTIFF,
                                       jpeg_decompress_struct& sDInfo,
                                       int iX, int iY,
                                       int nXBlocks,
-                                      CPL_UNUSED int nYBlocks,
+                                      int /* nYBlocksIn */,
                                       int nXSize, int nYSize,
                                       int nBlockXSize, int nBlockYSize,
                                       int iMCU_sample_width, int iMCU_sample_height,
@@ -635,12 +635,11 @@ static CPLErr GTIFF_CopyBlockFromJPEG(TIFF* hTIFF,
                                 (JDIMENSION) compptr->v_samp_factor, TRUE);
 
             int offset_y = 0;
-            int nYBlocks = compptr->v_samp_factor;
             if( bIsTiled &&
                 dst_blk_y + y_crop_blocks + compptr->v_samp_factor >
                                                         nSrcHeightInBlocks)
             {
-                nYBlocks = nSrcHeightInBlocks - (dst_blk_y + y_crop_blocks);
+                int nYBlocks = nSrcHeightInBlocks - (dst_blk_y + y_crop_blocks);
                 if (nYBlocks > 0)
                 {
                     JBLOCKARRAY src_buffer = (*sDInfo.mem->access_virt_barray)
@@ -705,13 +704,13 @@ static CPLErr GTIFF_CopyBlockFromJPEG(TIFF* hTIFF,
     if ( bIsTiled )
     {
         if ((vsi_l_offset)TIFFWriteRawTile(hTIFF, iX + iY * nXBlocks,
-                                           pabyJPEGData, nSize) != nSize)
+                                           pabyJPEGData, static_cast<tmsize_t>(nSize)) != nSize)
             eErr = CE_Failure;
     }
     else
     {
         if ((vsi_l_offset)TIFFWriteRawStrip(hTIFF, iX + iY * nXBlocks,
-                                            pabyJPEGData, nSize) != nSize)
+                                            pabyJPEGData, static_cast<tmsize_t>(nSize)) != nSize)
             eErr = CE_Failure;
     }
 

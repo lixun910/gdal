@@ -40,6 +40,7 @@ using namespace PCIDSK;
 /*      determined by the PCIDSK format and may not be changed.         */
 /* -------------------------------------------------------------------- */
 static const int block_page_size = 8192;  
+template<class T> static void CPL_IGNORE_RET_VAL(T) {}
 
 /************************************************************************/
 /* ==================================================================== */
@@ -61,7 +62,7 @@ public:
             if( offsets.size() == 0 )
                 return 0;
 
-            uint32 start=0, end=offsets.size()-1;
+            uint32 start=0, end=static_cast<uint32>(offsets.size())-1;
 
             while( end > start )
             {
@@ -219,7 +220,7 @@ std::string CPCIDSKVectorSegment::ConsistencyCheck_DataIndices()
 
     SpaceMap smap;
 
-    smap.AddChunk( 0, vh.header_blocks );
+    CPL_IGNORE_RET_VAL(smap.AddChunk( 0, vh.header_blocks ));
 
     for( section = 0; section < 2; section++ )
     {

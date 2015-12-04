@@ -285,7 +285,7 @@ static void GRIB1_Table2LookUp (pdsG1Type *pdsMeta, const char **name,
                                 unsigned short int center,
                                 unsigned short int subcenter)
 {
-   GRIB1ParmTable *table; /* The parameter table choosen by the pdsMeta data */
+   GRIB1ParmTable *table; /* The parameter table chosen by the pdsMeta data */
 
    table = Choose_ParmTable (pdsMeta, center, subcenter);
    if ((center == NMC) && (pdsMeta->mstrVersion == 129)
@@ -816,7 +816,7 @@ int GRIB1_RefTime (DataSource &fp, uInt4 gribLen, double *refTime)
  *  12/2003 AAT: adas data encoder seems to have # of vertical data = 1, but
  *        parameters of vertical data = 255, which doesn't make sense.
  *        Changed the error from "fatal" to a warning in debug mode.
- *   6/2004 AAT: Modified to allow "extended" lat/lon grids (ie stretched or
+ *   6/2004 AAT: Modified to allow "extended" lat/lon grids (i.e. stretched or
  *        stretched and rotated).
  *
  * NOTES
@@ -1839,7 +1839,7 @@ int ReadGrib1Record (DataSource &fp, sChar f_unit, double **Grib_Data,
 
    if (ComputeUnit (meta->convert, meta->unitName, f_unit, &unitM, &unitB,
                     unitName) == 0) {
-      unitLen = strlen (unitName);
+      unitLen = static_cast<int>(strlen (unitName));
       meta->unitName = (char *) realloc ((void *) (meta->unitName),
                                          1 + unitLen * sizeof (char));
       strncpy (meta->unitName, unitName, unitLen);

@@ -105,13 +105,20 @@ CPL_C_END
 #  define MRSID_HAVE_GETWKT
 #endif
 
+/* getTotalBandData is deprecated by getBandData, at least starting with 8.5 */
+#if defined(LTI_SDK_MAJOR) && (LTI_SDK_MAJOR > 8 || (LTI_SDK_MAJOR >= 8 && LTI_SDK_MINOR >= 5))
+#  define myGetTotalBandData getBandData
+#else
+#  define myGetTotalBandData getTotalBandData
+#endif
+
 #include "mrsidstream.h"
 
 LT_USE_NAMESPACE(LizardTech)
 
 /* -------------------------------------------------------------------- */
 /*      Various wrapper templates used to force new/delete to happen    */
-/*      in the same heap.  See bug 1213 and MSDN knowledgebase          */
+/*      in the same heap.  See bug 1213 and MSDN knowledge base         */
 /*      article 122675.                                                 */
 /* -------------------------------------------------------------------- */
 
@@ -232,7 +239,8 @@ class MrSIDDataset : public GDALJP2AbstractDataset
     const LTIPixel      *poNDPixel;
 
     LTIDLLBuffer<LTISceneBuffer>  *poBuffer;
-    int                 nBlockXSize, nBlockYSize;
+    int                 nBlockXSize;
+    int                 nBlockYSize;
     int                 bPrevBlockRead;
     int                 nPrevBlockXOff, nPrevBlockYOff;
 
@@ -337,18 +345,18 @@ class MrSIDRasterBand : public GDALPamRasterBand
 /*                           MrSIDRasterBand()                          */
 /************************************************************************/
 
-MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDS, int nBand )
+MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDSIn, int nBandIn )
 {
-    this->poDS = poDS;
-    poGDS = poDS;
-    this->nBand = nBand;
-    this->eDataType = poDS->eDataType;
+    this->poDS = poDSIn;
+    poGDS = poDSIn;
+    this->nBand = nBandIn;
+    this->eDataType = poDSIn->eDataType;
 
 /* -------------------------------------------------------------------- */
 /*      Set the block sizes and buffer parameters.                      */
 /* -------------------------------------------------------------------- */
-    nBlockXSize = poDS->nBlockXSize;
-    nBlockYSize = poDS->nBlockYSize;
+    nBlockXSize = poDSIn->nBlockXSize;
+    nBlockYSize = poDSIn->nBlockYSize;
 //#ifdef notdef
     if( poDS->GetRasterXSize() > 2048 )
         nBlockXSize = 1024;
@@ -359,8 +367,9 @@ MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDS, int nBand )
 //#endif
 
     nBlockSize = nBlockXSize * nBlockYSize;
-    poPixel = new LTIDLLPixel<LTIPixel>( poDS->eColorSpace, poDS->nBands,
-                                         poDS->eSampleType );
+    poPixel = new LTIDLLPixel<LTIPixel>( poDSIn->eColorSpace,
+                                         static_cast<lt_uint16>(poDSIn->nBands),
+                                         poDSIn->eSampleType );
 
 
 /* -------------------------------------------------------------------- */
@@ -548,7 +557,7 @@ CPLErr MrSIDRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         poGDS->nPrevBlockYOff = nBlockYOff;
     }
 
-    memcpy( pImage, poGDS->poBuffer->getTotalBandData(nBand - 1), 
+    memcpy( pImage, poGDS->poBuffer->myGetTotalBandData(static_cast<lt_uint16>(nBand - 1)), 
             nBlockSize * (GDALGetDataTypeSize(poGDS->eDataType) / 8) );
 
     return CE_None;
@@ -733,7 +742,10 @@ GDALRasterBand *MrSIDRasterBand::GetOverview( int i )
 /*                           MrSIDDataset()                             */
 /************************************************************************/
 
-MrSIDDataset::MrSIDDataset(int bIsJPEG2000)
+MrSIDDataset::MrSIDDataset(int bIsJPEG2000) :
+    nBlockXSize(0),
+    nBlockYSize(0),
+    eColorSpace(LTI_COLORSPACE_INVALID)
 {
     poStream = NULL;
     poImageReader = NULL;
@@ -886,7 +898,7 @@ CPLErr MrSIDDataset::IRasterIO( GDALRWFlag eRWFlag,
 /*      higher resolution than the buffer of data requested.            */
 /* -------------------------------------------------------------------- */
     int  nTmpPixelSize;
-    LTIPixel       oPixel( eColorSpace, nBands, eSampleType );
+    LTIPixel       oPixel( eColorSpace, static_cast<lt_uint16>(nBands), eSampleType );
     
     LT_STATUS eLTStatus;
     unsigned int maxWidth;
@@ -968,7 +980,7 @@ CPLErr MrSIDDataset::IRasterIO( GDALRWFlag eRWFlag,
         for( int iBand = 0; iBand < nBandCount; iBand++ )
         {
             GByte *pabySrcBand = (GByte *) 
-                oLTIBuffer.getTotalBandData( panBandMap[iBand] - 1 );
+                oLTIBuffer.myGetTotalBandData( static_cast<lt_uint16>(panBandMap[iBand] - 1) );
 	  
             for( int iLine = 0; iLine < nBufYSize; iLine++ )
 	    {
@@ -976,7 +988,7 @@ CPLErr MrSIDDataset::IRasterIO( GDALRWFlag eRWFlag,
                                eDataType, nTmpPixelSize, 
                                ((GByte *)pData) + iLine*nLineSpace 
                                + iBand * nBandSpace, 
-                               eBufType, nPixelSpace,
+                               eBufType, static_cast<int>(nPixelSpace),
                                nBufXSize );
 	    }
 	}
@@ -1005,8 +1017,8 @@ CPLErr MrSIDDataset::IRasterIO( GDALRWFlag eRWFlag,
                         + nLineSpace * iBufLine
                         + nBandSpace * iBand;
 
-                    pabySrc = (GByte *) oLTIBuffer.getTotalBandData( 
-                        panBandMap[iBand] - 1 );
+                    pabySrc = (GByte *) oLTIBuffer.myGetTotalBandData( 
+                        static_cast<lt_uint16>(panBandMap[iBand] - 1) );
                     pabySrc += (iTmpLine * sceneWidth + iTmpPixel) * nTmpPixelSize;
 
                     if( eDataType == eBufType )
@@ -1092,7 +1104,7 @@ char *MrSIDDataset::SerializeMetadataRec( const LTIMetadataRecord *poMetadataRec
                     break;
             }
 
-            iLength = strlen(pszMetadata) + strlen(osTemp) + 2;
+            iLength = static_cast<int>(strlen(pszMetadata) + strlen(osTemp) + 2);
 
             pszMetadata = (char *)CPLRealloc( pszMetadata, iLength );
             if ( !EQUAL( pszMetadata, "" ) )
@@ -1283,8 +1295,8 @@ CPLErr MrSIDDataset::OpenZoomLevel( lt_int32 iZoom )
         if( oGeo.getWKT() )
         {
             /* Workaround probable issue with GeoDSK 7 on 64bit Linux */
-            if (!(pszProjection != NULL && !EQUALN(pszProjection, "LOCAL_CS", 8)
-                && EQUALN( oGeo.getWKT(), "LOCAL_CS", 8)))
+            if (!(pszProjection != NULL && !STARTS_WITH_CI(pszProjection, "LOCAL_CS")
+                && STARTS_WITH_CI(oGeo.getWKT(), "LOCAL_CS")))
             {
                 CPLFree( pszProjection );
                 pszProjection =  CPLStrdup( oGeo.getWKT() );
@@ -1315,7 +1327,7 @@ CPLErr MrSIDDataset::OpenZoomLevel( lt_int32 iZoom )
             {
                 if (nCountLine == 1 && strcmp(pszLine, "::MetadataFile") != 0)
                     break;
-                if (EQUALN(pszLine, "Projection UTM ", 15))
+                if (STARTS_WITH_CI(pszLine, "Projection UTM "))
                     nUTMZone = atoi(pszLine + 15);
                 else if (EQUAL(pszLine, "Datum WGS84"))
                     bWGS84 = TRUE;
@@ -1367,7 +1379,7 @@ static int MrSIDIdentify( GDALOpenInfo * poOpenInfo )
     if( poOpenInfo->nHeaderBytes < 32 )
         return FALSE;
 
-    if ( !EQUALN((const char *) poOpenInfo->pabyHeader, "msid", 4) )
+    if ( !STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "msid") )
         return FALSE;
 
 #if defined(LTI_SDK_MAJOR) && LTI_SDK_MAJOR >= 8
@@ -1424,7 +1436,7 @@ static int JP2Identify( GDALOpenInfo *poOpenInfo )
             && !EQUAL(pszExtension,"j2c") && !EQUAL(pszExtension,"ntf"))
             return FALSE;
     }
-    else if( !EQUALN((const char *) poOpenInfo->pabyHeader + 4, "jP  ", 4) )
+    else if( !STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader + 4, "jP  ") )
         return FALSE;
 
     return TRUE;
@@ -1560,9 +1572,8 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     poDS->poMetadata = new LTIDLLCopy<LTIMetadataDatabase>(
         poDS->poImageReader->getMetadata() );
     const GUInt32       iNumRecs = poDS->poMetadata->getIndexCount();
-    GUInt32             i;
 
-    for ( i = 0; i < iNumRecs; i++ )
+    for ( GUInt32 i = 0; i < iNumRecs; i++ )
     {
         const LTIMetadataRecord *poMetadataRec = NULL;
         if ( LT_SUCCESS(poDS->poMetadata->getDataByIndex(i, poMetadataRec)) )
@@ -1951,9 +1962,9 @@ static void WKTMassageDatum( char ** ppszDatum )
         pszDatum[j] = '\0';
     else
         pszDatum[j+1] = '\0';
-    
+
 /* -------------------------------------------------------------------- */
-/*      Search for datum equivelences.  Specific massaged names get     */
+/*      Search for datum equivalences.  Specific massaged names get     */
 /*      mapped to OpenGIS specified names.                              */
 /* -------------------------------------------------------------------- */
     for( i = 0; papszDatumEquiv[i] != NULL; i += 2 )
@@ -2669,34 +2680,34 @@ static void GTIFToCPLRecycleString( char **ppszTarget )
 /*  Copied from the gt_wkt_srs.cpp.                                     */
 /************************************************************************/
 
-char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
+char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefnIn )
 {
     OGRSpatialReference oSRS;
 
-    if( psDefn->Model != ModelTypeProjected 
-        && psDefn->Model != ModelTypeGeographic )
+    if( psDefnIn->Model != ModelTypeProjected 
+        && psDefnIn->Model != ModelTypeGeographic )
         return CPLStrdup("");
     
 /* -------------------------------------------------------------------- */
 /*      If this is a projected SRS we set the PROJCS keyword first      */
 /*      to ensure that the GEOGCS will be a child.                      */
 /* -------------------------------------------------------------------- */
-    if( psDefn->Model == ModelTypeProjected )
+    if( psDefnIn->Model == ModelTypeProjected )
     {
         char    *pszPCSName;
         int     bPCSNameSet = FALSE;
 
-        if( psDefn->PCS != KvUserDefined )
+        if( psDefnIn->PCS != KvUserDefined )
         {
 
-            if( GTIFGetPCSInfo( psDefn->PCS, &pszPCSName, NULL, NULL, NULL ) )
+            if( GTIFGetPCSInfo( psDefnIn->PCS, &pszPCSName, NULL, NULL, NULL ) )
                 bPCSNameSet = TRUE;
             
             oSRS.SetNode( "PROJCS", bPCSNameSet ? pszPCSName : "unnamed" );
             if( bPCSNameSet )
                 GTIFFreeMemory( pszPCSName );
 
-            oSRS.SetAuthority( "PROJCS", "EPSG", psDefn->PCS );
+            oSRS.SetAuthority( "PROJCS", "EPSG", psDefnIn->PCS );
         }
         else
         {
@@ -2724,17 +2735,17 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
         pszGeogName = CPLStrdup(szGCSName);
     else
     {
-        GTIFGetGCSInfo( psDefn->GCS, &pszGeogName, NULL, NULL, NULL );
+        GTIFGetGCSInfo( psDefnIn->GCS, &pszGeogName, NULL, NULL, NULL );
         GTIFToCPLRecycleString(&pszGeogName);
     }
-    GTIFGetDatumInfo( psDefn->Datum, &pszDatumName, NULL );
+    GTIFGetDatumInfo( psDefnIn->Datum, &pszDatumName, NULL );
     GTIFToCPLRecycleString(&pszDatumName);
-    GTIFGetPMInfo( psDefn->PM, &pszPMName, NULL );
+    GTIFGetPMInfo( psDefnIn->PM, &pszPMName, NULL );
     GTIFToCPLRecycleString(&pszPMName);
-    GTIFGetEllipsoidInfo( psDefn->Ellipsoid, &pszSpheroidName, NULL, NULL );
+    GTIFGetEllipsoidInfo( psDefnIn->Ellipsoid, &pszSpheroidName, NULL, NULL );
     GTIFToCPLRecycleString(&pszSpheroidName);
     
-    GTIFGetUOMAngleInfo( psDefn->UOMAngle, &pszAngularUnits, NULL );
+    GTIFGetUOMAngleInfo( psDefnIn->UOMAngle, &pszAngularUnits, NULL );
     GTIFToCPLRecycleString(&pszAngularUnits);
     if( pszAngularUnits == NULL )
         pszAngularUnits = CPLStrdup("unknown");
@@ -2742,31 +2753,31 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
     if( pszDatumName != NULL )
         WKTMassageDatum( &pszDatumName );
 
-    dfSemiMajor = psDefn->SemiMajor;
-    if( psDefn->SemiMajor == 0.0 )
+    dfSemiMajor = psDefnIn->SemiMajor;
+    if( psDefnIn->SemiMajor == 0.0 )
     {
         pszSpheroidName = CPLStrdup("unretrievable - using WGS84");
         dfSemiMajor = SRS_WGS84_SEMIMAJOR;
         dfInvFlattening = SRS_WGS84_INVFLATTENING;
     }
     else
-        dfInvFlattening = OSRCalcInvFlattening(psDefn->SemiMajor,psDefn->SemiMinor);
+        dfInvFlattening = OSRCalcInvFlattening(psDefnIn->SemiMajor,psDefnIn->SemiMinor);
 
     oSRS.SetGeogCS( pszGeogName, pszDatumName, 
                     pszSpheroidName, dfSemiMajor, dfInvFlattening,
                     pszPMName,
-                    psDefn->PMLongToGreenwich / psDefn->UOMAngleInDegrees,
+                    psDefnIn->PMLongToGreenwich / psDefnIn->UOMAngleInDegrees,
                     pszAngularUnits,
-                    psDefn->UOMAngleInDegrees * 0.0174532925199433 );
+                    psDefnIn->UOMAngleInDegrees * 0.0174532925199433 );
 
-    if( psDefn->GCS != KvUserDefined )
-        oSRS.SetAuthority( "GEOGCS", "EPSG", psDefn->GCS );
+    if( psDefnIn->GCS != KvUserDefined )
+        oSRS.SetAuthority( "GEOGCS", "EPSG", psDefnIn->GCS );
 
-    if( psDefn->Datum != KvUserDefined )
-        oSRS.SetAuthority( "DATUM", "EPSG", psDefn->Datum );
+    if( psDefnIn->Datum != KvUserDefined )
+        oSRS.SetAuthority( "DATUM", "EPSG", psDefnIn->Datum );
 
-    if( psDefn->Ellipsoid != KvUserDefined )
-        oSRS.SetAuthority( "SPHEROID", "EPSG", psDefn->Ellipsoid );
+    if( psDefnIn->Ellipsoid != KvUserDefined )
+        oSRS.SetAuthority( "SPHEROID", "EPSG", psDefnIn->Ellipsoid );
 
     CPLFree( pszGeogName );
     CPLFree( pszDatumName );
@@ -2777,7 +2788,7 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
 /* ==================================================================== */
 /*      Handle projection parameters.                                   */
 /* ==================================================================== */
-    if( psDefn->Model == ModelTypeProjected )
+    if( psDefnIn->Model == ModelTypeProjected )
     {
 /* -------------------------------------------------------------------- */
 /*      Make a local copy of parms, and convert back into the           */
@@ -2787,21 +2798,21 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
         double          adfParm[10];
         int             i;
 
-        for( i = 0; i < MIN(10,psDefn->nParms); i++ )
-            adfParm[i] = psDefn->ProjParm[i];
+        for( i = 0; i < MIN(10,psDefnIn->nParms); i++ )
+            adfParm[i] = psDefnIn->ProjParm[i];
 
-        adfParm[0] /= psDefn->UOMAngleInDegrees;
-        adfParm[1] /= psDefn->UOMAngleInDegrees;
-        adfParm[2] /= psDefn->UOMAngleInDegrees;
-        adfParm[3] /= psDefn->UOMAngleInDegrees;
+        adfParm[0] /= psDefnIn->UOMAngleInDegrees;
+        adfParm[1] /= psDefnIn->UOMAngleInDegrees;
+        adfParm[2] /= psDefnIn->UOMAngleInDegrees;
+        adfParm[3] /= psDefnIn->UOMAngleInDegrees;
         
-        adfParm[5] /= psDefn->UOMLengthInMeters;
-        adfParm[6] /= psDefn->UOMLengthInMeters;
+        adfParm[5] /= psDefnIn->UOMLengthInMeters;
+        adfParm[6] /= psDefnIn->UOMLengthInMeters;
         
 /* -------------------------------------------------------------------- */
 /*      Translation the fundamental projection.                         */
 /* -------------------------------------------------------------------- */
-        switch( psDefn->CTProjection )
+        switch( psDefnIn->CTProjection )
         {
           case CT_TransverseMercator:
             oSRS.SetTM( adfParm[0], adfParm[1],
@@ -2936,15 +2947,15 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefn )
 /* -------------------------------------------------------------------- */
         char    *pszUnitsName = NULL;
         
-        GTIFGetUOMLengthInfo( psDefn->UOMLength, &pszUnitsName, NULL );
+        GTIFGetUOMLengthInfo( psDefnIn->UOMLength, &pszUnitsName, NULL );
 
-        if( pszUnitsName != NULL && psDefn->UOMLength != KvUserDefined )
+        if( pszUnitsName != NULL && psDefnIn->UOMLength != KvUserDefined )
         {
-            oSRS.SetLinearUnits( pszUnitsName, psDefn->UOMLengthInMeters );
-            oSRS.SetAuthority( "PROJCS|UNIT", "EPSG", psDefn->UOMLength );
+            oSRS.SetLinearUnits( pszUnitsName, psDefnIn->UOMLengthInMeters );
+            oSRS.SetAuthority( "PROJCS|UNIT", "EPSG", psDefnIn->UOMLength );
         }
         else
-            oSRS.SetLinearUnits( "unknown", psDefn->UOMLengthInMeters );
+            oSRS.SetLinearUnits( "unknown", psDefnIn->UOMLengthInMeters );
 
         GTIFFreeMemory( pszUnitsName );
     }

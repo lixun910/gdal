@@ -20,7 +20,7 @@ when accessing the default local database instance.<p>
 If the list of tables is not provided, then all tables appearing in 
 ALL_SDO_GEOM_METADATA will be treated by OGR as layers with the table
 names as the layer names.  Non-spatial tables or spatial tables not listed
-in the ALL_SDO_GEOM_METADATA table are not accessable unless explicitly
+in the ALL_SDO_GEOM_METADATA table are not accessible unless explicitly
 listed in the datasource name.  Even in databases where all desired layers
 are in the ALL_SDO_GEOM_METADATA table, it may be desirable to list only
 the tables to be used as this can substantially reduce initialization time
@@ -64,7 +64,7 @@ transaction semantics in Oracle.</li>
 <li> If an attribute called OGR_FID exists in the schema for tables being 
 read, it will be used as the FID.  Random (FID based) reads on tables without
 an identified (and indexed) FID field can be very slow.  To force use of a
-particular field name the OCI_FID configuration variable (ie. environment
+particular field name the OCI_FID configuration variable (i.e. environment
 variable) can be set to the target field name.</li>
 
 <li> Curved geometry types are converted to linestrings or linear rings in six degree segments when reading.  The driver has no support for writing curved geometries.</li>
@@ -91,7 +91,7 @@ existing database.<P>
 Upon closing the OGRDataSource newly created layers will have a spatial
 index automatically built.  At this point the USER_SDO_GEOM_METADATA table
 will also be updated with bounds for the table based on the features that
-have actually been written.  One concequence of this is that once a layer
+have actually been written.  One consequence of this is that once a layer
 has been loaded it is generally not possible to load additional features
 outside the original extents without manually modifying the DIMINFO information
 in USER_SDO_GEOM_METADATA and rebuilding the spatial index.<p>

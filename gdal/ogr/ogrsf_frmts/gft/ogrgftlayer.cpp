@@ -103,15 +103,15 @@ OGRFeature *OGRGFTLayer::GetNextFeature()
 
     GetLayerDefn();
 
-    while(TRUE)
+    while( true )
     {
         if (nNextInSeq < nOffset ||
-            nNextInSeq >= nOffset + (int)aosRows.size())
+            nNextInSeq >= nOffset + static_cast<int>(aosRows.size()))
         {
             if (bEOF)
                 return NULL;
 
-            nOffset += aosRows.size();
+            nOffset += static_cast<int>(aosRows.size());
             if (!FetchNextRows())
                 return NULL;
         }
@@ -157,11 +157,11 @@ char **OGRGFTCSVSplitLine( const char *pszString, char chDelimiter )
 
         nTokenLen = 0;
 
-        /* Try to find the next delimeter, marking end of token */
+        /* Try to find the next delimiter, marking end of token */
         for( ; *pszString != '\0'; pszString++ )
         {
 
-            /* End if this is a delimeter skip it and break. */
+            /* End if this is a delimiter skip it and break. */
             if( !bInString && *pszString == chDelimiter )
             {
                 pszString++;
@@ -608,7 +608,7 @@ CPLString OGRGFTLayer::PatchSQL(const char* pszSQL)
 
     while(*pszSQL)
     {
-        if (EQUALN(pszSQL, "COUNT(", 5) && strchr(pszSQL, ')'))
+        if (STARTS_WITH_CI(pszSQL, "COUNT(") && strchr(pszSQL, ')'))
         {
             const char* pszNext = strchr(pszSQL, ')');
             osSQL += "COUNT()";

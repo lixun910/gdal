@@ -38,22 +38,22 @@ CPL_CVSID("$Id$");
 /*                   GDALNoDataValuesMaskBand()                         */
 /************************************************************************/
 
-GDALNoDataValuesMaskBand::GDALNoDataValuesMaskBand( GDALDataset* poDS )
+GDALNoDataValuesMaskBand::GDALNoDataValuesMaskBand( GDALDataset* poDSIn )
 
 {
-    const char* pszNoDataValues = poDS->GetMetadataItem("NODATA_VALUES");
+    const char* pszNoDataValues = poDSIn->GetMetadataItem("NODATA_VALUES");
     char** papszNoDataValues = CSLTokenizeStringComplex(pszNoDataValues, " ", FALSE, FALSE);
 
     int i;
-    padfNodataValues = (double*)CPLMalloc(sizeof(double) * poDS->GetRasterCount());
-    for(i=0;i<poDS->GetRasterCount();i++)
+    padfNodataValues = (double*)CPLMalloc(sizeof(double) * poDSIn->GetRasterCount());
+    for(i=0;i<poDSIn->GetRasterCount();i++)
     {
         padfNodataValues[i] = CPLAtof(papszNoDataValues[i]);
     }
 
     CSLDestroy(papszNoDataValues);
 
-    this->poDS = poDS;
+    poDS = poDSIn;
     nBand = 0;
 
     nRasterXSize = poDS->GetRasterXSize();
@@ -128,11 +128,9 @@ CPLErr GDALNoDataValuesMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
     CPLErr eErr;
 
     int nBands = poDS->GetRasterCount();
-    pabySrc = (GByte *) VSIMalloc3( nBands * GDALGetDataTypeSize(eWrkDT)/8, nBlockXSize, nBlockYSize );
+    pabySrc = (GByte *) VSI_MALLOC3_VERBOSE( nBands * GDALGetDataTypeSize(eWrkDT)/8, nBlockXSize, nBlockYSize );
     if (pabySrc == NULL)
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory,
-                  "GDALNoDataValuesMaskBand::IReadBlock: Out of memory for buffer." );
         return CE_Failure;
     }
 

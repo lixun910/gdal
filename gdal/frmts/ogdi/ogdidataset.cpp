@@ -93,7 +93,7 @@ class OGDIRasterBand : public GDALRasterBand
 {
     friend class OGDIDataset;
 
-    int		nOGDIImageType; /* ie. 1 for RGB */
+    int nOGDIImageType; /* i.e. 1 for RGB */
 
     char	*pszLayerName;
     ecs_Family  eFamily;
@@ -133,18 +133,18 @@ class OGDIRasterBand : public GDALRasterBand
 /*                           OGDIRasterBand()                            */
 /************************************************************************/
 
-OGDIRasterBand::OGDIRasterBand( OGDIDataset *poDS, int nBand, 
-                                const char * pszName, ecs_Family eFamily,
-                                int nComponent )
+OGDIRasterBand::OGDIRasterBand( OGDIDataset *poDSIn, int nBandIn, 
+                                const char * pszName, ecs_Family eFamilyIn,
+                                int nComponentIn )
 
 {
     ecs_Result	*psResult;
     
-    this->poDS = poDS;
-    this->nBand = nBand;
-    this->eFamily = eFamily;
+    this->poDS = poDSIn;
+    this->nBand = nBandIn;
+    this->eFamily = eFamilyIn;
     this->pszLayerName = CPLStrdup(pszName);
-    this->nComponent = nComponent;
+    this->nComponent = nComponentIn;
     poCT = NULL;
 
 /* -------------------------------------------------------------------- */
@@ -157,7 +157,7 @@ OGDIRasterBand::OGDIRasterBand( OGDIDataset *poDS, int nBand,
 /* -------------------------------------------------------------------- */
 /*      Get the raster info.                                            */
 /* -------------------------------------------------------------------- */
-    psResult = cln_GetRasterInfo( poDS->nClientID );
+    psResult = cln_GetRasterInfo( poDSIn->nClientID );
     if( ECSERROR(psResult) )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
@@ -181,7 +181,7 @@ OGDIRasterBand::OGDIRasterBand( OGDIDataset *poDS, int nBand,
             sEntry.c3 = ECSRASTERINFO(psResult).cat.cat_val[i].b;
             sEntry.c4 = 255;
 
-            poCT->SetColorEntry( ECSRASTERINFO(psResult).cat.cat_val[i].no_cat, 
+            poCT->SetColorEntry( static_cast<int>(ECSRASTERINFO(psResult).cat.cat_val[i].no_cat), 
                                  &sEntry );
         }
     }
@@ -292,14 +292,14 @@ CPLErr OGDIRasterBand::IRasterIO( CPL_UNUSED GDALRWFlag eRWFlag,
         if( eFamily == Matrix )
         {
             GDALCopyWords( ECSRASTER(psResult), GDT_UInt32, 4, 
-                           pLineData, eBufType, nPixelSpace,
+                           pLineData, eBufType, static_cast<int>(nPixelSpace),
                            nBufXSize );
         }
         else if( nOGDIImageType == 1 )
         {
             GDALCopyWords( ((GByte *) ECSRASTER(psResult)) + nComponent, 
                            GDT_Byte, 4,
-                           pLineData, eBufType, nPixelSpace, nBufXSize );
+                           pLineData, eBufType, static_cast<int>(nPixelSpace), nBufXSize );
 
             if( nComponent == 3 )
             {
@@ -318,25 +318,25 @@ CPLErr OGDIRasterBand::IRasterIO( CPL_UNUSED GDALRWFlag eRWFlag,
         else if( nOGDIImageType == 2 )
         {
             GDALCopyWords( ECSRASTER(psResult), GDT_Byte, 1,
-                           pLineData, eBufType, nPixelSpace,
+                           pLineData, eBufType, static_cast<int>(nPixelSpace),
                            nBufXSize );
         }
         else if( nOGDIImageType == 3 )
         {
             GDALCopyWords( ECSRASTER(psResult), GDT_UInt16, 2,
-                           pLineData, eBufType, nPixelSpace,
+                           pLineData, eBufType, static_cast<int>(nPixelSpace),
                            nBufXSize );
         }
         else if( nOGDIImageType == 4 )
         {
             GDALCopyWords( ECSRASTER(psResult), GDT_Int16, 2,
-                           pLineData, eBufType, nPixelSpace,
+                           pLineData, eBufType, static_cast<int>(nPixelSpace),
                            nBufXSize );
         }
         else if( nOGDIImageType == 5 )
         {
             GDALCopyWords( ECSRASTER(psResult), GDT_Int32, 4,
-                           pLineData, eBufType, nPixelSpace,
+                           pLineData, eBufType, static_cast<int>(nPixelSpace),
                            nBufXSize );
         }
     }
@@ -570,13 +570,13 @@ char **OGDIDataset::GetMetadata( const char *pszDomain )
 GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
 
 {
-    ecs_Result	*psResult;
-    int		nClientID;
+    ecs_Result *psResult;
+    int nClientID;
     char        **papszImages=NULL, **papszMatrices=NULL;
-    
-    if( !EQUALN(poOpenInfo->pszFilename,"gltp:",5) )
+
+    if( !STARTS_WITH_CI(poOpenInfo->pszFilename, "gltp:") )
         return( NULL );
-    
+
 /* -------------------------------------------------------------------- */
 /*      Confirm the requested access is supported.                      */
 /* -------------------------------------------------------------------- */
@@ -587,23 +587,23 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
                   " datasets.\n" );
         return NULL;
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Has the user hardcoded a layer and family in the URL?           */
 /*      Honour quoted strings for the layer name, since some layers     */
-/*      (ie. RPF/CADRG) have embedded colons.                           */
+/*      (i.e. RPF/CADRG) have embedded colons.                           */
 /* -------------------------------------------------------------------- */
-    int       nC1=-1, nC2=-1, i, bInQuotes = FALSE;
+    int       nC1=-1, nC2=-1, bInQuotes = FALSE;
     char      *pszURL = CPLStrdup(poOpenInfo->pszFilename);
 
-    for( i = strlen(pszURL)-1; i > 0; i-- )
+    for( int i = static_cast<int>(strlen(pszURL))-1; i > 0; i-- )
     {
         if( pszURL[i] == '/' )
             break;
 
         if( pszURL[i] == '"' && pszURL[i-1] != '\\' )
             bInQuotes = !bInQuotes;
-            
+
         else if( pszURL[i] == ':' && !bInQuotes )
         {
             if( nC1 == -1 )
@@ -617,7 +617,7 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
                 pszURL[nC2] = '\0';
             }
         }
-    }	
+    }
 
 /* -------------------------------------------------------------------- */
 /*      If we got a "family", and it is a vector family then return     */
@@ -654,12 +654,12 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
     else
     {
         char	*pszLayerName = CPLStrdup( pszURL+nC2+1 );
-        
+
         if( pszLayerName[0] == '"' )
         {
             int		nOut = 0;
 
-            for( i = 1; pszLayerName[i] != '\0'; i++ )
+            for( int i = 1; pszLayerName[i] != '\0'; i++ )
             {
                 if( pszLayerName[i+1] == '"' && pszLayerName[i] == '\\' )
                     pszLayerName[nOut++] = pszLayerName[++i];
@@ -682,14 +682,14 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
     CPLFree( pszURL );
 
 /* -------------------------------------------------------------------- */
-/*      If this is a 3.1 server (ie, it support                         */
+/*      If this is a 3.1 server (i.e, it support                         */
 /*      cln_GetLayerCapabilities()) and it has no raster layers then    */
 /*      we can assume it must be a vector datastore.  End without an    */
 /*      error in case the application wants to try this through         */
 /*      OGR.                                                            */
 /* -------------------------------------------------------------------- */
     psResult = cln_GetVersion(nClientID);
-    
+
     if( (ECSERROR(psResult) || CPLAtof(ECSTEXT(psResult)) >= 3.1)
         && CSLCount(papszMatrices) == 0 
         && CSLCount(papszImages) == 0 )
@@ -701,7 +701,7 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
         cln_DestroyClient( nClientID );
         return NULL;
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Create a corresponding GDALDataset.                             */
 /* -------------------------------------------------------------------- */
@@ -802,7 +802,7 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Create band information objects.                                */
 /* -------------------------------------------------------------------- */
-    for( i=0; papszMatrices != NULL && papszMatrices[i] != NULL; i++)
+    for( int i=0; papszMatrices != NULL && papszMatrices[i] != NULL; i++)
     {
         if( CSLFindString( papszImages, papszMatrices[i] ) == -1 )
             poDS->SetBand( poDS->GetRasterCount()+1, 
@@ -810,7 +810,7 @@ GDALDataset *OGDIDataset::Open( GDALOpenInfo * poOpenInfo )
                                                papszMatrices[i], Matrix, 0 ) );
     }
 
-    for( i=0; papszImages != NULL && papszImages[i] != NULL; i++)
+    for( int i=0; papszImages != NULL && papszImages[i] != NULL; i++)
     {
         OGDIRasterBand	*poBand;
 

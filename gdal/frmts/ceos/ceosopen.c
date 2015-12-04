@@ -39,7 +39,7 @@ CPL_CVSID("$Id$");
 /*      as an integer.                                                  */
 /************************************************************************/
 
-static long CEOSScanInt( const char * pszString, int nMaxChars )
+static int CEOSScanInt( const char * pszString, int nMaxChars )
 
 {
     char	szWorking[33];
@@ -127,13 +127,9 @@ CEOSRecord * CEOSReadRecord( CEOSImage *psImage )
 /*      Read the remainder of the record into a buffer.  Ensure that    */
 /*      the first 12 bytes gets moved into this buffer as well.         */
 /* -------------------------------------------------------------------- */
-    psRecord->pachData = (char *) VSIMalloc(psRecord->nLength );
+    psRecord->pachData = (char *) VSI_MALLOC_VERBOSE(psRecord->nLength );
     if( psRecord->pachData == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory,
-                  "Out of memory allocated %d bytes for CEOS record data.\n"
-                  "Are you sure you aren't leaking CEOSRecords?\n",
-                  psRecord->nLength );
         CPLFree( psRecord );
         return NULL;
     }
@@ -173,7 +169,7 @@ void CEOSDestroyRecord( CEOSRecord * psRecord )
 /**
  * Open a CEOS transfer.
  *
- * @param pszFilename The name of the CEOS imagery file (ie. imag_01.dat).
+ * @param pszFilename The name of the CEOS imagery file (i.e. imag_01.dat).
  * @param pszAccess An fopen() style access string.  Should be either "rb" for
  * read-only access, or "r+b" for read, and update access.
  *
@@ -216,8 +212,12 @@ CEOSImage * CEOSOpen( const char * pszFilename, const char * pszAccess )
 /*      Preread info on the first record, to establish if it is         */
 /*      little endian.                                                  */
 /* -------------------------------------------------------------------- */
-    VSIFReadL( abyHeader, 16, 1, fp );
-    VSIFSeekL( fp, 0, SEEK_SET );
+    if( VSIFReadL( abyHeader, 16, 1, fp ) != 1 ||
+        VSIFSeekL( fp, 0, SEEK_SET ) < 0 )
+    {
+        CEOSClose( psImage );
+        return NULL;
+    }
     
     if( abyHeader[0] != 0 || abyHeader[1] != 0 )
         psImage->bLittleEndian = TRUE;
@@ -315,7 +315,7 @@ CEOSImage * CEOSOpen( const char * pszFilename, const char * pszAccess )
  * Read a scanline of image.
  *
  * @param psCEOS The CEOS dataset handle returned by CEOSOpen().
- * @param nBand The band number (ie. 1, 2, 3).
+ * @param nBand The band number (i.e. 1, 2, 3).
  * @param nScanline The scanline requested, one based.
  * @param pData The data buffer to read into.  Must be at least nPixels *
  * nBitesPerPixel bits long.

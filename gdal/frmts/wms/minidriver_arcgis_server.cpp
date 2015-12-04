@@ -43,8 +43,8 @@ GDALWMSMiniDriver_AGS::~GDALWMSMiniDriver_AGS()
 
 CPLErr GDALWMSMiniDriver_AGS::Initialize(CPLXMLNode *config)
 {
-	CPLErr ret = CE_None;
-	int i;
+    CPLErr ret = CE_None;
+    int i;
 
     if (ret == CE_None) 
     {
@@ -86,7 +86,7 @@ CPLErr GDALWMSMiniDriver_AGS::Initialize(CPLXMLNode *config)
 		
 		if (irs != NULL)
 		{
-	        if(EQUALN(irs, "EPSG:", 5)) //if we have EPSG code just convert it to WKT
+	        if(STARTS_WITH_CI(irs, "EPSG:")) //if we have EPSG code just convert it to WKT
 	        {
 	            m_projection_wkt = ProjToWKT(irs);
 	            m_irs = irs + 5;
@@ -176,7 +176,7 @@ void GDALWMSMiniDriver_AGS::ImageRequest(CPLString *url, const GDALWMSImageReque
 
 void GDALWMSMiniDriver_AGS::TiledImageRequest(CPLString *url, 
                                       const GDALWMSImageRequestInfo &iri, 
-                                      const GDALWMSTiledImageRequestInfo &tiri) 
+                                      CPL_UNUSED const GDALWMSTiledImageRequestInfo &tiri) 
 {
 	ImageRequest(url, iri);
 }
@@ -184,7 +184,7 @@ void GDALWMSMiniDriver_AGS::TiledImageRequest(CPLString *url,
 
 void GDALWMSMiniDriver_AGS::GetTiledImageInfo(CPLString *url,
                                               const GDALWMSImageRequestInfo &iri,
-                                              const GDALWMSTiledImageRequestInfo &tiri,
+                                              CPL_UNUSED const GDALWMSTiledImageRequestInfo &tiri,
                                               int nXInBlock,
                                               int nYInBlock)
 {

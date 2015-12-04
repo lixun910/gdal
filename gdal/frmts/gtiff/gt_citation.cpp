@@ -98,7 +98,7 @@ char* ImagineCitationTranslation(char* psCitation, geokey_t keyID)
     int i;
     if(!psCitation)
         return ret;
-    if(EQUALN(psCitation, "IMAGINE GeoTIFF Support", strlen("IMAGINE GeoTIFF Support")))
+    if(STARTS_WITH_CI(psCitation, "IMAGINE GeoTIFF Support"))
     {
         // this is a handle IMAGING style citation
         char name[256];
@@ -236,7 +236,7 @@ char** CitationStringParse(char* psCitation, geokey_t keyID)
     char* pStr = psCitation;
     char name[512];
     int nameSet = FALSE;
-    int nameLen = strlen(psCitation);
+    int nameLen = static_cast<int>(strlen(psCitation));
     OGRBoolean nameFound = FALSE;
     while((pStr-psCitation+1)< nameLen)
     {
@@ -319,7 +319,7 @@ void SetLinearUnitCitation(GTIF* psGTIF, char* pszLinearUOMName)
     CPLString osCitation;
     int n = 0;
     if( GDALGTIFKeyGetASCII( psGTIF, PCSCitationGeoKey, szName, 0, sizeof(szName) ) )
-        n = strlen(szName);
+        n = static_cast<int>(strlen(szName));
     if(n>0)
     {
         osCitation = szName;
@@ -354,7 +354,7 @@ void SetGeogCSCitation(GTIF * psGTIF, OGRSpatialReference *poSRS, char* angUnitN
     if (n == 0)
         return;
 
-    if(!EQUALN(szName, "GCS Name = ", strlen("GCS Name = ")))
+    if(!STARTS_WITH_CI(szName, "GCS Name = "))
     {
         osCitation = "GCS Name = ";
         osCitation += szName;
@@ -457,7 +457,7 @@ OGRBoolean SetCitationToSRS(GTIF* hGTIF, char* szCTString, int nCTStringLen,
         if(ctNames[CitLUnitsName])
         {
             double unitSize = 0.0;
-            int size = strlen(ctNames[CitLUnitsName]);
+            int size = static_cast<int>(strlen(ctNames[CitLUnitsName]));
             if(strchr(ctNames[CitLUnitsName], '\0'))
                 size -= 1;
             for( int i = 0; apszUnitMap[i] != NULL; i += 2 )
@@ -555,7 +555,7 @@ OGRBoolean CheckCitationKeyForStatePlaneUTM(GTIF* hGTIF, GTIFDefn* psDefn, OGRSp
 
 /* -------------------------------------------------------------------- */
 /*      For ESRI builds we are interested in maximizing PE              */
-/*      compatability, but generally we prefer to use EPSG              */
+/*      compatibility, but generally we prefer to use EPSG              */
 /*      definitions of the coordinate system if PCS is defined.         */
 /* -------------------------------------------------------------------- */
 #if !defined(ESRI_BUILD)
@@ -662,7 +662,7 @@ OGRBoolean CheckCitationKeyForStatePlaneUTM(GTIF* hGTIF, GTIFDefn* psDefn, OGRSp
     {
         /* For tif created by LEICA(ERDAS), ESRI state plane pe string was used and */
         /* the state plane zone is given in PCSCitation. Therefore try Esri pe string first. */
-        SetCitationToSRS(hGTIF, szCTString, strlen(szCTString), PCSCitationGeoKey, poSRS, pLinearUnitIsSet);
+        SetCitationToSRS(hGTIF, szCTString, static_cast<int>(strlen(szCTString)), PCSCitationGeoKey, poSRS, pLinearUnitIsSet);
         const char *pcsName = poSRS->GetAttrValue("PROJCS");
         const char *pStr = NULL;
         if( (pcsName && (pStr = strstr(pcsName, "State Plane Zone ")) != NULL)

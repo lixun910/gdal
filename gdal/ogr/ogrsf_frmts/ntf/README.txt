@@ -95,7 +95,7 @@ generally contain features of many different feature codes (FEAT_CODE
 attribute).  Different features within a given layer may have a variety of
 attributes in the file; however, the schema is established based on the
 union of all attributes possible within features of a particular type
-(ie. POINT) of that product family (ie. OSCAR Network).
+(i.e. POINT) of that product family (i.e. OSCAR Network).
 
 If an NTF product is read that doesn't match one of the known schema's
 it will go through a different generic handler which has only 
@@ -151,8 +151,8 @@ Adding a New Product
 --------------------
 
 It is anticipated that over time the UK Ordnance Survey will define new 
-product formats, and to get decent milage out of them this library should
-be updated to support them.  While I will endevour to do this myself, it
+product formats, and to get decent mileage out of them this library should
+be updated to support them.  While I will endeavor to do this myself, it
 seems prudent to define how it is done in case I am not available to do it,
 or am unwilling to do it on a timely basis.  To add a new product type the 
 following steps are required:

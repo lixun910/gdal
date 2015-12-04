@@ -1329,7 +1329,7 @@ YYSTYPE yylval YY_INITIAL_VALUE (= yyval_default);
   yyssp++;
 
  yysetstate:
-  *yyssp = yystate;
+  *yyssp = (yytype_int16)yystate;
 
   if (yyss + yystacksize - 1 <= yyssp)
     {
@@ -2036,7 +2036,7 @@ yyreduce:
         OGRwkbGeometryType eType = OGRFromOGCGeomType((yyvsp[-1])->string_value);
         if( !EQUAL((yyvsp[-3])->string_value,"GEOMETRY") || 
             (wkbFlatten(eType) == wkbUnknown &&
-            !EQUALN((yyvsp[-1])->string_value, "GEOMETRY", strlen("GEOMETRY"))) )
+            !STARTS_WITH_CI((yyvsp[-1])->string_value, "GEOMETRY")) )
         {
             yyerror (context, "syntax error");
             delete (yyvsp[-3]);
@@ -2056,7 +2056,7 @@ yyreduce:
         OGRwkbGeometryType eType = OGRFromOGCGeomType((yyvsp[-3])->string_value);
         if( !EQUAL((yyvsp[-5])->string_value,"GEOMETRY") || 
             (wkbFlatten(eType) == wkbUnknown &&
-            !EQUALN((yyvsp[-3])->string_value, "GEOMETRY", strlen("GEOMETRY"))) )
+            !STARTS_WITH_CI((yyvsp[-3])->string_value, "GEOMETRY")) )
         {
             yyerror (context, "syntax error");
             delete (yyvsp[-5]);
@@ -2315,7 +2315,7 @@ yyreduce:
   case 73:
 #line 772 "swq_parser.y" /* yacc.c:1646  */
     {
-            context->poCurSelect->PushJoin( (yyvsp[-3])->int_value,
+            context->poCurSelect->PushJoin( static_cast<int>((yyvsp[-3])->int_value),
                                             (yyvsp[-1]) );
             delete (yyvsp[-3]);
         }
@@ -2325,7 +2325,7 @@ yyreduce:
   case 74:
 #line 778 "swq_parser.y" /* yacc.c:1646  */
     {
-            context->poCurSelect->PushJoin( (yyvsp[-3])->int_value,
+            context->poCurSelect->PushJoin( static_cast<int>((yyvsp[-3])->int_value),
                                             (yyvsp[-1]) );
             delete (yyvsp[-3]);
 	    }

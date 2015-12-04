@@ -123,7 +123,7 @@ public class gdal:public static java.util.Vector GeneralCmdLineProcessor(java.ut
  * are emitted (use Error(gdalconst.CE_Warning,...) to ensure messages are displayed).
  * If CPL_DEBUG is set, but is an empty string or the word "ON" then all
  * debug messages are shown.  Otherwise only messages whose category appears
- * somewhere within the CPL_DEBUG value are displayed (as determinted by
+ * somewhere within the CPL_DEBUG value are displayed (as determined by
  * strstr()).
  * <p>
  * Categories are usually an identifier for the subsystem producing the
@@ -287,7 +287,7 @@ public class gdal:public static int Unlink(String fileName)
  * the usual C style. 
  *
  * <li>gdalconst.CPLES_XML(1): This scheme converts the '<', '<' and '&' characters into
- * their XML/HTML equivelent (&gt;, &lt; and &amp;) making a string safe
+ * their XML/HTML equivalent (&gt;, &lt; and &amp;) making a string safe
  * to embed as CDATA within an XML element.  The '\\0' is not escaped and 
  * should not be included in the input.
  *
@@ -1148,13 +1148,13 @@ public class gdal:public static Dataset AutoCreateWarpedVRT(Dataset src_ds)
  * <p>
  * Available request values:
  * <ul>
- * <li> "VERSION_NUM": Returns GDAL_VERSION_NUM formatted as a string.  ie. "1170"
+ * <li> "VERSION_NUM": Returns GDAL_VERSION_NUM formatted as a string.  i.e. "1170"
  *      Note: starting with GDAL 1.10, this string will be longer than 4 characters.
  * <li> "RELEASE_DATE": Returns GDAL_RELEASE_DATE formatted as a string.  
- * ie. "20020416".
- * <li> "RELEASE_NAME": Returns the GDAL_RELEASE_NAME. ie. "1.1.7"
+ * i.e. "20020416".
+ * <li> "RELEASE_NAME": Returns the GDAL_RELEASE_NAME. i.e. "1.1.7"
  * <li> "--version": Returns one line version message suitable for use in 
- * response to --version requests.  ie. "GDAL 1.1.7, released 2002/04/16"
+ * response to --version requests.  i.e. "GDAL 1.1.7, released 2002/04/16"
  * <li> "LICENCE": Returns the content of the LICENSE.TXT file from the GDAL_DATA directory.
  * </ul>
  *
@@ -1167,7 +1167,7 @@ public class gdal:public static String VersionInfo(String request)
 /**
  * Get runtime version information.
  *
- * @return a string containing GDAL_VERSION_NUM formatted as a string.  ie. "1170"
+ * @return a string containing GDAL_VERSION_NUM formatted as a string.  i.e. "1170"
  *
  * @since Java bindings 1.7.0
  */
@@ -1234,7 +1234,7 @@ public class gdal:public static int GetCacheUsed()
 /**
  * Get data type size in bits.
  * <p>
- * Returns the size of a a GDT_* type <b>in bits</b>, not bytes!
+ * Returns the size of a GDT_* type <b>in bits</b>, not bytes!
  *
  * @param eDataType type, such as gdalconst.GDT_Byte. 
  * @return the number of bits or zero if it is not recognised.
@@ -1674,7 +1674,7 @@ public class ColorTable:public int GetCount()
 /**
  * Fetch palette interpretation.
  * <p>
- * The returned value is used to interprete the values in the GDALColorEntry.
+ * The returned value is used to interpret the values in the GDALColorEntry.
  *
  * @return palette interpretation enumeration value, usually gdalconst.GPI_RGB. 
  */
@@ -2045,7 +2045,7 @@ public class Dataset:public java.util.Vector GetGCPs()
  * coordinate system and list of points, so the caller remains resposible for
  * deallocating these arguments if appropriate. 
  * <p>
- * Most formats do not support setting of GCPs, even foramts that can 
+ * Most formats do not support setting of GCPs, even formats that can 
  * handle GCPs.  These formats will return CE_Failure. 
  *
  * @param gcpArray array of GCP objects being assigned
@@ -2080,14 +2080,14 @@ public class Dataset:public int GetRasterXSize()
 /**
  * Fetch raster height in pixels.
  *
- * @return the heigt in pixels of raster bands in this Dataset.
+ * @return the height in pixels of raster bands in this Dataset.
  */
 public class Dataset:public int getRasterYSize()
 
 /**
  * Fetch raster height in pixels.
  *
- * @return the heigt in pixels of raster bands in this Dataset.
+ * @return the height in pixels of raster bands in this Dataset.
  *
  * @since Java bindings 1.7.0
  */
@@ -3352,7 +3352,7 @@ public class Band:public int GetRasterDataType()
  * subset of image tiles may be used in computing the statistics.  
  * <p>
  * If force is false results will only be returned if it can be done 
- * quickly (ie. without scanning the data).  If force is false and 
+ * quickly (i.e. without scanning the data).  If force is false and 
  * results cannot be returned efficiently, the method will return CE_Warning
  * but no warning will have been issued.   This is a non-standard use of
  * the CE_Warning return value to indicate "nothing done". 
@@ -4892,7 +4892,7 @@ public class org.gdal.gdal.Driver:public Dataset Create(String name, int xsize, 
  *
  * @param name the name for the new dataset. 
  * @param src_ds the dataset being duplicated. 
- * @param strict 1 if the copy must be strictly equivelent, or more
+ * @param strict 1 if the copy must be strictly equivalent, or more
  * normally 0 indicating that the copy may adapt as needed for the 
  * output format. 
  * @param options additional format dependent options controlling 
@@ -5101,7 +5101,7 @@ public class ProgressCallback:public int run(double dfComplete, String message)
   * Every 2.5% of progress another number or period is emitted.  Note that
   * GDALTermProgress() uses internal static data to keep track of the last
   * percentage reported and will get confused if two terminal based progress
-  * reportings are active at the same time eithin in a single thread or across multiple threads.
+  * reportings are active at the same time either in in a single thread or across multiple threads.
   * <p>
   * Example :
   * <pre>
@@ -5569,7 +5569,7 @@ public interface gdalconstConstants:public final static int CPLES_BackslashQuota
  * CPLES_XML(1).
  * <p>
  * This scheme converts the '<', '<' and '&' characters into
- * their XML/HTML equivelent (&gt;, &lt; and &amp;) making a string safe
+ * their XML/HTML equivalent (&gt;, &lt; and &amp;) making a string safe
  * to embed as CDATA within an XML element.  The '\\0' is not escaped and 
  * should not be included in the input.
  */
@@ -6261,7 +6261,7 @@ public class DataSource:public int DeleteLayer(int index)
  ReleaseResultsSet() before the data source is closed  (destroyed).
  <p>
  For more information on the SQL dialect supported internally by OGR
- review the <a href="ogr_sql.html">OGR SQL</a> document.  Some drivers (ie.
+ review the <a href="ogr_sql.html">OGR SQL</a> document.  Some drivers (i.e.
  Oracle and PostGIS) pass the SQL directly through to the underlying RDBMS.
 
  @param statement the SQL statement to execute. 
@@ -6500,12 +6500,12 @@ on a real layer. Internally the FeatureDefn for the layer will be updated
 to reflect the new field.  Applications should never modify the FeatureDefn
 used by a layer directly.
 <p>
-This method should not be called while there are feature objects in existance that
+This method should not be called while there are feature objects in existence that
 were obtained or created with the previous layer definition.
 <p>
 Not all drivers support this method. You can query a layer to check if it supports it
 with the OLCCreateField capability. Some drivers may only support this method while
-there are still no features in the layer. When it is supported, the existings features of the
+there are still no features in the layer. When it is supported, the existing features of the
 backing file/database should be updated accordingly.
 
 @param field_def field definition to write to disk. 
@@ -6534,12 +6534,12 @@ on a real layer. Internally the FeatureDefn for the layer will be updated
 to reflect the deleted field.  Applications should never modify the FeatureDefn
 used by a layer directly.
 <p>
-This method should not be called while there are feature objects in existance that
+This method should not be called while there are feature objects in existence that
 were obtained or created with the previous layer definition.
 <p>
 Not all drivers support this method. You can query a layer to check if it supports it
 with the OLCDeleteField capability. Some drivers may only support this method while
-there are still no features in the layer. When it is supported, the existings features of the
+there are still no features in the layer. When it is supported, the existing features of the
 backing file/database should be updated accordingly.
 
 @param iField index of the field to delete.
@@ -6558,7 +6558,7 @@ on a real layer. Internally the FeatureDefn for the layer will be updated
 to reflect the reordering of the fields.  Applications should never modify the FeatureDefn
 used by a layer directly.
 <p>
-This method should not be called while there are feature objects in existance that
+This method should not be called while there are feature objects in existence that
 were obtained or created with the previous layer definition.
 <p>
 panMap is such that,for each field definition at position i after reordering,
@@ -6569,7 +6569,7 @@ ReorderFields(new Integer[]{0,2,3,1,4}) will reorder them as "0","2","3","1","4"
 <p>
 Not all drivers support this method. You can query a layer to check if it supports it
 with the OLCReorderFields capability. Some drivers may only support this method while
-there are still no features in the layer. When it is supported, the existings features of the
+there are still no features in the layer. When it is supported, the existing features of the
 backing file/database should be updated accordingly.
 
 @param panMap an array of GetLayerDefn().GetFieldCount() elements which
@@ -6584,7 +6584,7 @@ public class Layer:public int ReorderFields( int[] panMap )
 /**
 Reorder an existing field on a layer.
 <p>
-This method is a conveniency wrapper of ReorderFields() dedicated to move a single field.
+This method is a convenience wrapper of ReorderFields() dedicated to move a single field.
 It is a non-virtual method, so drivers should implement ReorderFields() instead.
 <p>
 You must use this to reorder existing fields
@@ -6592,7 +6592,7 @@ on a real layer. Internally the FeatureDefn for the layer will be updated
 to reflect the reordering of the fields.  Applications should never modify the FeatureDefn
 used by a layer directly.
 <p>
-This method should not be called while there are feature objects in existance that
+This method should not be called while there are feature objects in existence that
 were obtained or created with the previous layer definition.
 <p>
 The field definition that was at initial position iOldFieldPos will be moved at
@@ -6603,7 +6603,7 @@ ReorderField(1, 3) will reorder them as "0","2","3","1","4".
 <p>
 Not all drivers support this method. You can query a layer to check if it supports it
 with the OLCReorderFields capability. Some drivers may only support this method while
-there are still no features in the layer. When it is supported, the existings features of the
+there are still no features in the layer. When it is supported, the existing features of the
 backing file/database should be updated accordingly.
 
 @param iOldFieldPos previous position of the field to move. Must be in the range [0,GetFieldCount()-1].
@@ -6623,12 +6623,12 @@ Internally the FeatureDefn for the layer will be updated
 to reflect the altered field.  Applications should never modify the FeatureDefn
 used by a layer directly.
 <p>
-This method should not be called while there are feature objects in existance that
+This method should not be called while there are feature objects in existence that
 were obtained or created with the previous layer definition.
 <p>
 Not all drivers support this method. You can query a layer to check if it supports it
 with the OLCAlterFieldDefn capability. Some drivers may only support this method while
-there are still no features in the layer. When it is supported, the existings features of the
+there are still no features in the layer. When it is supported, the existing features of the
 backing file/database should be updated accordingly. Some drivers might also not support
 all update flags.
 
@@ -7104,12 +7104,12 @@ should build and maintain it's own spatial index for features in this layer.<p>
 
  <li> <b>OLCFastFeatureCount</b> / "FastFeatureCount": 
 true if this layer can return a feature
-count (via GetFeatureCount()) efficiently ... ie. without counting
+count (via GetFeatureCount()) efficiently, i.e. without counting
 the features.  In some cases this will return true until a spatial filter is
 installed after which it will return false.<p>
 
  <li> <b>OLCFastGetExtent</b> / "FastGetExtent": 
-true if this layer can return its data extent (via GetExtent()) efficiently ... ie. without scanning all the features.  In some cases this will return true until a spatial filter is installed after which it will return false.<p>
+true if this layer can return its data extent (via GetExtent()) efficiently, i.e. without scanning all the features.  In some cases this will return true until a spatial filter is installed after which it will return false.<p>
 
  <li> <b>OLCFastSetNextByIndex</b> / "FastSetNextByIndex": 
 true if this layer can perform the SetNextByIndex() call efficiently, otherwise
@@ -8179,7 +8179,7 @@ public class Geometry:public Geometry(int eGeometryType)
 /** 
  * Create a new geometry.
  * <p>
- * The geometry can be instanciated by 4 different and exclusive way :
+ * The geometry can be instantiated by 4 different and exclusive way:
  * <ul>
  * <li> By specifying the geometry type (ogr.wkbPoint, etc..)</li>
  * <li> By specifying the well known text representation (wkt)</li>
@@ -8413,7 +8413,7 @@ public class Geometry:public Geometry ConvexHull()
  *
  * @param gml The GML fragment for the geometry.
  *
- * @return a geometry on succes, or null on error.
+ * @return a geometry on success, or null on error.
  *
  * @since Java bindings 1.7.0
  */
@@ -8424,7 +8424,7 @@ public class Geometry:public static Geometry CreateFromGML(String gml)
  *
  * @param json GeoJSON content
  *
- * @return a geometry on succes, or null on error.
+ * @return a geometry on success, or null on error.
  *
  * @since Java bindings 1.7.0
  */
@@ -8436,7 +8436,7 @@ public class Geometry:public static Geometry CreateFromJson(String json)
  *
  * @param wkb input BLOB data.
  *
- * @return a geometry on succes, or null on error.
+ * @return a geometry on success, or null on error.
  *
  * @since Java bindings 1.7.0
  */
@@ -8449,7 +8449,7 @@ public class Geometry:public static Geometry CreateFromWkb(byte[] wkb)
  * @param wkt string containing well known text
  *                representation of the geometry to be created.
  *
- * @return a geometry on succes, or null on error.
+ * @return a geometry on success, or null on error.
  *
  * @since Java bindings 1.7.0
  */
@@ -8466,7 +8466,7 @@ public class Geometry:public static Geometry CreateFromWkt(String wkt)
  *
  * @param other the geometry to compare to this geometry.
  *
- * @return true if they are crossing, otherwise false.  
+ * @return true if they are crossing, otherwise false.
  */
 public class Geometry:public boolean Crosses(Geometry other)
 
@@ -9380,7 +9380,7 @@ public class FeatureDefn:public FeatureDefn(String name)
  * function directly, but use Layer.<a href="Layer.html#CreateField(org.gdal.ogr.FieldDefn)">CreateField()</a> instead.
  * <p>
  * This method should only be called while there are no Feature
- * objects in existance based on this FeatureDefn.  The FieldDefn
+ * objects in existence based on this FeatureDefn.  The FieldDefn
  * passed in is copied, and remains the responsibility of the caller.
  *
  * @param defn the definition of the new field.
@@ -9661,7 +9661,7 @@ public class ogr
 /**
  * Use exceptions instead of error return codes.
  * <p>
- * This is the default behavious : methods that in C/C++ return an OGRErr return code
+ * This is the default behaviour : methods that in C/C++ return an OGRErr return code
  * would throw a RuntimeException() in case the code it is different
  * from ogr.OGRERR_NONE. By calling this method, you can get
  * back to that original state if DontUseExceptions() was called in-between.
@@ -10199,7 +10199,7 @@ public class SpatialReference:public String __str__()
  * where an aspect of the coordinate system can be easily and safely 
  * corresponded with an EPSG identifier.  In practice, this method will 
  * evolve over time.  In theory it can add authority nodes for any object
- * (ie. spheroid, datum, GEOGCS, units, and PROJCS) that could have an 
+ * (i.e. spheroid, datum, GEOGCS, units, and PROJCS) that could have an 
  * authority node.  Mostly this is useful to inserting appropriate 
  * PROJCS codes for common formulations (like UTM n WGS84). 
  * <p>
@@ -10278,7 +10278,7 @@ public class SpatialReference:public int ExportToMICoordSys(String[] argout)
 public class SpatialReference:public int ExportToPCI(String[] proj, String[] units, double[] parms)
 
 /**
- * Convert this SRS into a a nicely formatted WKT string for display to a person.
+ * Convert this SRS into a nicely formatted WKT string for display to a person.
  * <p>
  * Same as below with simplify == 0 and the string is returned as a return value
  *
@@ -10289,7 +10289,7 @@ public class SpatialReference:public int ExportToPCI(String[] proj, String[] uni
 public class SpatialReference:public String ExportToPrettyWkt()
 
 /**
- * Convert this SRS into a a nicely formatted WKT string for display to a person.
+ * Convert this SRS into a nicely formatted WKT string for display to a person.
  * <p>
  * Same as below but the string is returned as a return value
  *
@@ -10300,7 +10300,7 @@ public class SpatialReference:public String ExportToPrettyWkt()
 public class SpatialReference:public String ExportToPrettyWkt(int simplify)
 
 /**
- * Convert this SRS into a a nicely formatted WKT string for display to a person.
+ * Convert this SRS into a nicely formatted WKT string for display to a person.
  * <p>
  * Same as below with simplify == 0.
  *
@@ -10311,7 +10311,7 @@ public class SpatialReference:public String ExportToPrettyWkt(int simplify)
 public class SpatialReference:public int ExportToPrettyWkt(String[] argout)
 
 /**
- * Convert this SRS into a a nicely formatted WKT string for display to a person.
+ * Convert this SRS into a nicely formatted WKT string for display to a person.
  *
  * @param argout an already allocated array of 1 string to receive the output
  * @param simplify 1 if the AXIS, AUTHORITY and EXTENSION nodes should be stripped off
@@ -10438,7 +10438,7 @@ public class SpatialReference:public int ExportToXML(String[] argout, String dia
  * WKT is valid. 
  * <p>
  * This method should be expected to evolve over time to as problems are
- * discovered.  The following are amoung the fixup actions this method will
+ * discovered.  The following are among the fixup actions this method will
  * take:
  * <ul>
  * <li>Fixup the ordering of nodes to match the BNF WKT ordering, using
@@ -10513,7 +10513,7 @@ public class SpatialReference:public String GetAttrValue(String name, int child)
  * code values should be integral.
  *
  * @param target_key the partial or complete path to the node to 
- * get an authority from.  ie. "PROJCS", "GEOGCS", "GEOGCS|UNIT" or null to 
+ * get an authority from.  i.e. "PROJCS", "GEOGCS", "GEOGCS|UNIT" or null to 
  * search for an authority node on the root element.
  *
  * @return value code from authority node, or null on failure.
@@ -10529,7 +10529,7 @@ public class SpatialReference:public String GetAuthorityCode(String target_key)
  * The most common authority is "EPSG".
  *
  * @param target_key the partial or complete path to the node to 
- * get an authority from.  ie. "PROJCS", "GEOGCS", "GEOGCS|UNIT" or null to 
+ * get an authority from.  i.e. "PROJCS", "GEOGCS", "GEOGCS|UNIT" or null to 
  * search for an authority node on the root element.
  *
  * @return value code from authority node, or null on failure.
@@ -10667,13 +10667,13 @@ public class SpatialReference:public int ImportFromEPSG(int nCode)
  * as the newer pseudo-OGC WKT .prj files.  Note that new style .prj files
  * are in OGC WKT format, but require some manipulation to correct datum
  * names, and units on some projection parameters.  This is addressed within
- * importFromESRI() by an automatical call to morphFromESRI(). 
+ * importFromESRI() by an automatic call to morphFromESRI(). 
  * <p>
  * Currently only GEOGRAPHIC, UTM, STATEPLANE, GREATBRITIAN_GRID, ALBERS, 
  * EQUIDISTANT_CONIC, and TRANSVERSE (mercator) projections are supported
  * from old style files. 
  * <p>
- * At this time there is no equivelent exportToESRI() method.  Writing old
+ * At this time there is no equivalent exportToESRI() method.  Writing old
  * style .prj files is not supported by OGRSpatialReference. However the
  * morphToESRI() and exportToWkt() methods can be used to generate output
  * suitable to write to new style (Arc 8) .prj files. 
@@ -10764,16 +10764,16 @@ public class SpatialReference:public int ImportFromPCI(String proj, String units
  * <p>
  * The OGRSpatialReference is initialized from the passed PROJ.4 style
  * coordinate system string.  In addition to many +proj formulations which
- * have OGC equivelents, it is also possible to import "+init=epsg:n" style
+ * have OGC equivalents, it is also possible to import "+init=epsg:n" style
  * definitions.  These are passed to importFromEPSG().  Other init strings
  * (such as the state plane zones) are not currently supported.   
  * <p><pre>
  * Example:
  *   pszProj4 = "+proj=utm +zone=11 +datum=WGS84" 
  * </pre><p>
- * Some parameters, such as grids, recognised by PROJ.4 may not be well
+ * Some parameters, such as grids, recognized by PROJ.4 may not be well
  * understood and translated into the OGRSpatialReference model. It is possible
- * to add the +wktext parameter which is a special keyword that OGR recognises
+ * to add the +wktext parameter which is a special keyword that OGR recognizes
  * as meaning "embed the entire PROJ.4 string in the WKT and use it literally
  * when converting back to PROJ.4 format".
  * <p><pre>
@@ -11223,7 +11223,7 @@ public class SpatialReference:public int SetAngularUnits(String name, double to_
  * Set attribute value in spatial reference.
  * <p>
  * Missing intermediate nodes in the path will be created if not already
- * in existance.  If the attribute has no children one will be created and
+ * in existence.  If the attribute has no children one will be created and
  * assigned the value otherwise the zeroth child will be assigned the value.
  *
  * @param name full path to attribute to be set.  For instance
@@ -11241,7 +11241,7 @@ public class SpatialReference:public int SetAttrValue(String name, String value)
  * Set the authority for a node.
  *
  * @param target_key the partial or complete path to the node to 
- * set an authority on.  ie. "PROJCS", "GEOGCS" or "GEOGCS|UNIT".
+ * set an authority on.  i.e. "PROJCS", "GEOGCS" or "GEOGCS|UNIT".
  *
  * @param authority authority name, such as "EPSG".
  *
@@ -11382,7 +11382,7 @@ public class SpatialReference:public int SetGeogCS(String pszGeogName, String ps
  * This can be computed from the semi minor axis as 
  * 1/f = 1.0 / (1.0 - semiminor/semimajor).
  *
- * @param pszPMName the name of the prime merdidian (not to serve as a key)
+ * @param pszPMName the name of the prime meridian (not to serve as a key)
  * If this is null a default value of "Greenwich" will be used. 
  * 
  * @param dfPMOffset the longitude of greenwich relative to this prime
@@ -11557,7 +11557,7 @@ public class SpatialReference:public int SetStatePlane(int zone, int is_nad83, S
  * and return OGRERR_FAILURE.
  *
  * @param zone State plane zone number, in the USGS numbering scheme (as
- * dinstinct from the Arc/Info and Erdas numbering scheme. 
+ * distinct from the Arc/Info and Erdas numbering scheme. 
  *
  * @param is_nad83 1 if the NAD83 zone definition should be used or 0
  * if the NAD27 zone definition should be used.  
@@ -11578,7 +11578,7 @@ public class SpatialReference:public int SetStatePlane(int zone, int is_nad83, S
  * This method creates a UNIT subnode with the specified values as a
  * child of the target node.
  *
- * @param target the keyword to set the linear units for.  ie. "PROJCS" or "VERT_CS"
+ * @param target the keyword to set the linear units for.  i.e. "PROJCS" or "VERT_CS"
  *
  * @param name the units name to be used.  Some preferred units
  * names can be found in ogr_srs_api.h such as SRS_UL_METER, SRS_UL_FOOT
@@ -11874,7 +11874,7 @@ public class osr
 /**
  * Use exceptions instead of error return codes.
  * <p>
- * This is the default behavious : methods that in C/C++ return an OGRErr return code
+ * This is the default behaviour : methods that in C/C++ return an OGRErr return code
  * would throw a RuntimeException() in case the code it is different
  * from ogr.OGRERR_NONE. By calling this method, you can get
  * back to that original state if DontUseExceptions() was called in-between.

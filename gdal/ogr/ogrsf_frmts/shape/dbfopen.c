@@ -177,6 +177,8 @@ SHP_CVSID("$Id: dbfopen.c,v 1.89 2011-07-24 05:59:25 fwarmerdam Exp $")
 #  define TRUE		1
 #endif
 
+CPL_INLINE static void CPL_IGNORE_RET_VAL_INT(CPL_UNUSED int unused) {}
+
 /************************************************************************/
 /*                             SfRealloc()                              */
 /*                                                                      */
@@ -347,7 +349,8 @@ DBFUpdateHeader( DBFHandle psDBF )
     if( psDBF->bNoHeader )
         DBFWriteHeader( psDBF );
 
-    DBFFlushRecord( psDBF );
+    if( !DBFFlushRecord( psDBF ) )
+        return;
 
     psDBF->sHooks.FSeek( psDBF->fp, 0, 0 );
     psDBF->sHooks.FRead( abyFileHeader, 32, 1, psDBF->fp );
@@ -432,7 +435,7 @@ DBFOpenLL( const char * pszFilename, const char * pszAccess, SAHooks *psHooks )
 /* -------------------------------------------------------------------- */
     pszBasename = (char *) malloc(strlen(pszFilename)+5);
     strcpy( pszBasename, pszFilename );
-    for( i = strlen(pszBasename)-1; 
+    for( i = (int)strlen(pszBasename)-1; 
 	 i > 0 && pszBasename[i] != '.' && pszBasename[i] != '/'
 	       && pszBasename[i] != '\\';
 	 i-- ) {}
@@ -611,7 +614,7 @@ DBFClose(DBFHandle psDBF)
     if( psDBF->bNoHeader )
         DBFWriteHeader( psDBF );
 
-    DBFFlushRecord( psDBF );
+    CPL_IGNORE_RET_VAL_INT(DBFFlushRecord( psDBF ));
 
 /* -------------------------------------------------------------------- */
 /*      Update last access date, and number of records if we have	*/
@@ -695,7 +698,7 @@ DBFCreateLL( const char * pszFilename, const char * pszCodePage, SAHooks *psHook
 /* -------------------------------------------------------------------- */
     pszBasename = (char *) malloc(strlen(pszFilename)+5);
     strcpy( pszBasename, pszFilename );
-    for( i = strlen(pszBasename)-1; 
+    for( i = (int)strlen(pszBasename)-1; 
 	 i > 0 && pszBasename[i] != '.' && pszBasename[i] != '/'
 	       && pszBasename[i] != '\\';
 	 i-- ) {}
@@ -1355,9 +1358,9 @@ static int DBFWriteAttribute(DBFHandle psDBF, int hEntity, int iField,
         if( (int) sizeof(szSField)-2 < nWidth )
             nWidth = sizeof(szSField)-2;
 
-        sprintf( szFormat, "%%%d.%df", 
+        snprintf( szFormat, sizeof(szFormat), "%%%d.%df",
                     nWidth, psDBF->panFieldDecimals[iField] );
-        CPLsprintf(szSField, szFormat, *((double *) pValue) );
+        CPLsnprintf(szSField, sizeof(szSField), szFormat, *((double *) pValue) );
         if( (int) strlen(szSField) > psDBF->panFieldSize[iField] )
         {
             szSField[psDBF->panFieldSize[iField]] = '\0';
@@ -1384,7 +1387,7 @@ static int DBFWriteAttribute(DBFHandle psDBF, int hEntity, int iField,
         {
             memset( pabyRec+psDBF->panFieldOffset[iField], ' ',
                     psDBF->panFieldSize[iField] );
-	    j = strlen((char *) pValue);
+	    j = (int)strlen((char *) pValue);
         }
 
 	strncpy((char *) (pabyRec+psDBF->panFieldOffset[iField]),
@@ -1453,7 +1456,7 @@ DBFWriteAttributeDirectly(DBFHandle psDBF, int hEntity, int iField,
     {
         memset( pabyRec+psDBF->panFieldOffset[iField], ' ',
                 psDBF->panFieldSize[iField] );
-        j = strlen((char *) pValue);
+        j = (int)strlen((char *) pValue);
     }
 
     strncpy((char *) (pabyRec+psDBF->panFieldOffset[iField]),
@@ -1679,9 +1682,9 @@ DBFGetNativeFieldType( DBFHandle psDBF, int iField )
 static void str_to_upper (char *string)
 {
     int len;
-    short i = -1;
+    int i = -1;
 
-    len = strlen (string);
+    len = (int)strlen (string);
 
     while (++i < len)
         if (isalpha(string[i]) && islower(string[i]))
@@ -2039,7 +2042,7 @@ DBFAlterFieldDefn( DBFHandle psDBF, int iField, const char * pszFieldName,
     int   nOffset;
     int   nOldWidth;
     int   nOldRecordLength;
-    int   nRecordOffset;
+    SAOffset  nRecordOffset;
     char* pszFInfo;
     char  chOldType;
     int   bIsNULL;

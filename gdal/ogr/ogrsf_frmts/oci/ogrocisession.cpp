@@ -176,7 +176,7 @@ int OGROCISession::EstablishSession( const char *pszUserid,
     }
 
     if( Failed( OCIServerAttach( hServer, hError, (text*) pszDatabase,
-                strlen((char*) pszDatabase), 0) ) )
+                static_cast<int>(strlen((char*) pszDatabase)), 0) ) )
     {
         return FALSE;
     }
@@ -218,7 +218,7 @@ int OGROCISession::EstablishSession( const char *pszUserid,
     if( Failed( OCISessionBegin(hSvcCtx, hError, hSession, eCred,
                 (ub4) OCI_DEFAULT) ) )
     {
-        CPLDebug("OCI", "OCISessionBegin() failed to intialize session");
+        CPLDebug("OCI", "OCISessionBegin() failed to initialize session");
         return FALSE;
     }
 
@@ -280,7 +280,7 @@ int OGROCISession::EstablishSession( const char *pszUserid,
     this->pszDatabase = CPLStrdup(pszDatabase);
 
 /* -------------------------------------------------------------------- */
-/*      Setting upt the OGR compatible time formating rules.            */
+/*      Setting up the OGR compatible time formatting rules.            */
 /* -------------------------------------------------------------------- */
     OGROCIStatement     oSetNLSTimeFormat( this );
     if( oSetNLSTimeFormat.Execute( "ALTER SESSION SET NLS_DATE_FORMAT='YYYY/MM/DD' \
@@ -516,7 +516,7 @@ void OGROCISession::CleanName( char * pszName )
 
     for( i = 0; pszName[i] != '\0'; i++ )
     {
-        pszName[i] = toupper(pszName[i]);
+        pszName[i] = static_cast<char>(toupper(pszName[i]));
         
         if( (pszName[i] < '0' || pszName[i] > '9')
             && (pszName[i] < 'A' || pszName[i] > 'Z')

@@ -174,7 +174,7 @@ OGRErr OGRMILayerAttrIndex::Initialize( const char *pszIndexPathIn,
     pszIndexPath = CPLStrdup( pszIndexPathIn );
 
     /* try to process the XML string directly */
-    if (EQUALN(pszIndexPathIn, "<OGRMILayerAttrIndex>", 21))
+    if (STARTS_WITH_CI(pszIndexPathIn, "<OGRMILayerAttrIndex>"))
         return LoadConfigFromXML(pszIndexPathIn);
     
     pszMetadataFilename = CPLStrdup(
@@ -276,8 +276,8 @@ OGRErr OGRMILayerAttrIndex::LoadConfigFromXML(const char* pszRawXML)
 
 OGRErr OGRMILayerAttrIndex::LoadConfigFromXML()
 {
-    FILE *fp;
-    int  nXMLSize;
+    VSILFILE *fp;
+    vsi_l_offset  nXMLSize;
     char *pszRawXML;
 
     CPLAssert( poINDFile == NULL );
@@ -285,19 +285,32 @@ OGRErr OGRMILayerAttrIndex::LoadConfigFromXML()
 /* -------------------------------------------------------------------- */
 /*      Read the XML file.                                              */
 /* -------------------------------------------------------------------- */
-    fp = VSIFOpen( pszMetadataFilename, "rb" );
+    fp = VSIFOpenL( pszMetadataFilename, "rb" );
     if( fp == NULL )
-        return OGRERR_NONE;
+        return OGRERR_FAILURE;
 
-    VSIFSeek( fp, 0, SEEK_END );
-    nXMLSize = VSIFTell( fp );
-    VSIFSeek( fp, 0, SEEK_SET );
+    if( VSIFSeekL( fp, 0, SEEK_END ) != 0 )
+    {
+        VSIFCloseL(fp);
+        return OGRERR_FAILURE;
+    }
+    nXMLSize = VSIFTellL( fp );
+    if( nXMLSize > 10 * 1024 * 1024 ||
+        VSIFSeekL( fp, 0, SEEK_SET ) != 0 )
+    {
+        VSIFCloseL(fp);
+        return OGRERR_FAILURE;
+    }
 
-    pszRawXML = (char *) CPLMalloc(nXMLSize+1);
+    pszRawXML = (char *) CPLMalloc((size_t)nXMLSize+1);
     pszRawXML[nXMLSize] = '\0';
-    VSIFRead( pszRawXML, nXMLSize, 1, fp );
+    if( VSIFReadL( pszRawXML, (size_t)nXMLSize, 1, fp ) != 1 )
+    {
+        VSIFCloseL(fp);
+        return OGRERR_FAILURE;
+    }
 
-    VSIFClose( fp );
+    VSIFCloseL( fp );
 
     OGRErr eErr = LoadConfigFromXML(pszRawXML);
     CPLFree(pszRawXML);
@@ -361,12 +374,12 @@ OGRErr OGRMILayerAttrIndex::SaveConfigToXML()
         return OGRERR_FAILURE;
     }
 
-    VSIFWrite( pszRawXML, 1, strlen(pszRawXML), fp );
+    OGRErr eErr = (VSIFWrite( pszRawXML, strlen(pszRawXML), 1, fp ) == 1) ? OGRERR_NONE : OGRERR_FAILURE;
     VSIFClose( fp );
 
     CPLFree( pszRawXML );
     
-    return OGRERR_NONE;
+    return eErr;
 }
 
 /************************************************************************/
@@ -386,7 +399,7 @@ OGRErr OGRMILayerAttrIndex::IndexAllFeatures( int iField )
         
         delete poFeature;
 
-        if( eErr != CE_None )
+        if( eErr != OGRERR_NONE )
             return eErr;
     }
 
@@ -706,12 +719,15 @@ OGRMIAttrIndex::~OGRMIAttrIndex()
 OGRErr OGRMIAttrIndex::AddEntry( OGRField *psKey, GIntBig nFID )
 
 {
-    GByte *pabyKey = BuildKey( psKey );
-
     if( psKey == NULL )
         return OGRERR_FAILURE;
 
     if( nFID >= INT_MAX )
+        return OGRERR_FAILURE;
+
+    GByte *pabyKey = BuildKey( psKey );
+
+    if( pabyKey == NULL )
         return OGRERR_FAILURE;
 
     if( poINDFile->AddEntry( iIndex, pabyKey, (int)nFID+1 ) != 0 )
@@ -745,7 +761,7 @@ GByte *OGRMIAttrIndex::BuildKey( OGRField *psKey )
 
       case OFTInteger64:
       {
-        if( (GIntBig)(int)psKey->Integer64 != psKey->Integer64 )
+        if( !CPL_INT64_FITS_ON_INT32(psKey->Integer64) )
         {
             CPLError(CE_Warning, CPLE_NotSupported,
                      "64bit integer value passed to OGRMIAttrIndex::BuildKey()");

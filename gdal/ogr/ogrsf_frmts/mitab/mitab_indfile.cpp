@@ -18,10 +18,10 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -149,17 +149,17 @@ int TABINDFile::Open(const char *pszFname, const char *pszAccess,
      * Note that for write access, we actually need read/write access to
      * the file.
      *----------------------------------------------------------------*/
-    if (EQUALN(pszAccess, "r", 1) && strchr(pszAccess, '+') != NULL)
+    if (STARTS_WITH_CI(pszAccess, "r") && strchr(pszAccess, '+') != NULL)
     {
         m_eAccessMode = TABReadWrite;
         pszAccess = "rb+";
     }
-    else if (EQUALN(pszAccess, "r", 1))
+    else if (STARTS_WITH_CI(pszAccess, "r"))
     {
         m_eAccessMode = TABRead;
         pszAccess = "rb";
     }
-    else if (EQUALN(pszAccess, "w", 1))
+    else if (STARTS_WITH_CI(pszAccess, "w"))
     {
         m_eAccessMode = TABWrite;
         pszAccess = "wb+";
@@ -176,7 +176,7 @@ int TABINDFile::Open(const char *pszFname, const char *pszAccess,
      *----------------------------------------------------------------*/
     m_pszFname = CPLStrdup(pszFname);
 
-    nLen = strlen(m_pszFname);
+    nLen = static_cast<int>(strlen(m_pszFname));
     if (nLen > 4 && !EQUAL(m_pszFname+nLen-4, ".IND") )
         strcpy(m_pszFname+nLen-4, ".ind");
 
@@ -260,7 +260,7 @@ int TABINDFile::Close()
             if (m_papoIndexRootNodes &&
                 m_papoIndexRootNodes[iIndex])
             {
-                m_papoIndexRootNodes[iIndex]->CommitToFile();
+                CPL_IGNORE_RET_VAL(m_papoIndexRootNodes[iIndex]->CommitToFile());
             }
         }
     }
@@ -805,7 +805,7 @@ int TABINDFile::CreateIndex(TABFieldType eType, int nFieldSize)
                       (eType == TABFDecimal)  ? 8:
                       (eType == TABFDate)     ? 4:
                       (eType == TABFTime)     ? 4:
-                      (eType == TABFDateTime) ? 8:
+                      /*(eType == TABFDateTime) ? 8: */
                       (eType == TABFLogical)  ? 4: MIN(128,nFieldSize));
 
     m_papoIndexRootNodes[nNewIndexNo] = new TABINDNode(m_eAccessMode);
@@ -917,6 +917,7 @@ TABINDNode::TABINDNode(TABAccess eAccessMode /*=TABRead*/)
     m_bUnique = FALSE;
 
     m_eAccessMode = eAccessMode;
+    m_nCurDataBlockPtr = 0;
 }
 
 /**********************************************************************
@@ -1035,7 +1036,7 @@ int TABINDNode::InitNode(VSILFILE *fp, int nBlockPtr,
  *
  * Move to the specified node ptr, and read the new node data from the file.
  *
- * This is just a cover funtion on top of InitNode()
+ * This is just a cover function on top of InitNode()
  **********************************************************************/
 int TABINDNode::GotoNodePtr(GInt32 nNewNodePtr)
 {
@@ -1780,6 +1781,7 @@ int TABINDNode::SplitNode()
                 poTmpNode->SetPrevNodePtr(poNewNode->GetNodeBlockPtr()) != 0 ||
                 poTmpNode->CommitToFile() != 0)
             {
+                delete poTmpNode;
                 return -1;
             }
             delete poTmpNode;
@@ -1823,6 +1825,7 @@ int TABINDNode::SplitNode()
                                 m_nPrevNodePtr, GetNodeBlockPtr())!= 0 ||
             poNewNode->SetFieldType(m_eFieldType) != 0 )
         {
+            delete poNewNode;
             return -1;
         }
 
@@ -1838,6 +1841,8 @@ int TABINDNode::SplitNode()
                 poTmpNode->SetNextNodePtr(poNewNode->GetNodeBlockPtr()) != 0 ||
                 poTmpNode->CommitToFile() != 0)
             {
+                delete poTmpNode;
+                delete poNewNode;
                 return -1;
             }
             delete poTmpNode;
@@ -1923,6 +1928,7 @@ int TABINDNode::SplitRootNode()
                             this, 0, 0)!= 0 ||
         poNewNode->SetFieldType(m_eFieldType) != 0)
     {
+        delete poNewNode;
         return -1;
     }
 
@@ -1933,6 +1939,7 @@ int TABINDNode::SplitRootNode()
                                          m_nCurIndexEntry,
                                          m_poCurChildNode) != 0)
     {
+        delete poNewNode;
         return -1;
     }
 
@@ -1971,7 +1978,7 @@ int TABINDNode::SplitRootNode()
  * (private method)
  *
  * Set the key/value part of the nodes buffer and the pointers to the
- * current child direclty.  This is used when copying info to a new node
+ * current child directly.  This is used when copying info to a new node
  * in SplitNode() and SplitRootNode()
  *
  * Returns 0 on success, -1 on error
@@ -2125,10 +2132,10 @@ void TABINDNode::Dump(FILE *fpOut /*=NULL*/)
                 GInt32 nInt32;
                 GInt16 nInt16;
                 GUInt32 nUInt32;
+                nRecordPtr = ReadIndexEntry(i, aKeyValBuf);
                 memcpy(&nInt32, aKeyValBuf, 4);
                 memcpy(&nInt16, aKeyValBuf + 2, 2);
                 memcpy(&nUInt32, aKeyValBuf, 4);
-                nRecordPtr = ReadIndexEntry(i, aKeyValBuf);
                 fprintf(fpOut, "   nRecordPtr = %d\n", nRecordPtr);
                 fprintf(fpOut, "   Int Value = %d\n", nInt32);
                 fprintf(fpOut, "   Int16 Val= %d\n",nInt16);
@@ -2144,8 +2151,8 @@ void TABINDNode::Dump(FILE *fpOut /*=NULL*/)
 
               if (m_nSubTreeDepth > 1)
               {
-                oChildNode.InitNode(m_fp, nRecordPtr, m_nKeyLength, 
-                                    m_nSubTreeDepth - 1, FALSE);
+                CPL_IGNORE_RET_VAL(oChildNode.InitNode(m_fp, nRecordPtr, m_nKeyLength, 
+                                    m_nSubTreeDepth - 1, FALSE));
                 oChildNode.SetFieldType(m_eFieldType);
                 oChildNode.Dump(fpOut);
               }

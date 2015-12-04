@@ -29,8 +29,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGRSHAPE_H_INCLUDED
-#define _OGRSHAPE_H_INCLUDED
+#ifndef OGRSHAPE_H_INCLUDED
+#define OGRSHAPE_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "shapefil.h"
@@ -39,7 +39,7 @@
 #include <vector>
 
 /* Was limited to 255 until OGR 1.10, but 254 seems to be a more */
-/* conventionnal limit (http://en.wikipedia.org/wiki/Shapefile, */
+/* conventional limit (http://en.wikipedia.org/wiki/Shapefile, */
 /* http://www.clicketyclick.dk/databases/xbase/format/data_types.html, */
 /* #5052 ) */
 #define OGR_DBF_MAX_FIELD_WIDTH 254
@@ -200,6 +200,8 @@ class OGRShapeLayer : public OGRAbstractProxiedLayer
 
     GIntBig             GetFeatureCount( int );
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     virtual OGRErr      CreateField( OGRFieldDefn *poField,
                                      int bApproxOK = TRUE );
@@ -209,6 +211,9 @@ class OGRShapeLayer : public OGRAbstractProxiedLayer
 
     virtual int         TestCapability( const char * );
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
+
     virtual OGRErr      SetAttributeFilter( const char * );
     
     void                AddToFileList( CPLStringList& oFileList );
@@ -279,4 +284,4 @@ class OGRShapeDataSource : public OGRDataSource
     char               **GetOpenOptions() { return papszOpenOptions; }
 };
 
-#endif /* ndef _OGRSHAPE_H_INCLUDED */
+#endif /* ndef OGRSHAPE_H_INCLUDED */

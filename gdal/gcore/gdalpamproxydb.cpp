@@ -5,7 +5,7 @@
  * Purpose:  Implementation of the GDAL PAM Proxy database interface.
  *           The proxy db is used to associate .aux.xml files in a temp
  *           directory - used for files for which aux.xml files can't be
- *           created (ie. read-only file systems). 
+ *           created (i.e. read-only file systems).
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
@@ -60,7 +60,7 @@ class GDALPamProxyDB
     void        SaveDB();
 }; 
 
-static int bProxyDBInitialized = FALSE;
+static bool bProxyDBInitialized = FALSE;
 static GDALPamProxyDB *poProxyDB = NULL;
 static CPLMutex *hProxyDBLock = NULL;
 
@@ -105,11 +105,12 @@ void GDALPamProxyDB::LoadDB()
     GByte  abyHeader[100];
 
     if( VSIFReadL( abyHeader, 1, 100, fpDB ) != 100 
-        || strncmp( (const char *) abyHeader, "GDAL_PROXY", 10 ) != 0 )
+        || !STARTS_WITH((const char *) abyHeader, "GDAL_PROXY") )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "Problem reading %s header - short or corrupt?", 
                   osDBName.c_str() );
+        VSIFCloseL(fpDB);
         return;
     }
 
@@ -121,12 +122,24 @@ void GDALPamProxyDB::LoadDB()
     int nBufLength;
     char *pszDBData;
 
-    VSIFSeekL( fpDB, 0, SEEK_END );
+    if( VSIFSeekL( fpDB, 0, SEEK_END ) != 0 )
+    {
+        VSIFCloseL(fpDB);
+        return;
+    }
     nBufLength = (int) (VSIFTellL(fpDB) - 100);
-
+    if( VSIFSeekL( fpDB, 100, SEEK_SET ) != 0 )
+    {
+        VSIFCloseL(fpDB);
+        return;
+    }
     pszDBData = (char *) CPLCalloc(1,nBufLength+1);
-    VSIFSeekL( fpDB, 100, SEEK_SET );
-    VSIFReadL( pszDBData, 1, nBufLength, fpDB );
+    if( VSIFReadL( pszDBData, 1, nBufLength, fpDB ) != (size_t)nBufLength )
+    {
+        CPLFree(pszDBData);
+        VSIFCloseL(fpDB);
+        return;
+    }
 
     VSIFCloseL( fpDB );
 
@@ -204,29 +217,37 @@ void GDALPamProxyDB::SaveDB()
     GByte  abyHeader[100];
 
     memset( abyHeader, ' ', sizeof(abyHeader) );
-    strncpy( (char *) abyHeader, "GDAL_PROXY", 10 );
-    sprintf( (char *) abyHeader + 10, "%9d", nUpdateCounter );
+    memcpy( (char *) abyHeader, "GDAL_PROXY", 10 );
+    snprintf( (char *) abyHeader + 10, sizeof(abyHeader) - 10, "%9d", nUpdateCounter );
 
-    VSIFWriteL( abyHeader, 1, 100, fpDB );
+    if( VSIFWriteL( abyHeader, 1, 100, fpDB ) != 100 )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined, 
+                    "Failed to write complete %s Pam Proxy DB.\n%s",
+                    osDBName.c_str(), 
+                    VSIStrerror( errno ) );
+        VSIFCloseL( fpDB );
+        VSIUnlink( osDBName );
+        if( hLock )
+            CPLUnlockFile( hLock );
+        return;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Write names.                                                    */
 /* -------------------------------------------------------------------- */
-    unsigned int i;
-
-    for( i = 0; i < aosOriginalFiles.size(); i++ )
+    for( unsigned int i = 0; i < aosOriginalFiles.size(); i++ )
     {
-        size_t nBytesWritten;
         const char *pszProxyFile;
 
-        VSIFWriteL( aosOriginalFiles[i].c_str(), 1, 
-                    strlen(aosOriginalFiles[i].c_str())+1, fpDB );
+        size_t nCount = VSIFWriteL( aosOriginalFiles[i].c_str(), 
+                    strlen(aosOriginalFiles[i].c_str())+1, 1, fpDB );
 
         pszProxyFile = CPLGetFilename(aosProxyFiles[i]);
-        nBytesWritten = VSIFWriteL( pszProxyFile, 1, 
-                                    strlen(pszProxyFile)+1, fpDB );
+        nCount += VSIFWriteL( pszProxyFile, 
+                                    strlen(pszProxyFile)+1, 1, fpDB );
 
-        if( nBytesWritten != strlen(pszProxyFile)+1 )
+        if( nCount != 2 )
         {
             CPLError( CE_Failure, CPLE_AppDefined, 
                       "Failed to write complete %s Pam Proxy DB.\n%s",
@@ -234,6 +255,8 @@ void GDALPamProxyDB::SaveDB()
                       VSIStrerror( errno ) );
             VSIFCloseL( fpDB );
             VSIUnlink( osDBName );
+            if( hLock )
+                CPLUnlockFile( hLock );
             return;
         }
     }
@@ -270,7 +293,7 @@ static void InitProxyDB()
             }
         }
 
-        bProxyDBInitialized = TRUE;
+        bProxyDBInitialized = true;
     }
 }
 
@@ -283,9 +306,9 @@ void PamCleanProxyDB()
 {
     {
         CPLMutexHolderD( &hProxyDBLock );
-        
-        bProxyDBInitialized = FALSE;
-        
+
+        bProxyDBInitialized = false;
+
         delete poProxyDB;
         poProxyDB = NULL;
     }
@@ -348,10 +371,10 @@ const char *PamAllocateProxy( const char *pszOriginal )
     CPLString osRevProxyFile;
     int   i;
 
-    i = strlen(pszOriginal) - 1;
+    i = static_cast<int>(strlen(pszOriginal)) - 1;
     while( i >= 0 && osRevProxyFile.size() < 220 )
     {
-        if( i > 6 && EQUALN(pszOriginal+i-5,":::OVR",6) )
+        if( i > 6 && STARTS_WITH_CI(pszOriginal+i-5, ":::OVR") )
             i -= 6;
 
         // make some effort to break long names at path delimiters.
@@ -379,7 +402,7 @@ const char *PamAllocateProxy( const char *pszOriginal )
     osCounter.Printf( "%06d_", poProxyDB->nUpdateCounter++ );
     osProxy += osCounter;
 
-    for( i = osRevProxyFile.size()-1; i >= 0; i-- )
+    for( i = static_cast<int>(osRevProxyFile.size())-1; i >= 0; i-- )
         osProxy += osRevProxyFile[i];
 
     if( osOriginal.find(":::OVR") != CPLString::npos )

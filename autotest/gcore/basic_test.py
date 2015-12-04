@@ -200,32 +200,36 @@ def basic_test_9():
 
 class my_python_error_handler_class:
     def __init__(self):
-        pass
+        self.eErrClass = None
+        self.err_no = None
+        self.msg = None
 
     def handler(self, eErrClass, err_no, msg):
-        gdaltest.eErrClass = eErrClass
-        gdaltest.err_no = err_no
-        gdaltest.msg = msg
+        self.eErrClass = eErrClass
+        self.err_no = err_no
+        self.msg = msg
 
 def basic_test_10():
 
-    gdaltest.eErrClass = 0
-    gdaltest.err_no = 0
-    gdaltest.msg = ''
     # Check that reference counting works OK
     gdal.PushErrorHandler(my_python_error_handler_class().handler)
     gdal.Error(1,2,'test')
     gdal.PopErrorHandler()
 
-    if gdaltest.eErrClass != 1:
+    error_handler = my_python_error_handler_class()
+    gdal.PushErrorHandler(error_handler.handler)
+    gdal.Error(1,2,'test')
+    gdal.PopErrorHandler()
+
+    if error_handler.eErrClass != 1:
         gdaltest.post_reason('fail')
         return 'fail'
 
-    if gdaltest.err_no != 2:
+    if error_handler.err_no != 2:
         gdaltest.post_reason('fail')
         return 'fail'
 
-    if gdaltest.msg != 'test':
+    if error_handler.msg != 'test':
         gdaltest.post_reason('fail')
         return 'fail'
 
@@ -286,7 +290,8 @@ def basic_test_11():
         gdaltest.post_reason('fail')
         return 'fail'
 
-    ds = gdal.OpenEx('data/byte.tif', open_options = ['FOO'] )
+    with gdaltest.error_handler():
+        ds = gdal.OpenEx('data/byte.tif', open_options = ['FOO'] )
     if ds is None:
         gdaltest.post_reason('fail')
         return 'fail'
@@ -333,6 +338,19 @@ def basic_test_11():
     ds = gdal.OpenEx('non existing', gdal.OF_VERBOSE_ERROR)
     gdal.PopErrorHandler()
     if ds is not None or gdal.GetLastErrorMsg() == '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    old_use_exceptions_status = gdal.GetUseExceptions()
+    gdal.UseExceptions()
+    got_exception = False
+    try:
+        ds = gdal.OpenEx('non existing')
+    except:
+        got_exception = True
+    if old_use_exceptions_status == 0:
+        gdal.DontUseExceptions()
+    if not got_exception:
         gdaltest.post_reason('fail')
         return 'fail'
 
@@ -530,6 +548,69 @@ def basic_test_14():
 
     return 'success'
 
+###############################################################################
+# Test errors with progress callback
+
+def basic_test_15_cbk_no_argument():
+    return None
+
+def basic_test_15_cbk_no_ret(a, b, c):
+    return None
+
+def basic_test_15_cbk_bad_ret(a, b, c):
+    return 'ok'
+
+def basic_test_15():
+
+    try:
+        with gdaltest.error_handler():
+            gdal.GetDriverByName('MEM').CreateCopy('', gdal.GetDriverByName('MEM').Create('',1,1), callback = 'foo')
+        gdaltest.post_reason('fail')
+        return 'fail'
+    except:
+        pass
+
+    with gdaltest.error_handler():
+        ds = gdal.GetDriverByName('MEM').CreateCopy('', gdal.GetDriverByName('MEM').Create('',1,1), callback = basic_test_15_cbk_no_argument)
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    with gdaltest.error_handler():
+        ds = gdal.GetDriverByName('MEM').CreateCopy('', gdal.GetDriverByName('MEM').Create('',1,1), callback = basic_test_15_cbk_no_ret)
+    if ds is None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    with gdaltest.error_handler():
+        ds = gdal.GetDriverByName('MEM').CreateCopy('', gdal.GetDriverByName('MEM').Create('',1,1), callback = basic_test_15_cbk_bad_ret)
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test unrecognized and recognized open options prefixed by @
+
+def basic_test_16():
+
+    gdal.ErrorReset()
+    gdal.OpenEx('data/byte.tif', open_options=['@UNRECOGNIZED=FOO'])
+    if gdal.GetLastErrorMsg() != '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    gdal.ErrorReset()
+    with gdaltest.error_handler():
+        gdal.OpenEx('data/byte.tif', gdal.OF_UPDATE, open_options=['@NUM_THREADS=INVALID'])
+    if gdal.GetLastErrorMsg() != 'Invalid value for NUM_THREADS: INVALID':
+        gdaltest.post_reason('fail')
+        print(gdal.GetLastErrorMsg())
+        return 'fail'
+
+    return 'success'
+
 gdaltest_list = [ basic_test_1,
                   basic_test_2,
                   basic_test_3,
@@ -543,7 +624,9 @@ gdaltest_list = [ basic_test_1,
                   basic_test_11,
                   basic_test_12,
                   basic_test_13,
-                  basic_test_14 ]
+                  basic_test_14,
+                  basic_test_15,
+                  basic_test_16 ]
 
 
 if __name__ == '__main__':
@@ -564,4 +647,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

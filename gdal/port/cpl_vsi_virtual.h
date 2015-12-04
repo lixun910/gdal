@@ -38,12 +38,6 @@
 #include "cpl_string.h"
 #include "cpl_multiproc.h"
 
-#if defined(WIN32CE)
-#  include "cpl_wince.h"
-#  include <wce_errno.h>
-#  pragma warning(disable:4786) /* Remove annoying warnings in eVC++ and VC++ 6.0 */
-#endif
-
 #include <map>
 #include <vector>
 #include <string>
@@ -140,11 +134,17 @@ typedef struct
     GIntBig       nModifiedTime;
 } VSIArchiveEntry;
 
-typedef struct
+class VSIArchiveContent
 {
+public:
+    time_t       mTime;
+    vsi_l_offset nFileSize;
     int nEntries;
     VSIArchiveEntry* entries;
-} VSIArchiveContent;
+    
+    VSIArchiveContent() : mTime(0), nFileSize(0), nEntries(0), entries(NULL) {}
+    ~VSIArchiveContent();
+};
 
 class VSIArchiveReader
 {
@@ -164,7 +164,7 @@ class VSIArchiveFilesystemHandler : public VSIFilesystemHandler
 {
 protected:
     CPLMutex* hMutex;
-    /* We use a cache that contains the list of files containes in a VSIArchive file as */
+    /* We use a cache that contains the list of files contained in a VSIArchive file as */
     /* unarchive.c is quite inefficient in listing them. This speeds up access to VSIArchive files */
     /* containing ~1000 files like a CADRG product */
     std::map<CPLString,VSIArchiveContent*>   oFileList;

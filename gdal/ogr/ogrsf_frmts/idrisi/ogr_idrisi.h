@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_IDRISI_H_INCLUDED
-#define _OGR_IDRISI_H_INCLUDED
+#ifndef OGR_IDRISI_H_INCLUDED
+#define OGR_IDRISI_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 
@@ -78,6 +78,8 @@ protected:
 
     void SetExtent(double dfMinX, double dfMinY, double dfMaxX, double dfMaxY);
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     virtual GIntBig         GetFeatureCount( int bForce = TRUE );
 };
@@ -122,4 +124,4 @@ class OGRIdrisiDriver : public OGRSFDriver
 };
 
 
-#endif /* ndef _OGR_IDRISI_H_INCLUDED */
+#endif /* ndef OGR_IDRISI_H_INCLUDED */

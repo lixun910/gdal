@@ -45,6 +45,10 @@ def vsifile_generic(filename):
     start_time = time.time()
 
     fp = gdal.VSIFOpenL(filename, 'wb+')
+    if fp is None:
+        gdaltest.post_reason('failure')
+        return 'fail'
+
     if gdal.VSIFWriteL('0123456789', 1, 10, fp) != 10:
         gdaltest.post_reason('failure')
         return 'fail'
@@ -90,6 +94,18 @@ def vsifile_generic(filename):
 
     if buf.decode('ascii') != '01234XX':
         gdaltest.post_reason('failure')
+        print(buf.decode('ascii'))
+        return 'fail'
+
+    # Test append mode on existing file
+    fp = gdal.VSIFOpenL(filename, 'ab')
+    gdal.VSIFWriteL('XX', 1, 2, fp)
+    gdal.VSIFCloseL(fp)
+
+    statBuf = gdal.VSIStatL(filename, gdal.VSI_STAT_EXISTS_FLAG | gdal.VSI_STAT_NATURE_FLAG | gdal.VSI_STAT_SIZE_FLAG)
+    if statBuf.size != 9:
+        gdaltest.post_reason('failure')
+        print(statBuf.size)
         return 'fail'
 
     if gdal.Unlink(filename) != 0:
@@ -100,7 +116,22 @@ def vsifile_generic(filename):
     if statBuf is not None:
         gdaltest.post_reason('failure')
         return 'fail'
+    
+    # Test append mode on non existing file
+    fp = gdal.VSIFOpenL(filename, 'ab')
+    gdal.VSIFWriteL('XX', 1, 2, fp)
+    gdal.VSIFCloseL(fp)
 
+    statBuf = gdal.VSIStatL(filename, gdal.VSI_STAT_EXISTS_FLAG | gdal.VSI_STAT_NATURE_FLAG | gdal.VSI_STAT_SIZE_FLAG)
+    if statBuf.size != 2:
+        gdaltest.post_reason('failure')
+        print(statBuf.size)
+        return 'fail'
+
+    if gdal.Unlink(filename) != 0:
+        gdaltest.post_reason('failure')
+        return 'fail'
+    
     return 'success'
 
 ###############################################################################
@@ -176,6 +207,7 @@ def vsifile_4():
     data = gdal.VSIFReadL(1, 1000000, fp)
     if len(data) == 0:
         return 'fail'
+    gdal.VSIFCloseL(fp)
 
     return 'success'
 
@@ -300,7 +332,10 @@ def vsifile_6():
 # Test limit cases on /vsimem
 
 def vsifile_7():
-    
+
+    if gdal.GetConfigOption('SKIP_MEM_INTENSIVE_TEST') is not None:
+        return 'skip'
+
     # Test extending file beyond reasonable limits in write mode
     fp = gdal.VSIFOpenL('/vsimem/vsifile_7.bin', 'wb')
     if gdal.VSIFSeekL(fp, 0x7FFFFFFFFFFFFFFF, 0) != 0:
@@ -338,10 +373,11 @@ def vsifile_7():
 
 def vsifile_8():
 
-    gdal.Mkdir('/vsimem/mydir', 0666)
+    # octal 0666 = decimal 438
+    gdal.Mkdir('/vsimem/mydir', 438)
     fp = gdal.VSIFOpenL('/vsimem/mydir/a', 'wb')
     gdal.VSIFCloseL(fp)
-    gdal.Rename('/vsimem/mydir', '/vsimem/newdir')
+    gdal.Rename('/vsimem/mydir', '/vsimem/newdir'.encode('ascii').decode('ascii'))
     if gdal.VSIStatL('/vsimem/newdir') is None:
         gdaltest.post_reason('fail')
         return 'fail'

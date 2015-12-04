@@ -102,13 +102,13 @@ _tiffWriteProc(thandle_t th, tdata_t buf, tsize_t size)
     {
         const GByte* pabyData = (const GByte*) buf;
         tsize_t nRemainingBytes = size;
-        while( TRUE )
+        while( true )
         {
             if( psGTH->nWriteBufferSize + nRemainingBytes <= BUFFER_SIZE )
             {
                 memcpy( psGTH->abyWriteBuffer + psGTH->nWriteBufferSize,
                         pabyData, nRemainingBytes );
-                psGTH->nWriteBufferSize += nRemainingBytes;
+                psGTH->nWriteBufferSize += static_cast<int>(nRemainingBytes);
                 psGTH->nExpectedPos += size;
                 return size;
             }
@@ -201,10 +201,10 @@ _tiffSizeProc(thandle_t th)
     }
 
     old_off = VSIFTellL( psGTH->fpL );
-    VSIFSeekL( psGTH->fpL, 0, SEEK_END );
+    CPL_IGNORE_RET_VAL(VSIFSeekL( psGTH->fpL, 0, SEEK_END ));
     
     file_size = (toff_t) VSIFTellL( psGTH->fpL );
-    VSIFSeekL( psGTH->fpL, old_off, SEEK_SET );
+    CPL_IGNORE_RET_VAL(VSIFSeekL( psGTH->fpL, old_off, SEEK_SET ));
 
     return file_size;
 }
@@ -266,12 +266,13 @@ TIFF* VSI_TIFFOpen(const char* name, const char* mode,
     }
 
     // No need to buffer on /vsimem/
-    if( strncmp(name, "/vsimem/", strlen("/vsimem/")) == 0 )
+    if( STARTS_WITH(name, "/vsimem/") )
         bAllocBuffer = FALSE;
 
     strcat( access, "b" );
 
-    VSIFSeekL(fpL, 0, SEEK_SET);
+    if( VSIFSeekL(fpL, 0, SEEK_SET) < 0 )
+        return NULL;
     
     GDALTiffHandle* psGTH = (GDALTiffHandle*) CPLMalloc(sizeof(GDALTiffHandle));
     psGTH->fpL = fpL;

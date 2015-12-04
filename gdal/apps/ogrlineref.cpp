@@ -146,7 +146,7 @@ static OGRLayer* SetupTargetLayer(OGRLayer * poSrcLayer, GDALDataset *poDstDS, c
     OGRSpatialReference *poOutputSRS;
 
     CPLString szLayerName;
-    
+
     if (pszNewLayerName == NULL)
     {
         szLayerName = CPLGetBasename(poDstDS->GetDescription());
@@ -171,9 +171,9 @@ static OGRLayer* SetupTargetLayer(OGRLayer * poSrcLayer, GDALDataset *poDstDS, c
     /*      Find the layer.                                                 */
     /* -------------------------------------------------------------------- */
 
-    /* GetLayerByName() can instanciate layers that would have been */
+    /* GetLayerByName() can instantiate layers that would have been */
     /* 'hidden' otherwise, for example, non-spatial tables in a */
-    /* Postgis-enabled database, so this apparently useless command is */
+    /* PostGIS-enabled database, so this apparently useless command is */
     /* not useless... (#4012) */
     CPLPushErrorHandler(CPLQuietErrorHandler);
     poDstLayer = poDstDS->GetLayerByName(szLayerName);
@@ -246,7 +246,7 @@ static OGRLayer* SetupTargetLayer(OGRLayer * poSrcLayer, GDALDataset *poDstDS, c
     }
 
     //create beg, end, scale factor fields
-    OGRFieldDefn oFieldDefn_Beg = OGRFieldDefn(FIELD_START, OFTReal);
+    OGRFieldDefn oFieldDefn_Beg(FIELD_START, OFTReal);
     if (poDstLayer->CreateField(&oFieldDefn_Beg) != OGRERR_NONE)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Create %s field failed!",
@@ -254,7 +254,7 @@ static OGRLayer* SetupTargetLayer(OGRLayer * poSrcLayer, GDALDataset *poDstDS, c
         return NULL;
     }
 
-    OGRFieldDefn oFieldDefn_End = OGRFieldDefn(FIELD_FINISH, OFTReal);
+    OGRFieldDefn oFieldDefn_End(FIELD_FINISH, OFTReal);
     if (poDstLayer->CreateField(&oFieldDefn_End) != OGRERR_NONE)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Create %s field failed!",
@@ -262,7 +262,7 @@ static OGRLayer* SetupTargetLayer(OGRLayer * poSrcLayer, GDALDataset *poDstDS, c
         return NULL;
     }
 
-    OGRFieldDefn oFieldDefn_SF = OGRFieldDefn(FIELD_SCALE_FACTOR, OFTReal);
+    OGRFieldDefn oFieldDefn_SF(FIELD_SCALE_FACTOR, OFTReal);
     if (poDstLayer->CreateField(&oFieldDefn_SF) != OGRERR_NONE)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Create %s field failed!",
@@ -378,7 +378,7 @@ void CheckDestDataSourceNameConsistency(const char* pszDestFilename,
 // AddFeature
 //------------------------------------------------------------------------
 
-OGRErr AddFeature(OGRLayer* const poOutLayer, OGRLineString* pPart, double dfFrom, double dfTo, double dfScaleFactor, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
+static OGRErr AddFeature(OGRLayer* const poOutLayer, OGRLineString* pPart, double dfFrom, double dfTo, double dfScaleFactor, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
 {
     OGRFeature *poFeature;
 
@@ -410,7 +410,7 @@ OGRErr AddFeature(OGRLayer* const poOutLayer, OGRLineString* pPart, double dfFro
 //------------------------------------------------------------------------
 // CreateSubline
 //------------------------------------------------------------------------
-OGRErr CreateSubline(OGRLayer* const poPkLayer,
+static OGRErr CreateSubline(OGRLayer* const poPkLayer,
                      double dfPosBeg,
                      double dfPosEnd,
                      OGRLayer* const poOutLayer,
@@ -493,7 +493,7 @@ OGRErr CreateSubline(OGRLayer* const poPkLayer,
     }
     else
     {
-        int nCounter = moParts.size();
+        int nCounter = static_cast<int>(moParts.size());
         std::map<double, OGRFeature *>::iterator IT = moParts.begin();
         OGRLineString *pOutLine = new OGRLineString();
         //get first part
@@ -544,7 +544,8 @@ OGRErr CreateSubline(OGRLayer* const poPkLayer,
 //------------------------------------------------------------------------
 // Project
 //------------------------------------------------------------------------
-double Project(OGRLineString* pLine, OGRPoint* pPoint)
+#ifdef HAVE_GEOS_PROJECT
+static double Project(OGRLineString* pLine, OGRPoint* pPoint)
 {
     if(NULL == pLine || NULL == pPoint)
         return -1;
@@ -558,13 +559,15 @@ double Project(OGRLineString* pLine, OGRPoint* pPoint)
         
     return pLine->Project(pPoint);    
 }
+#endif
 
 //------------------------------------------------------------------------
 // CreatePartsFromLineString
 //------------------------------------------------------------------------
-
-OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkLayer, int nMValField, double dfStep, OGRLayer* const poOutLayer, int bDisplayProgress, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
+#ifdef HAVE_GEOS_PROJECT
+static OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkLayer, int nMValField, double dfStep, OGRLayer* const poOutLayer, int bDisplayProgress, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
 {
+    // TODO: What is a reper?
     //check repers type
     OGRwkbGeometryType eGeomType = poPkLayer->GetGeomType();
     if (wkbFlatten(eGeomType) != wkbPoint)
@@ -593,7 +596,7 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
                         "The distance %f is already present in repers file!", dfReperPos);
                 }
             }
-            //check if reper is incide the path
+            // Check if reper is inside the path
             dfTestDistance = Project(pPathGeom, pPt);
             if (dfTestDistance < 0)
             {
@@ -663,7 +666,7 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
     //If first point is not at the beginning of the path
     //The first part should be from the beginning of the path to the first point. length == part.getLength
     OGRPoint *pPtBeg(NULL), *pPtEnd(NULL);
-    double dfPtBegPosition, dfPtEndPosition;
+    double dfPtBegPosition = 0.0, dfPtEndPosition = 0.0;
 
     if (dfDistance1 > DELTA)
     {
@@ -677,7 +680,7 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
                 //convert to UTM/WGS84
                 OGRPoint pt;
                 pPart->Value(dfLen / 2, &pt);
-                int nZoneEnv = 30 + (pt.getX() + 3.0) / 6.0 + 0.5;
+                int nZoneEnv = static_cast<int>(30 + (pt.getX() + 3.0) / 6.0 + 0.5);
                 int nEPSG;
                 if (pt.getY() > 0)
                 {
@@ -786,7 +789,7 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
                 //convert to UTM/WGS84
                 OGRPoint pt;
                 pPart->Value(dfLen / 2, &pt);
-                int nZoneEnv = 30 + (pt.getX() + 3.0) / 6.0 + 0.5;
+                int nZoneEnv = static_cast<int>(30 + (pt.getX() + 3.0) / 6.0 + 0.5);
                 int nEPSG;
                 if (pt.getY() > 0)
                 {
@@ -832,14 +835,12 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
         fprintf(stdout, "\nCreate pickets\n");
     }
 
-    long nBegin = 0;
+    double dfRoundBeg;
     
     if (pPtBeg != NULL)
-        nBegin = ceil(dfPtBegPosition / dfStep) * dfStep;
+        dfRoundBeg = ceil(dfPtBegPosition / dfStep) * dfStep;
     else
-        nBegin = ceil(dfBeginPosition / dfStep) * dfStep;
-
-    double dfRoundBeg = nBegin;
+        dfRoundBeg = ceil(dfBeginPosition / dfStep) * dfStep;
 
     if (pPtEnd != NULL)
         dfEndPosition = dfPtEndPosition;
@@ -923,11 +924,13 @@ OGRErr CreatePartsFromLineString(OGRLineString* pPathGeom, OGRLayer* const poPkL
 
     return OGRERR_NONE;
 }
+#endif
 
 //------------------------------------------------------------------------
 // CreateParts
 //------------------------------------------------------------------------
-OGRErr CreateParts(OGRLayer* const poLnLayer, OGRLayer* const poPkLayer, int nMValField, double dfStep, OGRLayer* const poOutLayer, int bDisplayProgress, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
+#ifdef HAVE_GEOS_PROJECT
+static OGRErr CreateParts(OGRLayer* const poLnLayer, OGRLayer* const poPkLayer, int nMValField, double dfStep, OGRLayer* const poOutLayer, int bDisplayProgress, int bQuiet, const char* pszOutputSepFieldName = NULL, const char* pszOutputSepFieldValue = NULL)
 {
     OGRErr eRetCode = OGRERR_FAILURE;
 
@@ -941,13 +944,13 @@ OGRErr CreateParts(OGRLayer* const poLnLayer, OGRLayer* const poPkLayer, int nMV
 
     poLnLayer->ResetReading();
     //get first geometry
-    //TODO: attruibute filter for path geometry 
+    // TODO: Attribute filter for path geometry.
     OGRFeature* pPathFeature = poLnLayer->GetNextFeature();
     if (NULL != pPathFeature)
     {
         OGRGeometry* pGeom = pPathFeature->GetGeometryRef();
 
-        if (wkbFlatten(pGeom->getGeometryType()) == wkbMultiLineString)
+        if (pGeom != NULL && wkbFlatten(pGeom->getGeometryType()) == wkbMultiLineString)
         {
             if (!bQuiet)
             {
@@ -983,11 +986,13 @@ OGRErr CreateParts(OGRLayer* const poLnLayer, OGRLayer* const poPkLayer, int nMV
 
     return eRetCode;
 }
+#endif
 
 //------------------------------------------------------------------------
 // CreatePartsMultiple
 //------------------------------------------------------------------------
-OGRErr CreatePartsMultiple(OGRLayer* const poLnLayer, const char* pszLineSepFieldName, OGRLayer* const poPkLayer, const char* pszPicketsSepFieldName, int nMValField, double dfStep, OGRLayer* const poOutLayer, const char* pszOutputSepFieldName, int bDisplayProgress, int bQuiet)
+#ifdef HAVE_GEOS_PROJECT
+static OGRErr CreatePartsMultiple(OGRLayer* const poLnLayer, const char* pszLineSepFieldName, OGRLayer* const poPkLayer, const char* pszPicketsSepFieldName, int nMValField, double dfStep, OGRLayer* const poOutLayer, const char* pszOutputSepFieldName, int bDisplayProgress, int bQuiet)
 {
     //read all sep field values into array
     std::set<CPLString> asIDs;
@@ -1032,11 +1037,13 @@ OGRErr CreatePartsMultiple(OGRLayer* const poLnLayer, const char* pszLineSepFiel
 
     return OGRERR_NONE;
 }
+#endif
 
 //------------------------------------------------------------------------
 // GetPosition
 //------------------------------------------------------------------------
-OGRErr GetPosition(OGRLayer* const poPkLayer,
+#ifdef HAVE_GEOS_PROJECT
+static OGRErr GetPosition(OGRLayer* const poPkLayer,
                    double dfX,
                    double dfY,
                    CPL_UNUSED int bDisplayProgress,
@@ -1050,7 +1057,7 @@ OGRErr GetPosition(OGRLayer* const poPkLayer,
 
     poPkLayer->ResetReading();
     OGRLineString *pCloserPart = NULL;
-    double dfBeg, dfScale;
+    double dfBeg = 0.0, dfScale = 0.0;
     double dfMinDistance = std::numeric_limits<double>::max();
     OGRFeature* pFeature = NULL;
     while ((pFeature = poPkLayer->GetNextFeature()) != NULL)
@@ -1093,11 +1100,12 @@ OGRErr GetPosition(OGRLayer* const poPkLayer,
 
     return OGRERR_NONE;
 }
+#endif
 
 //------------------------------------------------------------------------
 // GetCoordinates
 //------------------------------------------------------------------------
-OGRErr GetCoordinates(OGRLayer* const poPkLayer,
+static OGRErr GetCoordinates(OGRLayer* const poPkLayer,
                       double dfPos,
                       CPL_UNUSED int bDisplayProgress,
                       int bQuiet)
@@ -1164,23 +1172,32 @@ int main( int nArgc, char ** papszArgv )
     const char  *pszPartsDataSource = NULL;
     char  *pszOutputLayerName = NULL;
     const char  *pszLineLayerName = NULL;
+#ifdef HAVE_GEOS_PROJECT
     const char  *pszPicketsLayerName = NULL;
     const char  *pszPicketsMField = NULL;
+#endif
     const char  *pszPartsLayerName = NULL;
 
+#ifdef HAVE_GEOS_PROJECT
     const char  *pszLineSepFieldName = NULL;
     const char  *pszPicketsSepFieldName = NULL;
     const char  *pszOutputSepFieldName = "uniq_uid";
+#endif
     
     char        **papszDSCO = NULL, **papszLCO = NULL;
     
     operation stOper = op_unknown;
-    double dfX(-100000000), dfY(-100000000), dfPos(-100000000);
+#ifdef HAVE_GEOS_PROJECT
+    double dfX(-100000000), dfY(-100000000);
+#endif
+    double dfPos(-100000000);
 
     int bDisplayProgress = FALSE;
     
     double dfPosBeg(-100000000), dfPosEnd(-100000000);
+#ifdef HAVE_GEOS_PROJECT
     double dfStep(-100000000);
+#endif
 
     /* Check strict compilation and runtime library version as we use C++ API */
     if (! GDAL_CHECK_VERSION(papszArgv[0]))
@@ -1207,6 +1224,7 @@ int main( int nArgc, char ** papszArgv )
         {
             printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
                    papszArgv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            CSLDestroy( papszArgv );
             return 0;
         }
         else if( EQUAL(papszArgv[iArg],"--help") )
@@ -1223,7 +1241,7 @@ int main( int nArgc, char ** papszArgv )
         else if( EQUAL(papszArgv[iArg],"-f") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
-            //bFormatExplicitelySet = TRUE;
+            //bFormatExplicitlySet = TRUE;
             pszFormat = papszArgv[++iArg];
         }
         else if( EQUAL(papszArgv[iArg],"-dsco") )
@@ -1265,7 +1283,12 @@ int main( int nArgc, char ** papszArgv )
         else if (EQUAL(papszArgv[iArg], "-lf"))
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             pszLineSepFieldName = papszArgv[++iArg];
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }
         else if( EQUAL(papszArgv[iArg],"-p") )
         {
@@ -1275,17 +1298,32 @@ int main( int nArgc, char ** papszArgv )
         else if( EQUAL(papszArgv[iArg],"-pn") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             pszPicketsLayerName = papszArgv[++iArg];
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }    
         else if( EQUAL(papszArgv[iArg],"-pm") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             pszPicketsMField = papszArgv[++iArg];
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }
         else if (EQUAL(papszArgv[iArg], "-pf"))
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             pszPicketsSepFieldName = papszArgv[++iArg];
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }
         else if( EQUAL(papszArgv[iArg],"-r") )
         {
@@ -1310,17 +1348,32 @@ int main( int nArgc, char ** papszArgv )
         else if (EQUAL(papszArgv[iArg], "-of"))
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             pszOutputSepFieldName = papszArgv[++iArg];
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }
         else if( EQUAL(papszArgv[iArg],"-x") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             dfX = CPLAtofM(papszArgv[++iArg]);
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         } 
         else if( EQUAL(papszArgv[iArg],"-y") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             dfY = CPLAtofM(papszArgv[++iArg]);
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         } 
         else if( EQUAL(papszArgv[iArg],"-m") )
         {
@@ -1340,7 +1393,12 @@ int main( int nArgc, char ** papszArgv )
         else if( EQUAL(papszArgv[iArg],"-s") )
         {
             CHECK_HAS_ENOUGH_ADDITIONAL_ARGS(1);
+#ifdef HAVE_GEOS_PROJECT
             dfStep = CPLAtofM(papszArgv[++iArg]);
+#else
+            fprintf( stderr, "GEOS support not enabled or incompatible version.\n" );
+            exit( 1 );
+#endif
         }  
         else if( EQUAL(papszArgv[iArg],"-progress") )
         {

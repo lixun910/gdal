@@ -161,7 +161,7 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
             oField.SetType( OFTString );
 
         }
-        else if( EQUALN(pszType,"char",4)  )
+        else if( STARTS_WITH_CI(pszType, "char")  )
         {
             oField.SetType( OFTString );
             char ** papszTokens;
@@ -182,7 +182,7 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
         {
             oField.SetType( OFTString );            
         }
-        else if( EQUALN(pszType,"varchar",6)  )
+        else if( STARTS_WITH_CI(pszType,"varchar")  )
         {
             /* 
                pszType is usually in the form "varchar(15)" 
@@ -202,27 +202,27 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
             CSLDestroy( papszTokens );
             oField.SetType( OFTString );
         }
-        else if( EQUALN(pszType,"int", 3) )
+        else if( STARTS_WITH_CI(pszType, "int") )
         {
             oField.SetType( OFTInteger );
         }
-        else if( EQUALN(pszType,"tinyint", 7) )
+        else if( STARTS_WITH_CI(pszType, "tinyint") )
         {
             oField.SetType( OFTInteger );
         }
-        else if( EQUALN(pszType,"smallint", 8) )
+        else if( STARTS_WITH_CI(pszType, "smallint") )
         {
             oField.SetType( OFTInteger );
         }
-        else if( EQUALN(pszType,"mediumint",9) )
+        else if( STARTS_WITH_CI(pszType, "mediumint") )
         {
             oField.SetType( OFTInteger );
         }
-        else if( EQUALN(pszType,"bigint",6) )
+        else if( STARTS_WITH_CI(pszType, "bigint") )
         {
             oField.SetType( OFTInteger64 );
         }
-        else if( EQUALN(pszType,"decimal",7) )
+        else if( STARTS_WITH_CI(pszType, "decimal") )
         {
             /* 
                pszType is usually in the form "decimal(15,2)" 
@@ -242,7 +242,7 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
 
 
         }
-        else if( EQUALN(pszType,"float", 5) )
+        else if( STARTS_WITH_CI(pszType, "float") )
         {
             oField.SetType( OFTReal );
         }
@@ -250,7 +250,7 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
         {
             oField.SetType( OFTReal );
         }
-        else if( EQUALN(pszType,"double",6) )
+        else if( STARTS_WITH_CI(pszType, "double") )
         {
             // double can also be double(15,2)
             // so we'll handle this case here after 
@@ -328,7 +328,7 @@ OGRFeatureDefn *OGRMySQLTableLayer::ReadTableDefinition( const char *pszTable )
         if( pszDefault != NULL )
         {
             if( !EQUAL(pszDefault, "NULL") &&
-                !EQUALN(pszDefault, "CURRENT_", strlen("CURRENT_")) &&
+                !STARTS_WITH_CI(pszDefault, "CURRENT_") &&
                 pszDefault[0] != '(' &&
                 pszDefault[0] != '\'' &&
                 CPLGetValueType(pszDefault) == CPL_VALUE_STRING )
@@ -537,7 +537,8 @@ void OGRMySQLTableLayer::ResetReading()
 char *OGRMySQLTableLayer::BuildFields()
 
 {
-    int         i, nSize;
+    int         i;
+    size_t      nSize;
     char        *pszFieldList;
 
     nSize = 25;
@@ -583,7 +584,7 @@ char *OGRMySQLTableLayer::BuildFields()
         strcat( pszFieldList, "`");
     }
 
-    CPLAssert( (int) strlen(pszFieldList) < nSize );
+    CPLAssert( strlen(pszFieldList) < nSize );
 
     return pszFieldList;
 }
@@ -806,7 +807,8 @@ OGRErr OGRMySQLTableLayer::ICreateFeature( OGRFeature *poFeature )
     // Set the FID 
     if( poFeature->GetFID() != OGRNullFID && pszFIDColumn != NULL )
     {
-        if( (GIntBig)(int)poFeature->GetFID() != poFeature->GetFID() &&
+        GIntBig nFID = poFeature->GetFID();
+        if( !CPL_INT64_FITS_ON_INT32(nFID) &&
             GetMetadataItem(OLMD_FID64) == NULL )
         {
             CPLString osCommand2;
@@ -831,7 +833,7 @@ OGRErr OGRMySQLTableLayer::ICreateFeature( OGRFeature *poFeature )
         
         if( bNeedComma )
             osCommand += ", ";
-        osCommand += CPLString().Printf( CPL_FRMT_GIB, poFeature->GetFID() );
+        osCommand += CPLString().Printf( CPL_FRMT_GIB, nFID );
         bNeedComma = TRUE;
     }
 
@@ -1293,7 +1295,7 @@ OGRErr OGRMySQLTableLayer::GetExtent(OGREnvelope *psExtent, CPL_UNUSED int bForc
 
 		MYSQL_ROW row; 
 		unsigned long *panLengths = NULL;
-		while ((row = mysql_fetch_row(result)))
+		while ((row = mysql_fetch_row(result)) != NULL)
 		{
 			if (panLengths == NULL)
 			{
@@ -1310,7 +1312,7 @@ OGRErr OGRMySQLTableLayer::GetExtent(OGREnvelope *psExtent, CPL_UNUSED int bForc
 			OGRGeometryFactory::createFromWkb(((GByte *)row[0]) + 4, 
 											  NULL,
 											  &poGeometry,
-											  panLengths[0] - 4 );
+											  static_cast<int>(panLengths[0] - 4) );
 
 			if ( poGeometry != NULL )
 			{

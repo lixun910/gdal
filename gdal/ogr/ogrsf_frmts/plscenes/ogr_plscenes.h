@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_PLSCENES_H_INCLUDED
-#define _OGR_PLSCENES_H_INCLUDED
+#ifndef OGR_PLSCENES_H_INCLUDED
+#define OGR_PLSCENES_H_INCLUDED
 
 #include "gdal_priv.h"
 #include "ogrsf_frmts.h"
@@ -121,9 +121,14 @@ class OGRPLScenesLayer: public OGRLayer
         virtual OGRFeatureDefn *GetLayerDefn() { return poFeatureDefn; }
 
         virtual void        SetSpatialFilter( OGRGeometry *poGeom );
+        virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
+
         virtual OGRErr      SetAttributeFilter( const char * );
         
         virtual OGRErr      GetExtent( OGREnvelope *psExtent, int bForce );
+        virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
         
         void                SetMainFilterRect(double dfMinX, double dfMinY,
                                               double dfMaxX, double dfMaxY);
@@ -131,5 +136,5 @@ class OGRPLScenesLayer: public OGRLayer
                                 { bAcquiredAscending = bAcquiredAscendingIn; }
 };
 
-#endif /* ndef _OGR_PLSCENES_H_INCLUDED */
+#endif /* ndef OGR_PLSCENES_H_INCLUDED */
 

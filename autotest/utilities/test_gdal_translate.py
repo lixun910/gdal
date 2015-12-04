@@ -876,7 +876,7 @@ def test_gdal_translate_31():
         gdaltest.post_reason('Bad checksum')
         return 'fail'
 
-    if not gdaltest.geotransform_equals(gdal.Open('../gcore/data/byte.tif').GetGeoTransform(), ds.GetGeoTransform(), 1e-9) :
+    if not gdaltest.geotransform_equals(gdal.Open('../gcore/data/byte.tif').GetGeoTransform(), ds.GetGeoTransform(), 1e-7) :
         gdaltest.post_reason('Bad geotransform')
         return 'fail'
 
@@ -954,6 +954,39 @@ def test_gdal_translate_34():
     ds = None
 
     os.unlink('tmp/test_gdal_translate_34.vrt')
+
+    return 'success'
+
+###############################################################################
+# Test various errors (missing source or dest...)
+
+def test_gdal_translate_35():
+    if test_cli_utilities.get_gdal_translate_path() is None:
+        return 'skip'
+
+    (out, err) = gdaltest.runexternal_out_and_err(test_cli_utilities.get_gdal_translate_path())
+    if err.find('No source dataset specified') < 0:
+        gdaltest.post_reason('fail')
+        print(err)
+        return 'fail'
+
+    (out, err) = gdaltest.runexternal_out_and_err(test_cli_utilities.get_gdal_translate_path() + ' ../gcore/data/byte.tif')
+    if err.find('No target dataset specified') < 0:
+        gdaltest.post_reason('fail')
+        print(err)
+        return 'fail'
+
+    (out, err) = gdaltest.runexternal_out_and_err(test_cli_utilities.get_gdal_translate_path() + ' /non_existing_path/non_existing.tif /vsimem/out.tif')
+    if err.find('does not exist in the file system') < 0:
+        gdaltest.post_reason('fail')
+        print(err)
+        return 'fail'
+
+    (out, err) = gdaltest.runexternal_out_and_err(test_cli_utilities.get_gdal_translate_path() + ' ../gcore/data/byte.tif /non_existing_path/non_existing.tif')
+    if err.find('Attempt to create new tiff file') < 0:
+        gdaltest.post_reason('fail')
+        print(err)
+        return 'fail'
 
     return 'success'
 
@@ -1101,6 +1134,7 @@ gdaltest_list = [
     test_gdal_translate_32,
     test_gdal_translate_33,
     test_gdal_translate_34,
+    test_gdal_translate_35,
     test_gdal_translate_cleanup
     ]
 

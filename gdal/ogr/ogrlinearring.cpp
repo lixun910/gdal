@@ -43,6 +43,24 @@ OGRLinearRing::OGRLinearRing()
 }
 
 /************************************************************************/
+/*                  OGRLinearRing( const OGRLinearRing& )               */
+/************************************************************************/
+
+/**
+ * \brief Copy constructor.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the constructor
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRLinearRing::OGRLinearRing( const OGRLinearRing& other ) :
+    OGRLineString( other )
+{
+}
+
+/************************************************************************/
 /*                          ~OGRLinearRing()                            */
 /************************************************************************/
 
@@ -74,6 +92,28 @@ OGRLinearRing::OGRLinearRing( OGRLinearRing * poSrcRing )
         Make3D();
         memcpy( padfZ, poSrcRing->padfZ, sizeof(double) * getNumPoints() );
     }
+}
+
+/************************************************************************/
+/*                    operator=( const OGRLinearRing& )                 */
+/************************************************************************/
+
+/**
+ * \brief Assignment operator.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the operator
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRLinearRing& OGRLinearRing::operator=( const OGRLinearRing& other )
+{
+    if( this != &other)
+    {
+        OGRLineString::operator=( other );
+    }
+    return *this;
 }
 
 /************************************************************************/
@@ -178,8 +218,6 @@ OGRErr OGRLinearRing::_importFromWkb( OGRwkbByteOrder eByteOrder, int b3D,
 /* -------------------------------------------------------------------- */
 /*      Get the vertices                                                */
 /* -------------------------------------------------------------------- */
-    int i = 0;
-
     if( !b3D )
     {
         memcpy( paoPoints, pabyData + 4, 16 * nPointCount );
@@ -199,7 +237,7 @@ OGRErr OGRLinearRing::_importFromWkb( OGRwkbByteOrder eByteOrder, int b3D,
 /* -------------------------------------------------------------------- */
     if( OGR_SWAP( eByteOrder ) )
     {
-        for( i = 0; i < nPointCount; i++ )
+        for( int i = 0; i < nPointCount; i++ )
         {
             CPL_SWAPDOUBLE( &(paoPoints[i].x) );
             CPL_SWAPDOUBLE( &(paoPoints[i].y) );
@@ -335,7 +373,7 @@ int OGRLinearRing::isClockwise() const
 {
     int    i, v, next;
     double  dx0, dy0, dx1, dy1, crossproduct;
-    int    bUseFallback = FALSE;
+    bool bUseFallback = false;
 
     if( nPointCount < 2 )
         return TRUE;
@@ -350,14 +388,14 @@ int OGRLinearRing::isClockwise() const
                paoPoints[i].x > paoPoints[v].x ) )
         {
             v = i;
-            bUseFallback = FALSE;
+            bUseFallback = false;
         }
         else if ( paoPoints[i].y == paoPoints[v].y &&
                   paoPoints[i].x == paoPoints[v].x )
         {
             /* Two vertex with same coordinates are the lowest rightmost */
             /* vertex! We cannot use that point as the pivot (#5342) */
-            bUseFallback = TRUE;
+            bUseFallback = true;
         }
     }
 
@@ -373,7 +411,7 @@ int OGRLinearRing::isClockwise() const
     {
         /* Don't try to be too clever by retrying with a next point */
         /* This can lead to false results as in the case of #3356 */
-        bUseFallback = TRUE;
+        bUseFallback = true;
     }
 
     dx0 = paoPoints[next].x - paoPoints[v].x;
@@ -392,7 +430,7 @@ int OGRLinearRing::isClockwise() const
     {
         /* Don't try to be too clever by retrying with a next point */
         /* This can lead to false results as in the case of #3356 */
-        bUseFallback = TRUE;
+        bUseFallback = true;
     }
 
     dx1 = paoPoints[next].x - paoPoints[v].x;
@@ -568,7 +606,7 @@ OGRBoolean OGRLinearRing::isPointOnRingBoundary(const OGRPoint* poPoint, int bTe
     double prev_diff_x = getX(0) - dfTestX;
     double prev_diff_y = getY(0) - dfTestY;
 
-    for ( int iPoint = 1; iPoint < iNumPoints; iPoint++ ) 
+    for ( int iPoint = 1; iPoint < iNumPoints; iPoint++ )
     {
         const double x1 = getX(iPoint) - dfTestX;
         const double y1 = getY(iPoint) - dfTestY;
@@ -576,10 +614,11 @@ OGRBoolean OGRLinearRing::isPointOnRingBoundary(const OGRPoint* poPoint, int bTe
         const double x2 = prev_diff_x;
         const double y2 = prev_diff_y;
 
-        /* If the point is on the segment, return immediatly */
+        /* If the point is on the segment, return immediately. */
         /* FIXME? If the test point is not exactly identical to one of */
         /* the vertices of the ring, but somewhere on a segment, there's */
-        /* little chance that we get 0. So that should be tested against some epsilon */
+        /* little chance that we get 0. So that should be tested against some */
+        /* epsilon. */
 
         if ( x1 * y2 - x2 * y1 == 0 )
         {

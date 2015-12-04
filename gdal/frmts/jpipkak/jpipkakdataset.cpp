@@ -113,19 +113,19 @@ private:
 /*                         JPIPKAKRasterBand()                          */
 /************************************************************************/
 
-JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
-                                      kdu_codestream *oCodeStream,
+JPIPKAKRasterBand::JPIPKAKRasterBand( int nBandIn, int nDiscardLevelsIn,
+                                      kdu_codestream *oCodeStreamIn,
                                       int nResCount,
                                       JPIPKAKDataset *poBaseDSIn )
 
 {
-    this->nBand = nBand;
+    this->nBand = nBandIn;
     poBaseDS = poBaseDSIn;
 
     eDataType = poBaseDSIn->eDT;
 
-    this->nDiscardLevels = nDiscardLevels;
-    this->oCodeStream = oCodeStream;
+    this->nDiscardLevels = nDiscardLevelsIn;
+    this->oCodeStream = oCodeStreamIn;
 
     oCodeStream->apply_input_restrictions( 0, 0, nDiscardLevels, 0, NULL );
     oCodeStream->get_dims( 0, band_dims );
@@ -272,7 +272,7 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         xSize = poBaseDS->GetRasterXSize() - xOff;
         nBufXSize= MAX(xSize/nZoom,1);
     }
-    
+
     if( yOff + ySize > poBaseDS->GetRasterYSize() )
     {
         ySize = poBaseDS->GetRasterYSize() - yOff;
@@ -292,13 +292,13 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         return CE_Failure;
 
     int nXBufOff; // absolute x image offset
-    int nYBufOff; // abolute y image offset
+    int nYBufOff; // absolute y image offset
     int nXBufSize;
     int nYBufSize;
 
     GDALAsyncStatusType status;
 
-    do 
+    do
     {
         status = ario->GetNextUpdatedRegion(-1.0, 
                                             &nXBufOff, &nYBufOff, 
@@ -344,7 +344,8 @@ JPIPKAKRasterBand::IRasterIO( GDALRWFlag eRWFlag,
         poBaseDS->BeginAsyncReader(nXOff, nYOff, nXSize, nYSize,
                                    pData, nBufXSize, nBufYSize, eBufType, 
                                    1, &nBand,
-                                   nPixelSpace, nLineSpace, 0, NULL);
+                                   static_cast<int>(nPixelSpace),
+                                   static_cast<int>(nLineSpace), 0, NULL);
     
     if( ario == NULL )
         return CE_Failure;
@@ -492,7 +493,7 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
     CPLString osURL = "http";
     osURL += (pszDatasetName + 4);
     
-    CPLAssert( strncmp(pszDatasetName,"jpip",4) == 0 );
+    CPLAssert( STARTS_WITH(pszDatasetName, "jpip") );
 
     // make initial request to the server for a session, we are going to 
     // assume that the jpip communication is stateful, rather than one-shot
@@ -533,7 +534,7 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
     if( pszCnew == NULL )
     {
         if( psResult->pszContentType != NULL 
-            && EQUALN(psResult->pszContentType,"text/html",9) )
+            && STARTS_WITH_CI(psResult->pszContentType, "text/html") )
             CPLDebug( "JPIPKAK", "%s", 
                       psResult->pabyData );
 
@@ -551,7 +552,7 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
     for (int i = 0; i < CSLCount(papszTokens); i++)
     {
         // looking for cid, path
-        if (EQUALN(papszTokens[i], "cid", 3))
+        if (STARTS_WITH_CI(papszTokens[i], "cid"))
         {
             char *pszKey = NULL;
             const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
@@ -559,7 +560,7 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
             CPLFree( pszKey );
         }
 
-        if (EQUALN(papszTokens[i], "path", 4))
+        if (STARTS_WITH_CI(papszTokens[i], "path"))
         {
             char *pszKey = NULL;
             const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
@@ -577,8 +578,8 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
         return FALSE;
     }
 
-    // ok, good to go with jpip, get to the codestream before returning 
-    // successful initialisation of the driver
+    // Okay, good to go with JPIP, get to the codestream before returning
+    // successful initialization of the driver
     try
     {
         poCache = new kdu_cache();
@@ -608,7 +609,7 @@ int JPIPKAKDataset::Initialize(const char* pszDatasetName, int bReinitializing )
 
         while (!bFinished && !bError )
         {
-            CPLHTTPResult *psResult = CPLHTTPFetch(osRequestUrl, apszOptions);
+            psResult = CPLHTTPFetch(osRequestUrl, apszOptions);
             bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen,
                                       bError );
             CPLHTTPDestroyResult(psResult);
@@ -926,10 +927,10 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen,
                 return NULL;
             }
             else if (m >= 2) {
-                nClassId = ReadVBAS(pabyData, nLen);
+                nClassId = static_cast<int>(ReadVBAS(pabyData, nLen));
                 if (m > 2)
                 {
-                    nCodestream = ReadVBAS(pabyData, nLen);
+                    nCodestream = static_cast<int>(ReadVBAS(pabyData, nLen));
                     if( nCodestream < 0 )
                     {
                         bError = TRUE;
@@ -989,17 +990,17 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen,
 /******************************************/
 /*           KakaduClassId()              */
 /******************************************/
-int JPIPKAKDataset::KakaduClassId(int nClassId)
+int JPIPKAKDataset::KakaduClassId(int nClassIdIn)
 {
-    if (nClassId == 0)
+    if (nClassIdIn == 0)
         return KDU_PRECINCT_DATABIN;
-    else if (nClassId == 2)
+    else if (nClassIdIn == 2)
         return KDU_TILE_HEADER_DATABIN;
-    else if (nClassId == 6)
+    else if (nClassIdIn == 6)
         return KDU_MAIN_HEADER_DATABIN;
-    else if (nClassId == 8)  
+    else if (nClassIdIn == 8)  
         return KDU_META_DATABIN;
-    else if (nClassId == 4)
+    else if (nClassIdIn == 4)
         return KDU_TILE_DATABIN;
     else
         return -1;
@@ -1064,8 +1065,10 @@ int JPIPKAKDataset::ReadFromInput(GByte* pabyData, int nLen, int &bError )
         {
             // add data to kakadu
             //CPLDebug("JPIPKAK", "Parsed JPIP Segment class=%i stream=%i id=%i offset=%i len=%i isFinal=%i isEOR=%i", pSegment->GetClassId(), pSegment->GetCodestreamIdx(), pSegment->GetId(), pSegment->GetOffset(), pSegment->GetLen(), pSegment->IsFinal(), pSegment->IsEOR());
-            poCache->add_to_databin(KakaduClassId(pSegment->GetClassId()), pSegment->GetCodestreamIdx(),
-                                    pSegment->GetId(), pSegment->GetData(), pSegment->GetOffset(), pSegment->GetLen(), pSegment->IsFinal());
+            poCache->add_to_databin(KakaduClassId(static_cast<int>(pSegment->GetClassId())), pSegment->GetCodestreamIdx(),
+                                    pSegment->GetId(), pSegment->GetData(),
+                                    static_cast<int>(pSegment->GetOffset()),
+                                    static_cast<int>(pSegment->GetLen()), pSegment->IsFinal());
             
             delete pSegment;
         }
@@ -1169,7 +1172,9 @@ CPLErr JPIPKAKDataset::IRasterIO( GDALRWFlag eRWFlag,
         BeginAsyncReader(nXOff, nYOff, nXSize, nYSize,
                          pData, nBufXSize, nBufYSize, eBufType, 
                          nBandCount, panBandMap, 
-                         nPixelSpace, nLineSpace, nBandSpace, NULL);
+                         static_cast<int>(nPixelSpace),
+                         static_cast<int>(nLineSpace),
+                         static_cast<int>(nBandSpace), NULL);
 
     if( ario == NULL )
         return CE_Failure;
@@ -1332,13 +1337,10 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
         ario->nAppLineSpace = nLineSpace;
         ario->nAppBandSpace = nBandSpace;
 
-        ario->pBuf = VSIMalloc3(bufXSize,bufYSize,ario->nPixelSpace*nBandCount);
+        ario->pBuf = VSI_MALLOC3_VERBOSE(bufXSize,bufYSize,ario->nPixelSpace*nBandCount);
         if( ario->pBuf == NULL )
         {
             delete ario;
-            CPLError( CE_Failure, CPLE_OutOfMemory,
-                      "Failed to allocate %d byte work buffer.",
-                      bufXSize * bufYSize * ario->nPixelSpace );
             return NULL;
         }
 
@@ -1420,8 +1422,8 @@ GDALDataset *JPIPKAKDataset::Open(GDALOpenInfo * poOpenInfo)
 {
     // test jpip and jpips, assuming jpip is using http as the transport layer
     // jpip = http, jpips = https (note SSL is allowed, but jpips is not in the ISO spec)
-    if (EQUALN(poOpenInfo->pszFilename,"jpip://", 7)
-        || EQUALN(poOpenInfo->pszFilename,"jpips://",8))
+    if (STARTS_WITH_CI(poOpenInfo->pszFilename, "jpip://")
+        || STARTS_WITH_CI(poOpenInfo->pszFilename, "jpips://"))
     {
         // perform the initial connection
         // using cpl_http for the connection
@@ -1837,7 +1839,7 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
         kdu_dims region_pass = region;
 
         poJDS->poCodestream->apply_input_restrictions(
-            component_indices.size(), &(component_indices[0]), 
+            static_cast<int>(component_indices.size()), &(component_indices[0]), 
             nLevel, nQualityLayers, &region_pass, 
             KDU_WANT_CODESTREAM_COMPONENTS);
 
@@ -2040,7 +2042,7 @@ static void JPIPWorkerFunc(void *req)
         NULL 
     };
 
-    while (TRUE)
+    while( true )
     {
         // modulate the len= parameter to use the currently available bandwidth
         long nStart = clock();

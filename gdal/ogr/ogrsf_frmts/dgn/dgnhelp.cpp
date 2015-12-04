@@ -362,8 +362,8 @@ int DGNGetShapeFillInfo( DGNHandle hDGN, DGNElemCore *psElem, int *pnColor )
 
 {
     int iLink;
-    
-    for( iLink = 0; TRUE; iLink++ )
+
+    for( iLink = 0; true; iLink++ )
     {
         int nLinkType, nLinkSize;
         unsigned char *pabyData;
@@ -402,8 +402,8 @@ int DGNGetAssocID( DGNHandle hDGN, DGNElemCore *psElem )
 
 {
     int iLink;
-    
-    for( iLink = 0; TRUE; iLink++ )
+
+    for( iLink = 0; true; iLink++ )
     {
         int nLinkType, nLinkSize;
         unsigned char *pabyData;
@@ -511,7 +511,7 @@ void DGNAsciiToRad50( const char *str, unsigned short *pRad50 )
 /*      Read the line style name from symbol table.                     */
 /*      The got name is stored in psLine.                               */
 /************************************************************************/
-
+#ifdef unused
 int DGNGetLineStyleName(CPL_UNUSED DGNInfo *psDGN,
                         DGNElemMultiPoint *psLine,
                         char szLineStyle[65] )
@@ -544,6 +544,7 @@ int DGNGetLineStyleName(CPL_UNUSED DGNInfo *psDGN,
         return FALSE;
     }
 }
+#endif
 
 /************************************************************************/
 /*                           DGNDumpElement()                           */
@@ -1028,8 +1029,8 @@ void DGNDumpElement( DGNHandle hDGN, DGNElemCore *psElement, FILE *fp )
         int iLink;
 
         fprintf( fp, "Attributes (%d bytes):\n", psElement->attr_bytes );
-        
-        for( iLink = 0; TRUE; iLink++ )
+
+        for( iLink = 0; true; iLink++ )
 
         {
             int nLinkType, nEntityNum=0, nMSLink=0, nLinkSize, i;
@@ -1045,7 +1046,7 @@ void DGNDumpElement( DGNHandle hDGN, DGNElemCore *psElement, FILE *fp )
                 fprintf( fp, ", EntityNum=%d, MSLink=%d", 
                          nEntityNum, nMSLink );
 
-            int nBytes = psElement->attr_data + psElement->attr_bytes - pabyData;
+            int nBytes = static_cast<int>(psElement->attr_data + psElement->attr_bytes - pabyData);
             if( nBytes < nLinkSize )
             {
                 CPLError( CE_Failure, CPLE_AppDefined,
@@ -1327,7 +1328,7 @@ unsigned char *DGNGetLinkage( DGNHandle hDGN, DGNElemCore *psElement,
 void DGNRotationToQuaternion( double dfRotation, int *panQuaternion )
 
 {
-    double dfRadianRot = (dfRotation / 180.0)  * PI;
+    double dfRadianRot = (dfRotation / 180.0)  * M_PI;
 
     panQuaternion[0] = (int) (cos(-dfRadianRot/2.0) * 2147483647);
     panQuaternion[1] = 0;
@@ -1368,6 +1369,7 @@ void DGNQuaternionToMatrix( int *quat, float *mat )
 /*                  DGNTransformPointWithQuaternion()                   */
 /************************************************************************/
 
+#ifdef unused
 void DGNTransformPointWithQuaternionVertex( CPL_UNUSED int *quat,
                                             CPL_UNUSED DGNPoint *v1,
                                             CPL_UNUSED DGNPoint *v2 )
@@ -1387,20 +1389,20 @@ void DGNTransformPointWithQuaternionVertex( CPL_UNUSED int *quat,
 #endif
 
 /* ==================================================================== */
-/*      Impelementation provided by Peggy Jung - 2004/03/05.            */
+/*      Implementation provided by Peggy Jung - 2004/03/05.            */
 /*      peggy.jung at moskito-gis dot de.  I haven't tested it.         */
 /* ==================================================================== */
 
 /*  Version: 0.1                                 Datum: 26.01.2004
- 
+
 IN:
 x,y,z               // DGNPoint &v1
 quat[]              // 
- 
+
 OUT:
 newX, newY, newZ    // DGNPoint &v2
 
-A u t o r  :  Peggy Jung
+Author: Peggy Jung
 */
 /*
     double ROT[12];  //rotation matrix for a given quaternion
@@ -1410,7 +1412,7 @@ A u t o r  :  Peggy Jung
     x = v1->x;
     y = v1->y;
     z = v1->z;
- 
+
     n = sqrt((double)PDP2PC_long(quat[0])*(double)PDP2PC_long(quat[0])+(double)PDP2PC_long(quat[1])*(double)PDP2PC_long(quat[1])+
              (double)PDP2PC_long(quat[2])*(double)PDP2PC_long(quat[2])+(double)PDP2PC_long(quat[3])*(double)PDP2PC_long(quat[3]));
  
@@ -1448,3 +1450,4 @@ A u t o r  :  Peggy Jung
     v2->z = ROT[8]*x + ROT[9]*y + ROT[10]*z;
 */
 }
+#endif

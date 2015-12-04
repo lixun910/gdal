@@ -41,23 +41,23 @@
  * nBand it's just necessary for overview band creation
  */
 PostGISRasterRasterBand::PostGISRasterRasterBand(
-    PostGISRasterDataset * poDS, int nBand,
-    GDALDataType eDataType, GBool bNoDataValueSet, double dfNodata, 
-    GBool bIsOffline = false) : 
-    VRTSourcedRasterBand(poDS, nBand)
+    PostGISRasterDataset * poDSIn, int nBandIn,
+    GDALDataType eDataTypeIn, GBool bNoDataValueSetIn, double dfNodata, 
+    GBool bIsOfflineIn = false) : 
+    VRTSourcedRasterBand(poDSIn, nBandIn)
 {
     /* Basic properties */
-    this->poDS = poDS;
-    this->bIsOffline = bIsOffline;
-    this->nBand = nBand;
+    this->poDS = poDSIn;
+    this->bIsOffline = bIsOfflineIn;
+    this->nBand = nBandIn;
     
-    this->eDataType = eDataType;
-    this->bNoDataValueSet = bNoDataValueSet;
-    this->dfNoDataValue = dfNodata;
+    this->eDataType = eDataTypeIn;
+    this->m_bNoDataValueSet = bNoDataValueSetIn;
+    this->m_dfNoDataValue = dfNodata;
 
-    this->pszSchema = poDS->pszSchema;
-    this->pszTable = poDS->pszTable;
-    this->pszColumn = poDS->pszColumn; 
+    this->pszSchema = poDSIn->pszSchema;
+    this->pszTable = poDSIn->pszTable;
+    this->pszColumn = poDSIn->pszColumn; 
 
     nRasterXSize = poDS->GetRasterXSize();
     nRasterYSize = poDS->GetRasterYSize();
@@ -137,16 +137,16 @@ GBool PostGISRasterRasterBand::GetBandMetadata(
     if (eDataType != GDT_Unknown) {
         if (peDataType)
             *peDataType = eDataType;
-            
+
         if (pbHasNoData)
             *pbHasNoData = bNoDataValueSet;
-            
+
         if (pdfNoData)
             *pdfNoData = dfNoDataValue;
-            
+
         return true;
     }
-    
+
     /**
      * Queries are expensive. So, we only raise them if all parameters 
      * are not null
@@ -154,37 +154,37 @@ GBool PostGISRasterRasterBand::GetBandMetadata(
     if (!peDataType || !pbHasNoData || !pdfNoData) {
         return false;
     }
-    
+
     /**
      * It is safe to assume all the tiles will have the same values for
      * metadata properties. That was checked during band's construction
-     * (or we simply trusted the user, to avoid expensive checkings). 
+     * (or we simply trusted the user, to avoid expensive checks).
      * So, we can limit the results to just one.
      **/
     int nTuples = 0;
     CPLString osCommand = NULL;
     PGresult * poResult = NULL;
     PostGISRasterDataset * poRDS = (PostGISRasterDataset *)poDS;
-    
+
     osCommand.Printf("st_bandpixeltype(%s, %d), "
         "st_bandnodatavalue(%s, %d) is not null, "
         "st_bandnodatavalue(%s, %d) FROM %s.%s limit 1", pszColumn, 
         nBand, pszColumn, nBand, pszColumn, nBand, pszSchema, pszTable);
-        
+
 #ifdef DEBUG_QUERY
     CPLDebug("PostGIS_Raster", 
         "PostGISRasterRasterBand::GetBandMetadata(): Query: %s", 
         osCommand.c_str());
 #endif
-    
+
     poResult = PQexec(poRDS->poConn, osCommand.c_str());
     nTuples = PQntuples(poResult);
-    
+
     /* Error getting info FROM database */
     if (poResult == NULL || 
         PQresultStatus(poResult) != PGRES_TUPLES_OK ||
         nTuples <= 0) {
-        
+
         ReportError(CE_Failure, CPLE_AppDefined, 
             "Error getting band metadata while creating raster "
             "bands");
@@ -222,7 +222,7 @@ GBool PostGISRasterRasterBand::GetBandMetadata(
     CPLFree(pszDataType);
             
     bNoDataValueSet = 
-            EQUALN(PQgetvalue(poResult, 0, 1), "t", sizeof(char));
+            EQUAL(PQgetvalue(poResult, 0, 1), "t");
             
     dfNoDataValue = CPLAtof(PQgetvalue(poResult, 0, 2));
     
@@ -249,8 +249,8 @@ void PostGISRasterRasterBand::NullBuffer(void* pData,
     for(j = 0; j < nBufYSize; j++)
     {
         double dfVal = 0.0;
-        if( bNoDataValueSet )
-            dfVal = dfNoDataValue;
+        if( m_bNoDataValueSet )
+            dfVal = m_dfNoDataValue;
         GDALCopyWords(&dfVal, GDT_Float64, 0,
                     (GByte*)pData + j * nLineSpace, eBufType, nPixelSpace,
                     nBufXSize);
@@ -457,7 +457,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
         return CE_Failure; 
     }
 
-    NullBuffer(pData, nBufXSize, nBufYSize, eBufType, nPixelSpace, nLineSpace);
+    NullBuffer(pData, nBufXSize, nBufYSize, eBufType, static_cast<int>(nPixelSpace), static_cast<int>(nLineSpace));
 
     if( poRDS->bBuildQuadTreeDynamically && !bSameWindowAsOtherBand )
     {
@@ -626,7 +626,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
                 "ST_Metadata(%s), %s FROM %s.%s",
                 osRasterToFetch.c_str(), pszColumn,
                 poRDS->GetPrimaryKeyRef(), pszSchema, pszTable);
-            if( nTilesToFetch < poRDS->nTiles || poRDS->bBuildQuadTreeDynamically )
+            if( nTilesToFetch < poRDS->m_nTiles || poRDS->bBuildQuadTreeDynamically )
             {
                 bHasWhere = TRUE;
                 osCommand += " WHERE ";
@@ -708,7 +708,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
             CPLFree(papsMatchingTiles);
             return CE_None; 
         }
-    
+
         /**
          * Ok, we loop over the results
          **/
@@ -729,7 +729,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
 /* -------------------------------------------------------------------- */
 
     CPLErr eErr = CE_None;
-    /* Sort tiles by ascending PKID, so that the draw order is determinist */
+    /* Sort tiles by ascending PKID, so that the draw order is deterministic. */
     if( poRDS->GetPrimaryKeyRef() != NULL )
     {
         qsort(papsMatchingTiles, nFeatureCount, sizeof(PostGISRasterTileDataset*),
@@ -746,7 +746,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
                                             pData, nBufXSize, nBufYSize, 
                                             eBufType, nPixelSpace, nLineSpace, NULL);
     }
-    
+
     // Free the object that holds pointers to matching tiles
     CPLFree(papsMatchingTiles);
 
@@ -761,7 +761,7 @@ CPLErr PostGISRasterRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff,
  *  - CE_None.
  */
 CPLErr PostGISRasterRasterBand::SetNoDataValue(double dfNewValue) {
-    dfNoDataValue = dfNewValue;
+    m_dfNoDataValue = dfNewValue;
 
     return CE_None;
 }
@@ -776,9 +776,9 @@ CPLErr PostGISRasterRasterBand::SetNoDataValue(double dfNewValue) {
  */
 double PostGISRasterRasterBand::GetNoDataValue(int *pbSuccess) {
     if (pbSuccess != NULL)
-        *pbSuccess = (int) bNoDataValueSet;
+        *pbSuccess = (int) m_bNoDataValueSet;
 
-    return dfNoDataValue;
+    return m_dfNoDataValue;
 }
 
 /***************************************************
@@ -939,25 +939,25 @@ CPLErr PostGISRasterRasterBand::IReadBlock(int nBlockXOff,
 GDALColorInterp PostGISRasterRasterBand::GetColorInterpretation()
 {
     if (poDS->GetRasterCount() == 1) {
-        eColorInterp = GCI_GrayIndex;
+        m_eColorInterp = GCI_GrayIndex;
     }
 
     else if (poDS->GetRasterCount() == 3) {
         if (nBand == 1)
-            eColorInterp = GCI_RedBand;
+            m_eColorInterp = GCI_RedBand;
         else if( nBand == 2 )
-            eColorInterp = GCI_GreenBand;
+            m_eColorInterp = GCI_GreenBand;
         else if( nBand == 3 )
-            eColorInterp = GCI_BlueBand;
+            m_eColorInterp = GCI_BlueBand;
         else
-            eColorInterp = GCI_Undefined;
+            m_eColorInterp = GCI_Undefined;
     }
 
     else {
-        eColorInterp = GCI_Undefined;
+        m_eColorInterp = GCI_Undefined;
     }
     
-    return eColorInterp; 
+    return m_eColorInterp; 
 }
 
 /************************************************************************/
@@ -967,7 +967,7 @@ GDALColorInterp PostGISRasterRasterBand::GetColorInterpretation()
 double PostGISRasterRasterBand::GetMinimum( int *pbSuccess )
 {
     PostGISRasterDataset * poRDS = (PostGISRasterDataset *)poDS;
-    if( poRDS->bBuildQuadTreeDynamically && poRDS->nTiles == 0 )
+    if( poRDS->bBuildQuadTreeDynamically && poRDS->m_nTiles == 0 )
     {
         if( pbSuccess )
             *pbSuccess = FALSE;
@@ -983,7 +983,7 @@ double PostGISRasterRasterBand::GetMinimum( int *pbSuccess )
 double PostGISRasterRasterBand::GetMaximum( int *pbSuccess )
 {
     PostGISRasterDataset * poRDS = (PostGISRasterDataset *)poDS;
-    if( poRDS->bBuildQuadTreeDynamically && poRDS->nTiles == 0 )
+    if( poRDS->bBuildQuadTreeDynamically && poRDS->m_nTiles == 0 )
     {
         if( pbSuccess )
             *pbSuccess = FALSE;

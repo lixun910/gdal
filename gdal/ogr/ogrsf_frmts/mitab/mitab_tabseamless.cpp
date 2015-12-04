@@ -237,7 +237,7 @@ int TABSeamless::OpenForRead(const char *pszFname,
         const char *pszStr = papszTABFile[i];
         while(*pszStr != '\0' && isspace((unsigned char)*pszStr))
             pszStr++;
-        if (EQUALN(pszStr, "\"\\IsSeamless\" = \"TRUE\"", 21))
+        if (STARTS_WITH_CI(pszStr, "\"\\IsSeamless\" = \"TRUE\""))
             bSeamlessFound = TRUE;
     }
     CSLDestroy(papszTABFile);
@@ -263,7 +263,7 @@ int TABSeamless::OpenForRead(const char *pszFname,
      * to build the filename of the base tables
      *----------------------------------------------------------------*/
     m_pszPath = CPLStrdup(m_pszFname);
-    nFnameLen = strlen(m_pszPath);
+    nFnameLen = static_cast<int>(strlen(m_pszPath));
     for( ; nFnameLen > 0; nFnameLen--)
     {
         if (m_pszPath[nFnameLen-1] == '/' || 
@@ -425,7 +425,7 @@ int TABSeamless::OpenBaseTable(TABFeature *poIndexFeature,
     }
 
     // Set the spatial filter to the new table 
-    if( m_poFilterGeom != NULL &&  m_poCurBaseTable )
+    if( m_poFilterGeom != NULL )
     {
         m_poCurBaseTable->SetSpatialFilter( m_poFilterGeom );
     }
@@ -814,8 +814,8 @@ OGRSpatialReference *TABSeamless::GetSpatialRef()
 /**********************************************************************
  *                   IMapInfoFile::SetSpatialFilter()
  *
- * Standard OGR SetSpatialFiltere implementation.  This methode is used
- * to set a SpatialFilter for this OGRLayer
+ * Standard OGR SetSpatialFiltere implementation.  This method is used
+ * to set a SpatialFilter for this OGRLayer.
  **********************************************************************/
 void TABSeamless::SetSpatialFilter (OGRGeometry * poGeomIn )
 

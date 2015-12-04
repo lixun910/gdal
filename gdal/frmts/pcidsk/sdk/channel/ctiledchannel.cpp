@@ -49,20 +49,20 @@ using namespace PCIDSK;
 /*                           CTiledChannel()                            */
 /************************************************************************/
 
-CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
-                              uint64 ih_offset,
-                              CPL_UNUSED PCIDSKBuffer &file_header,
-                              int channelnum,
-                              CPCIDSKFile *file,
-                              eChanType pixel_type )
-        : CPCIDSKChannel( image_header, ih_offset, file, pixel_type, channelnum)
+CTiledChannel::CTiledChannel( PCIDSKBuffer &image_headerIn,
+                              uint64 ih_offsetIn,
+                              CPL_UNUSED PCIDSKBuffer &file_headerIn,
+                              int channelnumIn,
+                              CPCIDSKFile *fileIn,
+                              eChanType pixel_typeIn )
+        : CPCIDSKChannel( image_headerIn, ih_offsetIn, fileIn, pixel_typeIn, channelnumIn)
 {
 /* -------------------------------------------------------------------- */
 /*      Establish the virtual file we will be accessing.                */
 /* -------------------------------------------------------------------- */
     std::string filename;
 
-    image_header.Get(64,64,filename);
+    image_headerIn.Get(64,64,filename);
 
     assert( strstr(filename.c_str(),"SIS=") != NULL );
 
@@ -71,17 +71,20 @@ CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
     vfile = NULL;
 
 /* -------------------------------------------------------------------- */
-/*      If this is an unassociated channel (ie. an overview), we        */
+/*      If this is an unassociated channel (i.e. an overview), we        */
 /*      will set the size and blocksize values to something             */
 /*      unreasonable and set them properly in EstablishAccess()         */
 /* -------------------------------------------------------------------- */
-    if( channelnum == -1 )
+    if( channelnumIn == -1 )
     {
         width = -1;
         height = -1;
         block_width = -1;
         block_height = -1;
     }
+    tile_count = 0;
+    tiles_per_row = 0;
+    tiles_per_col = 0;
 }
 
 /************************************************************************/
@@ -136,6 +139,11 @@ void CTiledChannel::EstablishAccess() const
     {
         ThrowPCIDSKException( "Unknown channel type: %s", 
                               data_type.c_str() );
+    }
+    if( block_width <= 0 || block_height <= 0 )
+    {
+        ThrowPCIDSKException( "Invalid blocksize: %d x %d", 
+                              block_width, block_height );
     }
 
 /* -------------------------------------------------------------------- */
@@ -229,7 +237,7 @@ void CTiledChannel::SaveTileInfoBlock( int block )
 
 {
     assert( tile_offsets[block].size() != 0 );
-    int tiles_in_block = tile_offsets[block].size();
+    int tiles_in_block = static_cast<int>(tile_offsets[block].size());
 
 /* -------------------------------------------------------------------- */
 /*      Write the offset and size data to disk.                         */
@@ -358,7 +366,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 
     if( block_index < 0 || block_index >= tile_count )
     {
-        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+        ThrowPCIDSKException( "Requested non-existent block (%d)", 
                               block_index );
     }
 
@@ -433,7 +441,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     {
         RLEDecompressBlock( oCompressedData, oUncompressedData );
     }
-    else if( strncmp(compression.c_str(),"JPEG",4) == 0 )
+    else if( STARTS_WITH(compression.c_str(), "JPEG") )
     {
         JPEGDecompressBlock( oCompressedData, oUncompressedData );
     }
@@ -516,7 +524,7 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
 
     if( block_index < 0 || block_index >= tile_count )
     {
-        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+        ThrowPCIDSKException( "Requested non-existent block (%d)", 
                               block_index );
     }
 
@@ -581,7 +589,7 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
     {
         RLECompressBlock( oUncompressedData, oCompressedData );
     }
-    else if( strncmp(compression.c_str(),"JPEG",4) == 0 )
+    else if( STARTS_WITH(compression.c_str(), "JPEG") )
     {
         JPEGCompressBlock( oUncompressedData, oCompressedData );
     }
@@ -763,7 +771,6 @@ void CTiledChannel::RLEDecompressBlock( PCIDSKBuffer &oCompressedData,
 void CTiledChannel::RLECompressBlock( PCIDSKBuffer &oUncompressedData,
                                       PCIDSKBuffer &oCompressedData )
 
-                               
 {
     int    src_bytes = oUncompressedData.buffer_size;
     int    pixel_size = DataTypeSize(GetType());
@@ -772,12 +779,12 @@ void CTiledChannel::RLECompressBlock( PCIDSKBuffer &oUncompressedData,
     uint8  *src = (uint8 *) oUncompressedData.buffer;
 
 /* -------------------------------------------------------------------- */
-/*      Loop till input exausted.                                       */
+/*      Loop till input exhausted.                                      */
 /* -------------------------------------------------------------------- */
     while( src_offset < src_bytes )
     {
         bool	bGotARun = false;
-        
+
 /* -------------------------------------------------------------------- */
 /*	Establish the run length, and emit if greater than 3. 		*/
 /* -------------------------------------------------------------------- */

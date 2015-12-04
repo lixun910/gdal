@@ -397,7 +397,7 @@ static int ParseSect2_Wx (float *rdat, sInt4 nrdat, sInt4 *idat,
    size_t j;            /* Counter over the length of the current group. */
    char *buffer;        /* Used to store the current "ugly" string. */
    int buffLen;         /* Length of current "ugly" string. */
-   int len;             /* length of current english phrases during creation
+   int len;             /* length of current English phrases during creation
                          * of the maxEng[] data. */
    int i;               /* assists in traversing the maxEng[] array. */
 
@@ -476,7 +476,7 @@ static int ParseSect2_Wx (float *rdat, sInt4 nrdat, sInt4 *idat,
       Wx->data = (char **) realloc ((void *) Wx->data,
                                     Wx->dataLen * sizeof (char *));
       /* Assert: buffLen is 1 more than strlen(buffer). -- FALSE -- */
-      buffLen = strlen (buffer) + 1;
+      buffLen = static_cast<int>(strlen (buffer)) + 1;
 
       Wx->data[Wx->dataLen - 1] = (char *) malloc (buffLen * sizeof (char));
       if (Wx->maxLen < buffLen) {
@@ -490,13 +490,13 @@ static int ParseSect2_Wx (float *rdat, sInt4 nrdat, sInt4 *idat,
    for (j = 0; j < Wx->dataLen; j++) {
       ParseUglyString (&(Wx->ugly[j]), Wx->data[j], simpVer);
    }
-   /* We want to know how many bytes we need for each english phrase column,
+   /* We want to know how many bytes we need for each English phrase column,
     * so we walk through each column calculating that value. */
    for (i = 0; i < NUM_UGLY_WORD; i++) {
       /* Assert: Already initialized Wx->maxEng[i]. */
       for (j = 0; j < Wx->dataLen; j++) {
          if (Wx->ugly[j].english[i] != NULL) {
-            len = strlen (Wx->ugly[j].english[i]);
+            len = static_cast<int>(strlen (Wx->ugly[j].english[i]));
             if (len > Wx->maxEng[i]) {
                Wx->maxEng[i] = len;
             }
@@ -659,7 +659,7 @@ static int ParseSect3 (sInt4 *is3, sInt4 ns3, grib_MetaData *meta)
                          * lat/lon. See GRIB2 Regulation 92.1.6 */
    sInt4 angle;         /* For Lat/Lon, 92.1.6 may not hold, in which case,
                          * angle != 0, and unit = angle/subdivision. */
-   sInt4 subdivision;   /* see angle explaination. */
+   sInt4 subdivision;   /* see angle explanation. */
 
    if (ns3 < 14) {
       return -1;
@@ -682,8 +682,9 @@ static int ParseSect3 (sInt4 *is3, sInt4 ns3, grib_MetaData *meta)
    }
    meta->gds.projType = (uChar) is3[12];
 
-	 // Don't refuse to convert the GRIB file if only the projection is unknown to us
-	 /*
+   // Do not refuse to convert the GRIB file if only the projection is unknown.
+
+   /*
    if ((is3[12] != GS3_LATLON) && (is3[12] != GS3_MERCATOR) &&
        (is3[12] != GS3_POLAR) && (is3[12] != GS3_LAMBERT)) {
       errSprintf ("Un-supported Map Projection %ld\n", is3[12]);
@@ -988,14 +989,14 @@ static int ParseSect3 (sInt4 *is3, sInt4 ns3, grib_MetaData *meta)
    }
    if (meta->gds.scan != GRIB2BIT_2) {
 #ifdef DEBUG
-      printf ("Scan mode is expected to be 0100 (ie %d) not %d\n",
+      printf ("Scan mode is expected to be 0100 (i.e. %d) not %d\n",
               GRIB2BIT_2, meta->gds.scan);
       printf ("The merged GRIB2 Library should return it in 0100\n");
       printf ("The merged library swaps both NCEP and MDL data to scan "
               "mode 0100\n");
 #endif
 /*
-      errSprintf ("Scan mode is expected to be 0100 (ie %d) not %d",
+      errSprintf ("Scan mode is expected to be 0100 (i.e. %d) not %d",
                   GRIB2BIT_2, meta->gds.scan);
       return -2;
 */
@@ -1957,8 +1958,8 @@ int MetaParse (grib_MetaData *meta, sInt4 *is0, sInt4 ns0,
  *    WxType = table to look up values in. (Input)
  *    startX = The start of the X values. (Input)
  *    startY = The start of the Y values. (Input)
- *     subNx = The Nx dimmension of the subgrid (Input)
- *     subNy = The Ny dimmension of the subgrid (Input)
+ *     subNx = The Nx dimension of the subgrid (Input)
+ *     subNy = The Ny dimension of the subgrid (Input)
  *
  * FILES/DATABASES: None
  *
@@ -2078,8 +2079,8 @@ static void ParseGridNoMiss (gridAttribType *attrib, double *grib_Data,
  *    WxType = table to look up values in. (Input)
  *    startX = The start of the X values. (Input)
  *    startY = The start of the Y values. (Input)
- *     subNx = The Nx dimmension of the subgrid (Input)
- *     subNy = The Ny dimmension of the subgrid (Input)
+ *     subNx = The Nx dimension of the subgrid (Input)
+ *     subNy = The Ny dimension of the subgrid (Input)
  *
  * FILES/DATABASES: None
  *
@@ -2206,8 +2207,8 @@ static void ParseGridPrimMiss (gridAttribType *attrib, double *grib_Data,
  *    WxType = table to look up values in. (Input)
  *    startX = The start of the X values. (Input)
  *    startY = The start of the Y values. (Input)
- *     subNx = The Nx dimmension of the subgrid (Input)
- *     subNy = The Ny dimmension of the subgrid (Input)
+ *     subNx = The Nx dimension of the subgrid (Input)
+ *     subNy = The Ny dimension of the subgrid (Input)
  *
  * FILES/DATABASES: None
  *
@@ -2386,8 +2387,8 @@ void ParseGrid (gridAttribType *attrib, double **Grib_Data,
    sInt4 missCnt = 0;   /* Number of detected missing values. */
    uInt4 index;         /* Current index into Wx table. */
    float *ain = (float *) iain;
-   uInt4 subNx;         /* The Nx dimmension of the subgrid. */
-   uInt4 subNy;         /* The Ny dimmension of the subgrid. */
+   uInt4 subNx;         /* The Nx dimension of the subgrid. */
+   uInt4 subNy;         /* The Ny dimension of the subgrid. */
 
    subNx = stopX - startX + 1;
    subNy = stopY - startY + 1;
@@ -2584,7 +2585,7 @@ typedef struct {
    int cnt;
 } freqType;
 
-int freqCompare (const void *A, const void *B)
+static int freqCompare (const void *A, const void *B)
 {
    const freqType *a = (freqType *) A;
    const freqType *b = (freqType *) B;

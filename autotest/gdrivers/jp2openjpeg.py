@@ -514,9 +514,7 @@ def jp2openjpeg_15():
     src_ds = gdal.GetDriverByName('MEM').Create('', 256,256)
     src_ds.GetRasterBand(1).Fill(255)
     data = src_ds.ReadRaster()
-    gdal.SetConfigOption('GDAL_NUM_THREADS', '2')
     ds = gdaltest.jp2openjpeg_drv.CreateCopy('/vsimem/jp2openjpeg_15.jp2', src_ds, options = ['BLOCKXSIZE=32', 'BLOCKYSIZE=32'])
-    gdal.SetConfigOption('GDAL_NUM_THREADS', None)
     src_ds = None
     got_data = ds.ReadRaster()
     ds = None
@@ -1280,7 +1278,6 @@ def jp2openjpeg_27():
     # Test optimization in GDALCopyWholeRasterGetSwathSize()
     # Not sure how we can check that except looking at logs with CPL_DEBUG=GDAL
     # for "GDAL: GDALDatasetCopyWholeRaster(): 2048*2048 swaths, bInterleave=1"
-
     src_ds = gdal.GetDriverByName('MEM').Create('', 2049, 2049, 4)
     out_ds = gdaltest.jp2openjpeg_drv.CreateCopy('/vsimem/jp2openjpeg_27.jp2', src_ds, options = ['RESOLUTIONS=1','BLOCKXSIZE=2048', 'BLOCKYSIZE=2048'])
     src_ds = None
@@ -2972,6 +2969,11 @@ def jp2openjpeg_45():
     del out_ds
     if gdal.VSIStatL('/vsimem/jp2openjpeg_45.jp2.aux.xml') is not None:
         gdaltest.post_reason('fail')
+        fp = gdal.VSIFOpenL('/vsimem/jp2openjpeg_45.jp2.aux.xml', 'rb')
+        if fp is not None:
+            data = gdal.VSIFReadL(1, 100000, fp).decode('ascii')
+            gdal.VSIFCloseL(fp)
+            print(data)
         return 'fail'
 
     ds = gdal.Open('/vsimem/jp2openjpeg_45.jp2')
@@ -2982,8 +2984,7 @@ def jp2openjpeg_45():
     ds = None
 
     gdal.Unlink('/vsimem/jp2openjpeg_45.jp2')
-    
-    
+
     # Test writing&reading a gmljp2:featureMember pointing to a remote resource
     conf = {"root_instance":{"gml_filelist": [ { "remote_resource":"http://svn.osgeo.org/gdal/trunk/autotest/ogr/data/expected_gml_gml32.gml" } ]  }}
     out_ds = gdaltest.jp2openjpeg_drv.CreateCopy('/vsimem/jp2openjpeg_45.jp2', src_ds, options = ['GMLJP2V2_DEF=' + json.dumps(conf)])
@@ -2995,8 +2996,8 @@ def jp2openjpeg_45():
         gdaltest.post_reason('fail')
         return 'fail'
     ds = None
-    
-    # We have to explicitely allow it
+
+    # We have to explicitly allow it.
     ds = gdal.OpenEx('/vsimem/jp2openjpeg_45.jp2', open_options = ['OPEN_REMOTE_GML=YES'])
     gdal.Unlink('/vsimem/jp2openjpeg_45.jp2')
 
@@ -3085,7 +3086,7 @@ yeah: """) < 0:
         gdal.Unlink("/vsimem/template.xml")
         gdal.Unlink("/vsimem/source.xml")
         del out_ds
-        
+
         ds = gdal.Open('/vsimem/jp2openjpeg_46.jp2')
         gmljp2 = ds.GetMetadata_List("xml:gml.root-instance")[0]
         ds = None
@@ -3099,7 +3100,7 @@ yeah: """) < 0:
             return 'fail'
 
 
-    # Inexisting template
+    # Nonexistent template.
     gdal.FileFromMemBuffer("/vsimem/source.xml","""<A/>""")
     conf = {
     "root_instance": {
@@ -3122,8 +3123,9 @@ yeah: """) < 0:
     gdal.Unlink("/vsimem/source.xml")
     gdal.Unlink('/vsimem/jp2openjpeg_46.jp2')
 
-    # Inexisting source
-    gdal.FileFromMemBuffer("/vsimem/template.xml","""<gmljp2:metadata></gmljp2:metadata>""")
+    # Nonexistent source
+    gdal.FileFromMemBuffer(
+        "/vsimem/template.xml","""<gmljp2:metadata></gmljp2:metadata>""")
     conf = {
     "root_instance": {
         "metadata": [
@@ -3198,6 +3200,27 @@ def jp2openjpeg_47():
     ds = None
 
     gdal.Unlink('/vsimem/jp2openjpeg_47.jp2')
+
+    return 'success'
+
+###############################################################################
+# Test reading a dataset whose tile dimensions are larger than dataset ones
+
+def jp2openjpeg_48():
+
+    if gdaltest.jp2openjpeg_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/byte_tile_2048.jp2')
+    (blockxsize, blockysize) = ds.GetRasterBand(1).GetBlockSize()
+    if (blockxsize, blockysize) != (20,20):
+        gdaltest.post_reason('fail')
+        print(blockxsize, blockysize)
+        return 'fail'
+    if ds.GetRasterBand(1).Checksum() != 4610:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    ds = None
 
     return 'success'
 
@@ -3420,6 +3443,7 @@ gdaltest_list = [
     jp2openjpeg_45,
     jp2openjpeg_46,
     jp2openjpeg_47,
+    jp2openjpeg_48,
     jp2openjpeg_online_1,
     jp2openjpeg_online_2,
     jp2openjpeg_online_3,

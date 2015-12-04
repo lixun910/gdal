@@ -829,14 +829,11 @@ OGRErr OGR_L_ReorderField( OGRLayerH hLayer, int iOldFieldPos, int iNewFieldPos 
 /*                           AlterFieldDefn()                           */
 /************************************************************************/
 
-OGRErr OGRLayer::AlterFieldDefn( int iField, OGRFieldDefn* poNewFieldDefn,
-                                 int nFlags )
+OGRErr OGRLayer::AlterFieldDefn( int /* iField*/,
+                                 OGRFieldDefn* /*poNewFieldDefn*/,
+                                 int /* nFlags */ )
 
 {
-    (void) iField;
-    (void) poNewFieldDefn;
-    (void) nFlags;
-
     CPLError( CE_Failure, CPLE_NotSupported,
               "AlterFieldDefn() not supported by this layer.\n" );
 
@@ -1853,7 +1850,7 @@ OGRErr create_field_map(OGRFeatureDefn *poDefn, int **map)
     OGRErr ret = OGRERR_NONE;
     int n = poDefn->GetFieldCount();
     if (n > 0) {
-        *map = (int*)VSIMalloc(sizeof(int) * n);
+        *map = (int*)VSI_MALLOC_VERBOSE(sizeof(int) * n);
         if (!(*map)) return OGRERR_NOT_ENOUGH_MEMORY;
         for(int i=0;i<n;i++)
             (*map)[i] = -1;

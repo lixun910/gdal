@@ -203,7 +203,7 @@ def tiff_ovr_4():
     else:
         for i in range(pix_count):
             sum = sum + ord(ovimage[i])
-            
+
     average = sum / pix_count
     exp_average = 154.8144
     if abs(average - exp_average) > 0.1:
@@ -211,7 +211,7 @@ def tiff_ovr_4():
         gdaltest.post_reason( 'got wrong average for overview image' )
         return 'fail'
 
-    # read base band as overview resolution and verify we aren't getting
+    # Read base band as overview resolution and verify we aren't getting
     # the grayscale image.
 
     frband = wrk_ds.GetRasterBand(1)
@@ -228,7 +228,7 @@ def tiff_ovr_4():
             sum = sum + ord(ovimage[i])
     average = sum / pix_count
     exp_average = 0.6096
-    
+
     if abs(average - exp_average) > 0.01:
         print(average)
         gdaltest.post_reason( 'got wrong average for downsampled image' )
@@ -237,7 +237,7 @@ def tiff_ovr_4():
     wrk_ds = None
 
     return 'success'
-    
+
 
 ###############################################################################
 # Test average overview generation with nodata.
@@ -466,17 +466,13 @@ def tiff_ovr_11():
     src_ds = None
 
     md = gdaltest.tiff_drv.GetMetadata()
-    try:
-        if md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or \
-           int(gdal.VersionInfo('VERSION_NUM')) < 1700:
-            # The two following lines are necessary with inverted endianness
-            # for the moment with older libtiff
-            # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
-            ds = None
-            ds = gdal.Open('tmp/ovr11.tif', gdal.GA_Update)
-    except:
-    # OG-python bindings don't have gdal.VersionInfo. Too bad, but let's hope that GDAL's version isn't too old !
-        pass 
+    if (md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or
+        int(gdal.VersionInfo('VERSION_NUM')) < 1700):
+        # The two following lines are necessary with inverted endianness
+        # for the moment with older libtiff
+        # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
+        ds = None
+        ds = gdal.Open('tmp/ovr11.tif', gdal.GA_Update)
 
     ds.BuildOverviews( 'AVERAGE', overviewlist = [2] )
 
@@ -516,18 +512,13 @@ def tiff_ovr_12():
     src_ds = None
 
     md = gdaltest.tiff_drv.GetMetadata()
-    try:
-        if md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or \
-           int(gdal.VersionInfo('VERSION_NUM')) < 1700:
-            # The two following lines are necessary with inverted endianness
-            # for the moment with older libtiff
-            # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
-            ds = None
-            ds = gdal.Open('tmp/ovr12.tif', gdal.GA_Update)
-    except:
-    # OG-python bindings don't have gdal.VersionInfo. Too bad, but let's hope that GDAL's version isn't too old !
-        pass 
-
+    if (md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or
+        int(gdal.VersionInfo('VERSION_NUM')) < 1700):
+        # The two following lines are necessary with inverted endianness
+        # for the moment with older libtiff
+        # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
+        ds = None
+        ds = gdal.Open('tmp/ovr12.tif', gdal.GA_Update)
 
     ds.BuildOverviews( 'AVERAGE', overviewlist = [2] )
 
@@ -632,18 +623,13 @@ def tiff_ovr_15():
     src_ds = None
 
     md = gdaltest.tiff_drv.GetMetadata()
-    try:
-        if md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or \
-           int(gdal.VersionInfo('VERSION_NUM')) < 1700:
-            # The two following lines are necessary with inverted endianness
-            # for the moment with older libtiff
-            # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
-            ds = None
-            ds = gdal.Open('tmp/ovr15.tif', gdal.GA_Update)
-    except:
-    # OG-python bindings don't have gdal.VersionInfo. Too bad, but let's hope that GDAL's version isn't too old !
-        pass 
-
+    if (md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1 or
+        int(gdal.VersionInfo('VERSION_NUM')) < 1700):
+        # The two following lines are necessary with inverted endianness
+        # for the moment with older libtiff
+        # See http://bugzilla.maptools.org/show_bug.cgi?id=1924 for more details
+        ds = None
+        ds = gdal.Open('tmp/ovr15.tif', gdal.GA_Update)
 
     ds.BuildOverviews( 'GAUSS', overviewlist = [2] )
 
@@ -1504,13 +1490,6 @@ def tiff_ovr_38():
 # Test external overviews on all datatypes
 
 def tiff_ovr_39():
-    import test_cli_utilities
-    if test_cli_utilities.get_gdal_translate_path() is None:
-        return 'skip'
-
-    src_ds = gdal.Open('data/byte.tif')
-    src_ds.GetRasterBand(1).ReadRaster(0,0,20,20)
-    src_ds = None
 
     for datatype in [gdal.GDT_Byte,
                      gdal.GDT_Int16,
@@ -1524,8 +1503,7 @@ def tiff_ovr_39():
                      gdal.GDT_CFloat32,
                      gdal.GDT_CFloat64]:
 
-        gdaltest.runexternal(test_cli_utilities.get_gdal_translate_path() + ' data/byte.tif tmp/ovr39.tif -ot ' + gdal.GetDataTypeName(datatype))
-
+        gdal.Translate('tmp/ovr39.tif', 'data/byte.tif', options = '-ot ' + gdal.GetDataTypeName(datatype))
         try:
             os.remove('tmp/ovr39.tif.ovr')
         except:
@@ -1554,6 +1532,7 @@ def tiff_ovr_39():
 
         if cs != expected_cs:
             gdaltest.post_reason('did not get expected checksum for datatype %s' % gdal.GetDataTypeName(datatype))
+            print(cs)
             return 'fail'
 
     return 'success'
@@ -1601,7 +1580,7 @@ def tiff_ovr_40():
     else:
         for i in range(pix_count):
             sum = sum + ord(ovimage[i])
-            
+
     average = sum / pix_count
     exp_average = 154.8144
     if abs(average - exp_average) > 0.1:
@@ -1609,7 +1588,7 @@ def tiff_ovr_40():
         gdaltest.post_reason( 'got wrong average for overview image' )
         return 'fail'
 
-    # read base band as overview resolution and verify we aren't getting
+    # Read base band as overview resolution and verify we aren't getting
     # the grayscale image.
 
     frband = wrk_ds.GetRasterBand(1)
@@ -1626,7 +1605,7 @@ def tiff_ovr_40():
             sum = sum + ord(ovimage[i])
     average = sum / pix_count
     exp_average = 0.6096
-    
+
     if abs(average - exp_average) > 0.01:
         print(average)
         gdaltest.post_reason( 'got wrong average for downsampled image' )
@@ -1698,7 +1677,8 @@ def tiff_ovr_42():
     return 'success'
 
 ###############################################################################
-# Make sure that 16bit overviews with jpeg compression are handled using 12bit jpeg-in-tiff (#3539) 
+# Make sure that 16bit overviews with JPEG compression are handled using 12-bit
+# jpeg-in-tiff (#3539)
 
 def tiff_ovr_43():
 
@@ -1710,7 +1690,7 @@ def tiff_ovr_43():
     gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', 'ON' )
     gdal.ErrorReset()
     gdal.PushErrorHandler( 'CPLQuietErrorHandler' )
-        
+
     try:
         ds = gdal.Open('data/mandrilmini_12bitjpeg.tif')
         ds.GetRasterBand(1).ReadRaster(0,0,1,1)
@@ -1719,7 +1699,7 @@ def tiff_ovr_43():
 
     gdal.PopErrorHandler()
     gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', old_accum )
-    
+
     if gdal.GetLastErrorMsg().find(
                    'Unsupported JPEG data precision 12') != -1:
         sys.stdout.write('(12bit jpeg not available) ... ')
@@ -2134,4 +2114,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

@@ -2,7 +2,7 @@
  * $Id$
  *
  * Project:  GDAL
- * Purpose:  GDAL Wrapper for image matching via corellation algorithm.
+ * Purpose:  GDAL Wrapper for image matching via correlation algorithm.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  * Author:   Andrew Migal, migal.drew@gmail.com
  *
@@ -57,7 +57,7 @@ CPL_CVSID("$Id");
  * @param dfThreshold Value from 0 to 1. Threshold for feature point recognition.
  * Number of detected points is larger if threshold is lower
  *
- * @see GDALFeaturePoint, GDALSimpleSURF class for detailes.
+ * @see GDALFeaturePoint, GDALSimpleSURF class for details.
  *
  * @note Every octave finds points in specific size. For small images
  * use small octave numbers, for high resolution - large.
@@ -121,14 +121,27 @@ GatherFeaturePoints(GDALDataset* poDataset, int* panBands,
     GDALRasterBand *poRstGreenBand = poDataset->GetRasterBand(panBands[1]);
     GDALRasterBand *poRstBlueBand = poDataset->GetRasterBand(panBands[2]);
 
-    int nWidth = poRstRedBand->GetXSize();
-    int nHeight = poRstRedBand->GetYSize();
+    const int nWidth = poRstRedBand->GetXSize();
+    const int nHeight = poRstRedBand->GetYSize();
+
+    if (nWidth == 0 || nHeight == 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Must have non-zero width and height.");
+        return NULL;
+    }
 
     // Allocate memory for grayscale image
-    double **padfImg = NULL;
-    padfImg = new double*[nHeight];
-    for (int i = 0; i < nHeight; i++)
+    double **padfImg = new double*[nHeight];
+    for (int i = 0; ;)
+    {
         padfImg[i] = new double[nWidth];
+        for (int j = 0; j < nWidth; ++j)
+          padfImg[i][j] = 0.0;
+        ++i;
+        if( i == nHeight )
+            break;
+    }
 
     // Create grayscale image
     GDALSimpleSURF::ConvertRGBToLuminosity(
@@ -141,15 +154,15 @@ GatherFeaturePoints(GDALDataset* poDataset, int* panBands,
 
     // Get feature points
     GDALSimpleSURF *poSurf = new GDALSimpleSURF(nOctaveStart, nOctaveEnd);
-    
-    std::vector<GDALFeaturePoint> *poCollection = 
+
+    std::vector<GDALFeaturePoint> *poCollection =
         poSurf->ExtractFeaturePoints(poImg, dfThreshold);
 
     // Clean up
     delete poImg;
     delete poSurf;
 
-    for (int i = 0; i < nHeight; i++)
+    for (int i = 0; i < nHeight; ++i)
         delete[] padfImg[i];
 
     delete[] padfImg;
@@ -217,35 +230,37 @@ GDALComputeMatchingPoints( GDALDatasetH hFirstImage,
 /*      Collect reference points on each image.                         */
 /* -------------------------------------------------------------------- */
     std::vector<GDALFeaturePoint> *poFPCollection1 =
-        GatherFeaturePoints((GDALDataset *) hFirstImage, anBandMap1, 
+        GatherFeaturePoints((GDALDataset *) hFirstImage, anBandMap1,
                             nOctaveStart, nOctaveEnd, dfSURFThreshold);
     if( poFPCollection1 == NULL )
         return NULL;
 
-    std::vector<GDALFeaturePoint> *poFPCollection2 = 
-        GatherFeaturePoints((GDALDataset *) hSecondImage, anBandMap2, 
-                            nOctaveStart, nOctaveEnd, 
+    std::vector<GDALFeaturePoint> *poFPCollection2 =
+        GatherFeaturePoints((GDALDataset *) hSecondImage, anBandMap2,
+                            nOctaveStart, nOctaveEnd,
                             dfSURFThreshold);
-    
-    if( poFPCollection2 == NULL )
-        return NULL;
 
-    
+    if( poFPCollection2 == NULL )
+    {
+        delete poFPCollection1;
+        return NULL;
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Try to find corresponding locations.                            */
 /* -------------------------------------------------------------------- */
-    CPLErr eErr;
     std::vector<GDALFeaturePoint *> oMatchPairs;
 
-    eErr = GDALSimpleSURF::MatchFeaturePoints(
+    if( CE_None != GDALSimpleSURF::MatchFeaturePoints(
         &oMatchPairs, poFPCollection1, poFPCollection2,
-        dfMatchingThreshold );
-
-    if( eErr != CE_None )
+        dfMatchingThreshold ))
+    {
+        delete poFPCollection1;
+        delete poFPCollection2;
         return NULL;
+    }
 
-    
-    *pnGCPCount = oMatchPairs.size() / 2;
+    *pnGCPCount = static_cast<int>(oMatchPairs.size()) / 2;
 
 /* -------------------------------------------------------------------- */
 /*      Translate these into GCPs - but with the output coordinate      */

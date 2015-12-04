@@ -90,6 +90,7 @@ class GSBGDataset : public GDALPamDataset
     VSILFILE	*fp;
 
   public:
+                 GSBGDataset() : fp(NULL) {}
 		~GSBGDataset();
 
     static int          Identify( GDALOpenInfo * );
@@ -142,7 +143,7 @@ class GSBGRasterBand : public GDALPamRasterBand
 
     		GSBGRasterBand( GSBGDataset *, int );
 		~GSBGRasterBand();
-    
+
     CPLErr IReadBlock( int, int, void * );
     CPLErr IWriteBlock( int, int, void * );
 
@@ -155,16 +156,21 @@ class GSBGRasterBand : public GDALPamRasterBand
 /*                           GSBGRasterBand()                           */
 /************************************************************************/
 
-GSBGRasterBand::GSBGRasterBand( GSBGDataset *poDS, int nBand ) :
+GSBGRasterBand::GSBGRasterBand( GSBGDataset *poDSIn, int nBandIn ) :
+    dfMinX(0.0),
+    dfMaxX(0.0),
+    dfMinY(0.0),
+    dfMaxY(0.0),
+    dfMinZ(0.0),
+    dfMaxZ(0.0),
     pafRowMinZ(NULL),
     pafRowMaxZ(NULL),
     nMinZRow(-1),
     nMaxZRow(-1)
-
 {
-    this->poDS = poDS;
-    this->nBand = nBand;
-    
+    this->poDS = poDSIn;
+    this->nBand = nBandIn;
+
     eDataType = GDT_Float32;
 
     nBlockXSize = poDS->GetRasterXSize();
@@ -191,12 +197,10 @@ GSBGRasterBand::~GSBGRasterBand( )
 CPLErr GSBGRasterBand::ScanForMinMaxZ()
 
 {
-    float *pafRowVals = (float *)VSIMalloc2( nRasterXSize, 4 );
+    float *pafRowVals = (float *)VSI_MALLOC2_VERBOSE( nRasterXSize, 4 );
 
     if( pafRowVals == NULL )
     {
-	CPLError( CE_Failure, CPLE_OutOfMemory,
-		  "Unable to allocate row buffer to scan grid file.\n" );
 	return CE_Failure;
     }
 
@@ -283,7 +287,7 @@ CPLErr GSBGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     if( nBlockYOff < 0 || nBlockYOff > nRasterYSize - 1 || nBlockXOff != 0 )
 	return CE_Failure;
 
-    GSBGDataset *poGDS = dynamic_cast<GSBGDataset *>(poDS);
+    GSBGDataset *poGDS = reinterpret_cast<GSBGDataset *>(poDS);
     if( VSIFSeekL( poGDS->fp,
 		   GSBGDataset::nHEADER_SIZE +
                         4 * nRasterXSize * (nRasterYSize - nBlockYOff - 1),
@@ -336,21 +340,17 @@ CPLErr GSBGRasterBand::IWriteBlock( int nBlockXOff, int nBlockYOff,
     if( pafRowMinZ == NULL || pafRowMaxZ == NULL
 	|| nMinZRow < 0 || nMaxZRow < 0 )
     {
-	pafRowMinZ = (float *)VSIMalloc2( nRasterYSize,sizeof(float) );
+	pafRowMinZ = (float *)VSI_MALLOC2_VERBOSE( nRasterYSize,sizeof(float) );
 	if( pafRowMinZ == NULL )
 	{
-	    CPLError( CE_Failure, CPLE_OutOfMemory,
-		      "Unable to allocate space for row minimums array.\n" );
 	    return CE_Failure;
 	}
 
-	pafRowMaxZ = (float *)VSIMalloc2( nRasterYSize,sizeof(float) );
+	pafRowMaxZ = (float *)VSI_MALLOC2_VERBOSE( nRasterYSize,sizeof(float) );
 	if( pafRowMaxZ == NULL )
 	{
 	    VSIFree( pafRowMinZ );
 	    pafRowMinZ = NULL;
-	    CPLError( CE_Failure, CPLE_OutOfMemory,
-		      "Unable to allocate space for row maximums array.\n" );
 	    return CE_Failure;
 	}
 
@@ -524,7 +524,7 @@ int GSBGDataset::Identify( GDALOpenInfo * poOpenInfo )
 {
     /* Check for signature */
     if( poOpenInfo->nHeaderBytes < 4
-        || !EQUALN((const char *) poOpenInfo->pabyHeader,"DSBB",4) )
+        || !STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "DSBB") )
     {
         return FALSE;
     }
@@ -611,6 +611,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read minimum X value.\n" );
 	return NULL;
@@ -621,6 +622,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read maximum X value.\n" );
 	return NULL;
@@ -631,6 +633,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read minimum Y value.\n" );
 	return NULL;
@@ -641,6 +644,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read maximum Y value.\n" );
 	return NULL;
@@ -651,6 +655,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read minimum Z value.\n" );
 	return NULL;
@@ -661,6 +666,7 @@ GDALDataset *GSBGDataset::Open( GDALOpenInfo * poOpenInfo )
     if( VSIFReadL( (void *)&dfTemp, 8, 1, poDS->fp ) != 1 )
     {
 	delete poDS;
+        delete poBand;
 	CPLError( CE_Failure, CPLE_FileIO,
 		  "Unable to read maximum Z value.\n" );
 	return NULL;
@@ -1044,12 +1050,10 @@ GDALDataset *GSBGDataset::CreateCopy( const char *pszFilename,
 /* -------------------------------------------------------------------- */
 /*      Copy band data.							*/
 /* -------------------------------------------------------------------- */
-    float *pfData = (float *)VSIMalloc2( nXSize, sizeof( float ) );
+    float *pfData = (float *)VSI_MALLOC2_VERBOSE( nXSize, sizeof( float ) );
     if( pfData == NULL )
     {
 	VSIFCloseL( fp );
-	CPLError( CE_Failure, CPLE_OutOfMemory,
-		  "Unable to create copy, unable to allocate line buffer.\n" );
 	return NULL;
     }
 

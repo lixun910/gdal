@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_OCI_H_INCLUDED
-#define _OGR_OCI_H_INCLUDED
+#ifndef OGR_OCI_H_INCLUDED
+#define OGR_OCI_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "oci.h"
@@ -371,6 +371,8 @@ class OGROCILoaderLayer : public OGROCIWritableLayer
     virtual GIntBig     GetFeatureCount( int );
 
     virtual void        SetSpatialFilter( OGRGeometry * ) {}
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     virtual OGRErr      SetAttributeFilter( const char * ) 
                                 { return OGRERR_UNSUPPORTED_OPERATION; }
@@ -451,6 +453,8 @@ class OGROCITableLayer : public OGROCIWritableLayer
     virtual GIntBig     GetFeatureCount( int );
 
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     virtual OGRErr      SetAttributeFilter( const char * );
 
@@ -462,6 +466,8 @@ class OGROCITableLayer : public OGROCIWritableLayer
     virtual OGRErr      DeleteFeature( GIntBig nFID );
     
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     virtual int         TestCapability( const char * );
 
@@ -560,4 +566,4 @@ OGROCIStrokeArcToOGRGeometry_Points( double dfStartX, double dfStartY,
                                      OGRLineString *poLine );
 
 
-#endif /* ndef _OGR_OCI_H_INCLUDED */
+#endif /* ndef OGR_OCI_H_INCLUDED */

@@ -333,7 +333,7 @@ def test_gdalwarp_12():
 
 
 ###############################################################################
-# Test -rsc
+# Test -rcs
 
 def test_gdalwarp_13():
     if test_cli_utilities.get_gdalwarp_path() is None:
@@ -726,19 +726,20 @@ def test_gdalwarp_28():
     if ds is None:
         return 'fail'
 
-    # First is GCC; Second is MSVC 6.0. Thid is jpeg8
+    # First is GCC; Second is MSVC 6.0. Third is jpeg8. Fourth is with proj 4.9.2 and internal libjpeg (the correct result actually!)
     cs = ds.GetRasterBand(1).Checksum()
-    if cs != 47506 and cs != 46728 and cs != 43789:
+    if cs != 47506 and cs != 46728 and cs != 43789 and cs != 26295:
         print(cs)
         gdaltest.post_reason('Bad checksum')
         return 'fail'
         
     gt = ds.GetGeoTransform()
-    # First is GCC; Second is MSVC 6.0
+    # First is GCC; Second is MSVC 6.0. Third is proj 4.9.2
     expected_gt1 = [-10009026.853177125, 43693.733128680084, 0.0, 5024463.6669970695, 0.0, -43693.733128680084]
     expected_gt2 = [-10009026.853177125, 43691.280523668691, 0.0, 5022121.8610583926, 0.0, -43691.280523668691]
+    expected_gt3 = [-19976414.463615071, 95707.390034570519, 0.0, 20003931.458625447, 0.0, -95707.390034570519]
     for i in range(6):
-        if abs(gt[i] - expected_gt1[i]) > 1 and abs(gt[i] - expected_gt2[i]) > 1:
+        if abs(gt[i] - expected_gt1[i]) > 1 and abs(gt[i] - expected_gt2[i]) > 1 and abs(gt[i] - expected_gt3[i]) > 1:
             print(gt)
             gdaltest.post_reason('Bad gt')
             return 'fail'
@@ -1300,7 +1301,7 @@ def test_gdalwarp_41():
     gdaltest.runexternal(test_cli_utilities.get_gdalwarp_path() + ' tmp/test_gdalwarp_41_src.tif tmp/test_gdalwarp_41.tif -overwrite  -t_srs EPSG:4326 -te -180 -90 180 90  -wo INIT_DEST=127 -wo SKIP_NOSOURCE=YES')
     
     ds = gdal.Open('tmp/test_gdalwarp_41.tif')
-    if ds.GetRasterBand(1).Checksum() != 46583:
+    if ds.GetRasterBand(1).Checksum() != 25945:
         gdaltest.post_reason('failure')
         print(ds.GetRasterBand(1).Checksum())
         return 'fail'
@@ -1310,7 +1311,7 @@ def test_gdalwarp_41():
     gdaltest.runexternal(test_cli_utilities.get_gdalwarp_path() + ' tmp/test_gdalwarp_41_src.tif tmp/test_gdalwarp_41.tif -overwrite  -t_srs EPSG:4326 -te -180 -90 180 90  -wo INIT_DEST=127 -wo SKIP_NOSOURCE=YES -wo SRC_FILL_RATIO_HEURISTICS=NO')
     
     ds = gdal.Open('tmp/test_gdalwarp_41.tif')
-    if ds.GetRasterBand(1).Checksum() != 30582:
+    if ds.GetRasterBand(1).Checksum() != 65068:
         gdaltest.post_reason('failure')
         print(ds.GetRasterBand(1).Checksum())
         return 'fail'

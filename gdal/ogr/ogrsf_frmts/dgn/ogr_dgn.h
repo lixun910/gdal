@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_DGN_H_INCLUDED
-#define _OGR_DGN_H_INCLUDED
+#ifndef OGR_DGN_H_INCLUDED
+#define OGR_DGN_H_INCLUDED
 
 #include "dgnlib.h"
 #include "ogrsf_frmts.h"
@@ -67,6 +67,8 @@ class OGRDGNLayer : public OGRLayer
                         ~OGRDGNLayer();
 
     void                SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     void                ResetReading();
     OGRFeature *        GetNextFeature();
@@ -74,6 +76,8 @@ class OGRDGNLayer : public OGRLayer
 
     virtual GIntBig     GetFeatureCount( int bForce = TRUE );
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
 
@@ -116,4 +120,4 @@ class OGRDGNDataSource : public OGRDataSource
     int                 TestCapability( const char * );
 };
 
-#endif /* ndef _OGR_DGN_H_INCLUDED */
+#endif /* ndef OGR_DGN_H_INCLUDED */

@@ -330,8 +330,9 @@ def ecw_8():
         return 'fail'
 
     prj = ds.GetProjectionRef()
-    if prj.find('UTM Zone 11') == -1 or prj.find('WGS84') == -1:
-        gdaltest.post_reason( 'Coordinate system not UTM 11, WGS84?' )
+    if prj.find('UTM Zone 11') == -1 or prj.find('WGS 84') == -1:
+        gdaltest.post_reason( 'Coordinate system not UTM 11, WGS 84?' )
+        print(prj)
         return 'fail'
 
     ds = None
@@ -345,7 +346,7 @@ def ecw_9():
     if gdaltest.jp2ecw_drv is None or gdaltest.ecw_write == 0:
         return 'skip'
 
-    # This always crashe on Frank's machine - some bug in old sdk.
+    # This always crashes on Frank's machine - some bug in old sdk.
     try:
         if os.environ['USER'] == 'warmerda' and gdaltest.ecw_drv.major_version == 3:
             return 'skip'
@@ -374,7 +375,7 @@ def ecw_10():
     if gdaltest.jp2ecw_drv is None or gdaltest.ecw_write == 0:
         return 'skip'
 
-    # This always crashe on Frank's machine - some bug in old sdk.
+    # This always crashes on Frank's machine - some bug in old sdk.
     try:
         if os.environ['USER'] == 'warmerda' and gdaltest.ecw_drv.major_version == 3:
             return 'skip'
@@ -658,11 +659,11 @@ def ecw_19():
     if ds.GetRasterBand(1).DataType != gdal.GDT_UInt16:
         gdaltest.post_reason('unexpected data type')
         return 'fail'
-            
+
     return 'success'
-    
+
 ###############################################################################
-# Confirm that we have an overview for this image and that the statistics 
+# Confirm that we have an overview for this image and that the statistics
 # are as expected.
 
 def ecw_20():
@@ -681,10 +682,10 @@ def ecw_20():
     data_subsampled = band.ReadRaster(0, 0, 400, 400, 200, 200)
     data_overview = band.GetOverview(0).ReadRaster(0, 0, 200, 200)
     if data_subsampled != data_overview:
-        gdaltest.post_reason('inconsistant overview behaviour')
+        gdaltest.post_reason('inconsistent overview behaviour')
         return 'fail'
 
-    if gdaltest.ecw_drv.major_version == 3:    
+    if gdaltest.ecw_drv.major_version == 3:
         (exp_mean, exp_stddev) = (141.644, 67.2186)
     else:
         if gdaltest.ecw_drv.major_version == 5: 
@@ -694,7 +695,9 @@ def ecw_20():
     (mean, stddev) = band.GetOverview(0).ComputeBandStats()
 
     if abs(mean-exp_mean) > 0.5 or abs(stddev-exp_stddev) > 0.5:
-        gdaltest.post_reason( 'mean/stddev of (%g,%g) diffs from expected(%g,%g)' % (mean, stddev,exp_mean, exp_stddev) )
+        gdaltest.post_reason( 'mean/stddev of (%g,%g) diffs from '
+                              'expected(%g,%g)' % (mean, stddev,exp_mean,
+                                                   exp_stddev) )
         return 'fail'
 
     return 'success'
@@ -1130,7 +1133,7 @@ def ecw_31():
         elif result[0] != gdal.GARIO_ERROR:
             continue
         else:
-            gdaltest.post_reason('error occured')
+            gdaltest.post_reason('error occurred')
             ds.EndAsyncReader(asyncreader)
             return 'fail'
 
@@ -1279,7 +1282,7 @@ def ecw_33_bis():
 
     # Note: we must compare with the dataset RasterIO() buffer since
     # with SDK 3.3, the results of band RasterIO() and dataset RasterIO() are
-    # not consistant. (which seems to be no longer the case with more recent
+    # not consistent. (which seems to be no longer the case with more recent
     # SDK such as 5.0)
     for i in range(50*50):
         if data1[i*4] != data_ref[i]: 
@@ -1300,7 +1303,7 @@ def ecw_33_bis():
 # Verify that an write the imagery out to a new ecw file. Source file is 16 bit.
 
 def ecw_34():
-    
+
     if gdaltest.ecw_drv is None or gdaltest.ecw_write == 0 :
         return 'skip'
     if gdaltest.ecw_drv.major_version <5:
@@ -1982,6 +1985,63 @@ def ecw_45():
     return 'success'
 
 ###############################################################################
+# Test non nearest upsampling
+
+def ecw_46():
+
+    if gdaltest.jp2ecw_drv is None or gdaltest.ecw_write == 0:
+        return 'skip'
+
+    tmp_ds = gdaltest.jp2ecw_drv.CreateCopy('/vsimem/ecw_46.jp2', gdal.Open('data/int16.tif'))
+    tmp_ds = None
+    tmp_ds = gdal.Open('/vsimem/ecw_46.jp2')
+    full_res_data = tmp_ds.ReadRaster(0, 0, 20, 20)
+    upsampled_data = tmp_ds.ReadRaster(0, 0, 20, 20, 40, 40, resample_alg = gdal.GRIORA_Cubic)
+    tmp_ds = None
+    gdal.Unlink('/vsimem/ecw_46.jp2')
+
+    tmp_ds = gdal.GetDriverByName('MEM').Create('', 20, 20, 1, gdal.GDT_Int16)
+    tmp_ds.GetRasterBand(1).WriteRaster(0, 0, 20, 20, full_res_data)
+    ref_upsampled_data = tmp_ds.ReadRaster(0, 0, 20, 20, 40, 40, resample_alg = gdal.GRIORA_Cubic)
+
+    mem_ds = gdal.GetDriverByName('MEM').Create('', 40, 40, 1, gdal.GDT_Int16)
+    mem_ds.GetRasterBand(1).WriteRaster(0, 0, 40, 40, ref_upsampled_data)
+    ref_cs = mem_ds.GetRasterBand(1).Checksum()
+    mem_ds.GetRasterBand(1).WriteRaster(0, 0, 40, 40, upsampled_data)
+    cs = mem_ds.GetRasterBand(1).Checksum()
+    if cs != ref_cs:
+        gdaltest.post_reason('fail')
+        print(cs)
+        print(ref_cs)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Check that we can open filename with UTF-8 characters
+
+def ecw_47():
+    
+    if gdaltest.ecw_drv is None:
+        return 'skip'
+    if gdaltest.ecw_drv.major_version < 4:
+        return 'skip'
+
+    if sys.version_info >= (3,0,0):
+        filename = 'tmp/\u00e9ven.ecw'
+    else:
+        exec("filename = u'tmp/\\u00e9ven.ecw'")
+    shutil.copy('data/jrc.ecw', filename)
+    ds = gdal.Open( filename )
+    if ds is None:
+        os.unlink(filename)
+        return 'fail'
+    ds = None
+    os.unlink(filename)
+
+    return 'success' 
+
+###############################################################################
 def ecw_online_1():
     if gdaltest.jp2ecw_drv is None:
         return 'skip'
@@ -2168,6 +2228,28 @@ def ecw_online_6():
     return 'success'
 
 ###############################################################################
+# ECWv2 file with alpha channel (#6028)
+
+def ecw_online_7():
+
+    if gdaltest.ecw_drv is None:
+        return 'skip'
+
+    if not gdaltest.download_file('http://download.osgeo.org/gdal/data/ecw/sandiego2m_null.ecw', 'sandiego2m_null.ecw'):
+        return 'skip'
+
+    ds = gdal.Open('tmp/cache/sandiego2m_null.ecw')
+    if gdaltest.ecw_drv.major_version == 3:
+        expected_band_count = 3
+    else:
+        expected_band_count = 4
+    if ds.RasterCount != expected_band_count:
+        gdaltest.post_reason('Expected %d bands, got %d' % (expected_band_count, ds.RasterCount))
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 def ecw_cleanup():
 
     #gdaltest.clean_tmp()
@@ -2307,12 +2389,15 @@ gdaltest_list = [
     ecw_43,
     ecw_44,
     ecw_45,
+    ecw_46,
+    ecw_47,
     ecw_online_1,
     ecw_online_2,
     #JTO this test does not make sense. It tests difference between two files pixel by pixel but compression is lossy# ecw_online_3, 
     ecw_online_4,
     ecw_online_5,
     ecw_online_6,
+    ecw_online_7,
     ecw_cleanup ]
 
 if __name__ == '__main__':

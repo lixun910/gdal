@@ -8,15 +8,15 @@ DIRLIST		=	generic geojson shape ntf sdts tiger s57 dgn mitab gml \
 			avc rec mem vrt csv gmt bna kml gpx \
 			geoconcept xplane georss gtm dxf pgdump gpsbabel \
 			sua openair pds htf aeronavfaa edigeo svg idrisi arcgen \
-			segukooa segy sxf openfilegdb wasp selafin jml \
+			segukooa segy sxf openfilegdb wasp selafin jml idf \
 			$(ARCOBJECTS_DIR) \
 			$(OGDIDIR) $(FMEDIR) $(OCIDIR) $(PG_DIR) $(DWGDIR) \
 			$(ODBCDIR) $(SQLITE_DIR) $(MYSQL_DIR) $(ILI_DIR) \
 			$(SDE_DIR) $(IDB_DIR) $(NAS_DIR) $(DODSDIR) \
 			$(LIBKMLDIR) $(WFSDIR) $(SOSIDIR) $(GFTDIR) \
 			$(COUCHDBDIR) $(CLOUDANTDIR) $(FGDB_DIR) $(XLSDIR) $(ODSDIR) $(XLSXDIR) \
-			$(INGRESDIR) $(ELASTICDIR) $(OSMDIR) $(VFKDIR) $(CARTODBDIR) \
-			$(GMEDIR) $(PLSCENESDIR) $(CSWDIR)
+			$(INGRESDIR) $(ELASTICDIR) $(OSMDIR) $(VFKDIR) $(CARTODBDIR) $(AMIGOCLOUDDIR) \
+			$(GMEDIR) $(PLSCENESDIR) $(CSWDIR) $(MONGODBDIR)
 
 PLUGINDIRLIST	=	$(PLUGIN_ARCOBJECTS_DIR) \
 			$(PLUGIN_DWG_DIR) \
@@ -26,7 +26,8 @@ PLUGINDIRLIST	=	$(PLUGIN_ARCOBJECTS_DIR) \
 			$(PLUGIN_OCIDIR) \
 			$(PLUGIN_SDE_DIR) \
 			$(PLUGIN_INGRESDIR) \
-			$(PLUGIN_LIBKMLDIR)
+			$(PLUGIN_LIBKMLDIR) \
+            $(PLUGIN_MONGODBDIR)
 
 !IFDEF OGDIDIR
 OGDIDIR	=	ogdi
@@ -208,6 +209,11 @@ CARTODB_OBJ = cartodb\*.obj
 !ENDIF
 
 !IFDEF CURL_LIB
+AMIGOCLOUDDIR = amigocloud
+AMIGOCLOUD_OBJ = amigocloud\*.obj
+!ENDIF
+
+!IFDEF CURL_LIB
 GMEDIR = gme
 GME_OBJ = gme\*.obj
 !ENDIF
@@ -215,6 +221,15 @@ GME_OBJ = gme\*.obj
 !IFDEF CURL_LIB
 PLSCENESDIR = plscenes
 PLSCENES_OBJ = plscenes\*.obj
+!ENDIF
+
+!IFDEF MONGODB_INC
+!IF "$(MONGODB_PLUGIN)" != "YES"
+MONGODBDIR = mongodb
+MONGODBOBJ = mongodb\*.obj
+!ELSE
+PLUGIN_MONGODBDIR = mongodb
+!ENDIF
 !ENDIF
 
 !ELSE
@@ -242,13 +257,14 @@ default:
 				 aeronavfaa\*.obj edigeo\*.obj svg\*.obj idrisi\*.obj \
 				 arcgen\*.obj segukooa\*.obj segy\*.obj sxf\*.obj \
 				 openfilegdb\*.obj wasp\*.obj selafin\*.obj jml\*.obj \
+				 idf\*.obj \
 				$(OGDIOBJ) $(ODBCOBJ) $(SQLITE_OBJ) \
 				$(FMEOBJ) $(OCIOBJ) $(PG_OBJ) $(MYSQL_OBJ) \
 				$(ILI_OBJ) $(DWG_OBJ) $(SDE_OBJ) $(FGDB_OBJ) $(ARCDRIVER_OBJ) $(IDB_OBJ) \
 				$(DODS_OBJ) $(NAS_OBJ) $(LIBKMLOBJ) $(WFS_OBJ) \
 				$(SOSI_OBJ) $(GFT_OBJ) $(COUCHDB_OBJ) $(CLOUDANT_OBJ) $(XLS_OBJ) $(ODS_OBJ) $(XLSX_OBJ)  \
-				$(INGRESOBJ) $(ELASTIC_OBJ) $(OSM_OBJ) $(VFK_OBJ) $(CARTODB_OBJ) $(GME_OBJ) $(PLSCENES_OBJ) \
-				$(CSW_OBJ)
+				$(INGRESOBJ) $(ELASTIC_OBJ) $(OSM_OBJ) $(VFK_OBJ) $(CARTODB_OBJ) $(AMIGOCLOUD_OBJ) $(GME_OBJ) $(PLSCENES_OBJ) \
+				$(CSW_OBJ) $(MONGODBOBJ)
 	lib /out:ogrsf_frmts_sup.lib \
 				 ..\..\frmts\iso8211\*.obj \
 				 ..\..\frmts\sdts\sdtsattrreader.obj \

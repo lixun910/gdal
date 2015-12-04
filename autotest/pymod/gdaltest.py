@@ -29,8 +29,9 @@
 # DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
-import sys
+import contextlib
 import os
+import sys
 import time
 
 from osgeo import gdal
@@ -135,8 +136,17 @@ def run_tests( test_list ):
             failure_counter = failure_counter + 1
         elif result == 'skip':
             skip_counter = skip_counter + 1
-        else:
+        elif result == 'fail (blowup)':
             blow_counter = blow_counter + 1
+        else:
+            failure_counter = failure_counter + 1
+            print('Unexpected return value: %s' % result)
+            if had_errors_this_script == 0:
+                failure_summary.append( 'Script: ' + cur_name )
+                had_errors_this_script = 1
+            failure_summary.append( outline + result + ' (unexpected value)' )
+            if reason is not None:
+                failure_summary.append( '    ' + reason )
 
     if set_time:
         end_time = time.time()
@@ -207,7 +217,7 @@ def summarize():
 
 ###############################################################################
 
-def run_all( dirlist, option_list ):
+def run_all( dirlist, run_as_external = False ):
 
     global start_time, end_time
     global cur_name
@@ -218,8 +228,10 @@ def run_all( dirlist, option_list ):
         files = os.listdir(dir_name)
 
         old_path = sys.path
-        sys.path.append('.')
-        
+        # We prepend '.' rather than append it, so that "import rasterio"
+        # imports our rasterio.py and not another famous external package.
+        sys.path = ['.'] + sys.path
+
         for file in files:
             if not file[-3:] == '.py':
                 continue
@@ -228,15 +240,50 @@ def run_all( dirlist, option_list ):
             try:
                 wd = os.getcwd()
                 os.chdir( dir_name )
-                
+
+                # Even try to import as module in run_as_external case
+                # so as to be able to detect ImportError and skip them
                 exec("import " + module)
-                try:
-                    print('Running tests from %s/%s' % (dir_name,file))
-                    setup_run( '%s/%s' % (dir_name,file) )
-                    exec("run_tests( " + module + ".gdaltest_list)")
-                except:
-                    pass
-                
+
+                if run_as_external:
+
+                    exec("%s.gdaltest_list" % module)
+
+                    python_exe = sys.executable
+                    if sys.platform == 'win32':
+                        python_exe = python_exe.replace('\\', '/')
+
+                    print('Running %s/%s...' % (dir_name,file))
+                    #ret = runexternal(python_exe + ' ' + file, display_live_on_parent_stdout = True)
+                    if 'GDALTEST_ASAN_OPTIONS' in os.environ:
+                        if 'ASAN_OPTIONS' in os.environ:
+                            backup_asan_options = os.environ['ASAN_OPTIONS'] 
+                        else:
+                            backup_asan_options = None
+                        os.environ['ASAN_OPTIONS'] = os.environ['GDALTEST_ASAN_OPTIONS']
+                    ret = runexternal(python_exe + """ -c "import %s; import sys; sys.path.append('../pymod'); import gdaltest; gdaltest.run_tests( %s.gdaltest_list ); gdaltest.summarize()" """ % (module, module) , display_live_on_parent_stdout = True)
+                    if 'GDALTEST_ASAN_OPTIONS' in os.environ:
+                        if backup_asan_options is None:
+                            del os.environ['ASAN_OPTIONS']
+                        else:
+                            os.environ['ASAN_OPTIONS'] = backup_asan_options
+
+                    global success_counter, failure_counter, failure_summary
+                    if ret.find('Failed:    0') < 0:
+                        failure_counter += 1
+                        failure_summary.append( dir_name + '/' + file )
+                    else:
+                        success_counter += 1
+                else:
+                    try:
+                        print('Running tests from %s/%s' % (dir_name,file))
+                        setup_run( '%s/%s' % (dir_name,file) )
+                        exec("run_tests( " + module + ".gdaltest_list)")
+                    except:
+                        #import traceback
+                        #traceback.print_exc(file=sys.stderr)
+                        pass
+
                 os.chdir( wd )
 
             except:
@@ -829,7 +876,7 @@ class GDALTest:
 
         return 'success'
 
-    def testSetNoDataValue(self):
+    def testSetNoDataValue(self, delete = False):
         if self.testDriver() == 'fail':
             return 'skip'
 
@@ -845,7 +892,10 @@ class GDALTest:
             post_reason( 'Failed to create test file using Create method.' )
             return 'fail'
         
-        nodata = 11
+        if self.options is None or not 'PIXELTYPE=SIGNEDBYTE' in self.options:
+            nodata = 130
+        else:
+            nodata = 11
         if new_ds.GetRasterBand(1).SetNoDataValue(nodata) is not gdal.CE_None:
             post_reason( 'Failed to set NoData value.' )
             return 'fail'
@@ -853,7 +903,11 @@ class GDALTest:
         src_ds = None
         new_ds = None
 
-        new_ds = gdal.Open( new_filename )
+        if delete:
+            mode = gdal.GA_Update
+        else:
+            mode = gdal.GA_ReadOnly
+        new_ds = gdal.Open( new_filename, mode )
         if new_ds is None:
             post_reason( 'Failed to open dataset: ' + new_filename )
             return 'fail'
@@ -862,13 +916,28 @@ class GDALTest:
             post_reason( 'Did not get expected NoData value.' )
             return 'fail'
 
+        if delete:
+            if new_ds.GetRasterBand(1).DeleteNoDataValue() != 0:
+                post_reason( 'Did not manage to delete nodata value' )
+                return 'fail'
+
         new_ds = None
+        
+        if delete:
+            new_ds = gdal.Open (new_filename)
+            if new_ds.GetRasterBand(1).GetNoDataValue() is not None:
+                post_reason( 'Got nodata value whereas none was expected' )
+                return 'fail'
+            new_ds = None
         
         if gdal.GetConfigOption( 'CPL_DEBUG', 'OFF' ) != 'ON':
             self.driver.Delete( new_filename )
 
         return 'success'
 
+    def testSetNoDataValueAndDelete(self):
+        return self.testSetNoDataValue(delete = True)
+        
     def testSetDescription(self):
         if self.testDriver() == 'fail':
             return 'skip'
@@ -918,8 +987,7 @@ def approx_equal( a, b ):
         return 0
     else:
         return 1
-    
-    
+
 def user_srs_to_wkt( user_text ):
     srs = osr.SpatialReference()
     srs.SetFromUserInput( user_text )
@@ -937,14 +1005,13 @@ def equal_srs_from_wkt( expected_wkt, got_wkt ):
     else:
         print('Expected:\n%s' % expected_wkt)
         print('Got:     \n%s' % got_wkt)
-        
+
         post_reason( 'SRS differs from expected.' )
         return 0
 
-    
 ###############################################################################
 # Compare two sets of RPC metadata, and establish if they are essentially
-# equivelent or not. 
+# equivalent or not.
 
 def rpcs_equal( md1, md2 ):
 
@@ -1590,7 +1657,7 @@ def find_lib(mylib):
         return find_lib_windows(mylib)
     else:
         # sorry mac users or other BSDs
-        # should be doable, but not in a blindless way
+        # should be doable
         return None
 
 ###############################################################################
@@ -1619,6 +1686,19 @@ def is_file_open(filename):
         if got_filename.find(filename) >= 0:
             return True
     return False
+
+###############################################################################
+# error_handler()
+# Allow use of "with" for an ErrorHandler that always pops at the scope close.
+# Defaults to suppressing errors and warnings.
+
+@contextlib.contextmanager
+def error_handler(error_name = 'CPLQuietErrorHandler'):
+  handler = gdal.PushErrorHandler(error_name)
+  try:
+    yield handler
+  finally:
+    gdal.PopErrorHandler()
 
 ###############################################################################
 run_func = gdaltestaux.run_func

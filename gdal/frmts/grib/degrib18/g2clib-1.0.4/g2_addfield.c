@@ -56,8 +56,8 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
 //     ipdstmpl - Contains the data values for the specified Product Definition
 //                Template ( N=ipdsnum ).  Each element of this integer 
 //                array contains an entry (in the order specified) of Product
-//                Defintion Template 4.N
-//     coordlist- Array containg floating point values intended to document
+//                Definition Template 4.N
+//     coordlist- Array containing floating point values intended to document
 //                the vertical discretisation associated to model data
 //                on hybrid coordinate vertical levels.
 //     numcoord - number of values in array coordlist.
@@ -139,7 +139,7 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
 //
       if ( cgrib[0]!=G || cgrib[1]!=R || cgrib[2]!=I || cgrib[3]!=B ) {
         printf("g2_addfield: GRIB not found in given message.\n");
-        printf("g2_addfield: Call to routine g2_create required to initialize GRIB messge.\n");
+        printf("g2_addfield: Call to routine g2_create required to initialize GRIB message.\n");
         ierr=-1;
         return(ierr);
       }
@@ -370,7 +370,7 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
               width=ndpts;
               height=1;
            }
-           else if ( width==allones || height==allones ) {
+           else if ( (unsigned int)width==allones || (unsigned int)height==allones ) {
               width=ndpts;
               height=1;
            }

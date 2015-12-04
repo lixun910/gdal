@@ -147,6 +147,7 @@ TABDATFile::TABDATFile()
     m_bWriteEOF = FALSE;
     
     m_bUpdated = FALSE;
+    m_eAccessMode = TABRead;
 }
 
 /**********************************************************************
@@ -168,9 +169,9 @@ TABDATFile::~TABDATFile()
 
 int TABDATFile::Open(const char *pszFname, const char* pszAccess, TABTableType eTableType)
 {
-    if( EQUALN(pszAccess, "r", 1) )
+    if( STARTS_WITH_CI(pszAccess, "r") )
         return Open(pszFname, TABRead, eTableType);
-    else if( EQUALN(pszAccess, "w", 1) )
+    else if( STARTS_WITH_CI(pszAccess, "w") )
         return Open(pszFname, TABWrite, eTableType);
     else
     {
@@ -253,7 +254,7 @@ int TABDATFile::Open(const char *pszFname, TABAccess eAccess,
          * m_poHeaderBlock will be reused later to read field definition
          *-----------------------------------------------------------*/
         m_poHeaderBlock = new TABRawBinBlock(m_eAccessMode, TRUE);
-        m_poHeaderBlock->ReadFromFile(m_fp, 0, 32);
+        CPL_IGNORE_RET_VAL(m_poHeaderBlock->ReadFromFile(m_fp, 0, 32));
 
         m_poHeaderBlock->ReadByte();       // Table type ??? 0x03
         m_poHeaderBlock->ReadByte();       // Last update year
@@ -1618,7 +1619,7 @@ const char *TABDATFile::ReadCharField(int nWidth)
     // with spaces... get rid of the trailing spaces.
     if (m_eTableType == TABTableDBF)
     {
-        int nLen = strlen(m_szBuffer)-1;
+        int nLen = static_cast<int>(strlen(m_szBuffer))-1;
         while(nLen>=0 && m_szBuffer[nLen] == ' ')
             m_szBuffer[nLen--] = '\0';
     }
@@ -2038,7 +2039,7 @@ int TABDATFile::WriteCharField(const char *pszStr, int nWidth,
     // be padded with zeros if source string is shorter than specified
     // field width.
     //
-    int nLen = strlen(pszStr);
+    int nLen = static_cast<int>(strlen(pszStr));
     nLen = MIN(nLen, nWidth);
 
     if ((nLen>0 && m_poRecordBlock->WriteBytes(nLen, (GByte*)pszStr) != 0) ||
@@ -2166,7 +2167,7 @@ int TABDATFile::WriteLogicalField(const char *pszValue,
         return -1;
     }
 
-    if (EQUALN(pszValue, "T", 1))
+    if (STARTS_WITH_CI(pszValue, "T"))
         bValue = 1;
     else
         bValue = 0;

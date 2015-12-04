@@ -227,6 +227,17 @@ TABMAPFile::TABMAPFile()
     m_bLastOpWasRead = FALSE;
     m_bLastOpWasWrite = FALSE;
     
+    m_eAccessMode = TABRead;
+    m_poIdIndex = NULL;
+    m_sMinFilter.x = 0;
+    m_sMinFilter.y = 0;
+    m_sMaxFilter.x = 0;
+    m_sMaxFilter.y = 0;
+    m_XMinFilter = 0;
+    m_YMinFilter = 0;
+    m_XMaxFilter = 0;
+    m_YMaxFilter = 0;
+    
     m_oBlockManager.SetName("MAP");
 }
 
@@ -249,9 +260,9 @@ TABMAPFile::~TABMAPFile()
 
 int TABMAPFile::Open(const char *pszFname, const char* pszAccess, GBool bNoErrorMsg)
 {
-    if( EQUALN(pszAccess, "r", 1) )
+    if( STARTS_WITH_CI(pszAccess, "r") )
         return Open(pszFname, TABRead, bNoErrorMsg);
-    else if( EQUALN(pszAccess, "w", 1) )
+    else if( STARTS_WITH_CI(pszAccess, "w") )
         return Open(pszFname, TABWrite, bNoErrorMsg);
     else
     {
@@ -485,7 +496,11 @@ int TABMAPFile::Open(const char *pszFname, TABAccess eAccess,
     if( m_eAccessMode == TABReadWrite )
     {
         VSIStatBufL sStatBuf;
-        VSIStatL(m_pszFname, &sStatBuf);
+        if( VSIStatL(m_pszFname, &sStatBuf) != 0 )
+        {
+            Close();
+            return -1;
+        }
         m_oBlockManager.SetLastPtr((int)(((sStatBuf.st_size-1)/512)*512));
 
         /* Read chain of garbage blocks */
@@ -493,7 +508,7 @@ int TABMAPFile::Open(const char *pszFname, TABAccess eAccess,
         {
             int nCurGarbBlock = m_poHeader->m_nFirstGarbageBlock;
             m_oBlockManager.PushGarbageBlockAsLast(nCurGarbBlock);
-            while(TRUE)
+            while( true )
             {
                 GUInt16 nBlockType;
                 int     nNextGarbBlockPtr;
@@ -641,8 +656,8 @@ int TABMAPFile::SyncToDisk()
         // OK, with V450 files, objects are not limited to 32k nodes
         // any more, and this means that m_nMaxCoordBufSize can become
         // huge, and actually more huge than can be held in memory.
-        // MapInfo counts m_nMaxCoordBufSize=0 for V450 objects, but 
-        // until this is cleanly implented, we will just prevent 
+        // MapInfo counts m_nMaxCoordBufSize=0 for V450 objects, but
+        // until this is cleanly implemented, we will just prevent
         // m_nMaxCoordBufSizefrom going beyond 512k in V450 files.
         if (m_nMinTABVersion >= 450)
         {
@@ -666,7 +681,7 @@ int TABMAPFile::SyncToDisk()
         Int2Coordsys(-1000000000, -1000000000, dBoundsMinX, dBoundsMinY);
         Int2Coordsys(1000000000, 1000000000, dBoundsMaxX, dBoundsMaxY);
 
-        CPLError(CE_Warning, TAB_WarningBoundsOverflow,
+        CPLError(CE_Warning, (CPLErrorNum)TAB_WarningBoundsOverflow,
                  "Some objects were written outside of the file's "
                  "predefined bounds.\n"
                  "These objects may have invalid coordinates when the file "
@@ -1339,7 +1354,7 @@ void  TABMAPFile::UpdateMapHeaderInfo(TABGeomType nObjType)
     }
 
     /*-----------------------------------------------------------------
-     * Check forminimum TAB file version number
+     * Check for minimum TAB file version number
      *----------------------------------------------------------------*/
     int nVersion = TAB_GEOM_GET_VERSION(nObjType);
 
@@ -1515,8 +1530,8 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
         {
             /* This can happen if the file created by MapInfo contains just */
             /* a few objects */
-            TABRawBinBlock *poBlock;
-            poBlock = GetIndexObjectBlock( m_poHeader->m_nFirstIndexBlock );
+            TABRawBinBlock *poBlock
+                = GetIndexObjectBlock( m_poHeader->m_nFirstIndexBlock );
             CPLAssert( poBlock != NULL && poBlock->GetBlockType() == TABMAP_OBJECT_BLOCK);
             delete poBlock;
 
@@ -1636,7 +1651,7 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
     {
         TABMAPObjHdr *poExistingObjHdr=NULL;
         TABMAPObjHdr **papoSrcObjHdrs = NULL;
-        int i, numSrcObj = 0;
+        int numSrcObj = 0;
         int nObjectSpace = 0;
 
         /* First pass to enumerate valid objects and compute their accumulated
@@ -1667,7 +1682,7 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
 #endif
             m_poCurObjBlock->ClearObjects();
 
-            for(i=0; i<numSrcObj; i++)
+            for(int i=0; i<numSrcObj; i++)
             {
                 /*-----------------------------------------------------------------
                 * Prepare and Write ObjHdr to this ObjBlock
@@ -1679,6 +1694,12 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
                     CPLError(CE_Failure, CPLE_FileIO,
                             "Failed writing object header for feature id %d",
                             papoSrcObjHdrs[i]->m_nId);
+                    for(int j=0; j<numSrcObj; j++)
+                    {
+                      delete papoSrcObjHdrs[j];
+                    }
+                    CPLFree(papoSrcObjHdrs);
+                    papoSrcObjHdrs = NULL;
                     return -1;
                 }
 
@@ -1690,7 +1711,7 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
         }
 
         /* Cleanup papoSrcObjHdrs[] */
-        for(i=0; i<numSrcObj; i++)
+        for(int i=0; i<numSrcObj; i++)
         {
             delete papoSrcObjHdrs[i];
         }
@@ -1711,7 +1732,7 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
         nMinY = MIN(nMinY, poObjHdr->m_nMinY);
         nMaxX = MAX(nMaxX, poObjHdr->m_nMaxX);
         nMaxY = MAX(nMaxY, poObjHdr->m_nMaxY);
-        
+
         m_poCurObjBlock->SetMBR(nMinX, nMinY, nMaxX, nMaxY);
 
         if (m_poSpIndex->UpdateLeafEntry(m_poCurObjBlock->GetStartAddress(),
@@ -1728,8 +1749,8 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
          * everything to disk and will update m_poCurCoordBlock to point to
          * the last coord block in the chain, ready to accept new data
          *------------------------------------------------------------*/
-        TABMAPObjectBlock *poNewObjBlock;
-        poNewObjBlock= SplitObjBlock(poObjHdr, nObjSize);
+        TABMAPObjectBlock *poNewObjBlock
+            = SplitObjBlock(poObjHdr, nObjSize);
 
         if (poNewObjBlock == NULL)
             return -1;  /* Split failed, error already reported. */
@@ -1748,7 +1769,7 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
         nMinY = MIN(nMinY, poObjHdr->m_nMinY);
         nMaxX = MAX(nMaxX, poObjHdr->m_nMaxX);
         nMaxY = MAX(nMaxY, poObjHdr->m_nMaxY);
-        
+
         m_poCurObjBlock->SetMBR(nMinX, nMinY, nMaxX, nMaxY);
 
         if (m_poSpIndex->UpdateLeafEntry(m_poCurObjBlock->GetStartAddress(),
@@ -1792,8 +1813,6 @@ int   TABMAPFile::PrepareNewObjViaSpatialIndex(TABMAPObjHdr *poObjHdr)
  **********************************************************************/
 int   TABMAPFile::PrepareNewObjViaObjBlock(TABMAPObjHdr *poObjHdr)
 {
-    int nObjSize;
-
     /*-------------------------------------------------------------
      * We will need an object block... check if it exists and
      * create it if it has not been created yet (first time for this file).
@@ -1820,7 +1839,7 @@ int   TABMAPFile::PrepareNewObjViaObjBlock(TABMAPObjHdr *poObjHdr)
      * Fetch new object size, make sure there is enough room in obj. 
      * block for new object, and save/create a new one if necessary.
      *----------------------------------------------------------------*/
-    nObjSize = m_poHeader->GetMapObjectSize(poObjHdr->m_nType);
+    const int nObjSize = m_poHeader->GetMapObjectSize(poObjHdr->m_nType);
     if (m_poCurObjBlock->GetNumUnusedBytes() < nObjSize )
     {
         /*-------------------------------------------------------------
@@ -1860,6 +1879,12 @@ int   TABMAPFile::PrepareNewObjViaObjBlock(TABMAPObjHdr *poObjHdr)
  **********************************************************************/
 int   TABMAPFile::CommitNewObj(TABMAPObjHdr *poObjHdr)
 {
+    // Nothing to do for NONE objects
+    if (poObjHdr->m_nType == TAB_GEOM_NONE)
+    {
+        return 0;
+    }
+
     /* Update this now so that PrepareCoordBlock() doesn't try to old an older */
     /* block */
     if( m_poCurCoordBlock != NULL )
@@ -1960,8 +1985,6 @@ int TABMAPFile::CommitObjAndCoordBlocks(GBool bDeleteObjects /*=FALSE*/)
      *----------------------------------------------------------------*/
     if (nStatus == 0 && m_bQuickSpatialIndexMode)
     {
-        GInt32 nXMin, nYMin, nXMax, nYMax;
-
         if (m_poSpIndex == NULL)
         {
             // Spatial Index not created yet...
@@ -1974,6 +1997,7 @@ int TABMAPFile::CommitObjAndCoordBlocks(GBool bDeleteObjects /*=FALSE*/)
             m_poHeader->m_nFirstIndexBlock = m_poSpIndex->GetNodeBlockPtr();
         }
 
+        GInt32 nXMin, nYMin, nXMax, nYMax;
         m_poCurObjBlock->GetMBR(nXMin, nYMin, nXMax, nYMax);
         nStatus = m_poSpIndex->AddEntry(nXMin, nYMin, nXMax, nYMax,
                                         m_poCurObjBlock->GetStartAddress());
@@ -2007,8 +2031,6 @@ int TABMAPFile::CommitObjAndCoordBlocks(GBool bDeleteObjects /*=FALSE*/)
  **********************************************************************/
 int TABMAPFile::LoadObjAndCoordBlocks(GInt32 nBlockPtr)
 {
-    TABRawBinBlock *poBlock = NULL;
-
     /*-----------------------------------------------------------------
      * In Write mode, if an object block is already in memory then flush it
      *----------------------------------------------------------------*/
@@ -2022,9 +2044,10 @@ int TABMAPFile::LoadObjAndCoordBlocks(GInt32 nBlockPtr)
     /*-----------------------------------------------------------------
      * Load Obj Block
      *----------------------------------------------------------------*/
-    poBlock = TABCreateMAPBlockFromFile(m_fp, 
-                                             nBlockPtr,
-                                             512, TRUE, TABReadWrite);
+    TABRawBinBlock *poBlock =
+        TABCreateMAPBlockFromFile(m_fp,
+                                  nBlockPtr,
+                                  512, TRUE, TABReadWrite);
     if (poBlock != NULL &&
         poBlock->GetBlockClass() == TABMAP_OBJECT_BLOCK)
     {
@@ -2162,13 +2185,17 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
     poObjHdr = papoSrcObjHdrs[nSeed1];
     if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                        m_poCurObjBlock, &m_poCurCoordBlock) <= 0)
-        return NULL;
+    {
+        goto error;
+    }
 
     // Move nSeed2 to 2nd block
     poObjHdr = papoSrcObjHdrs[nSeed2];
     if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                        poNewObjBlock, &poNewCoordBlock) <= 0)
-        return NULL;
+    {
+        goto error;
+    }
 
     /*-----------------------------------------------------------------
      * Go through the rest of the entries and assign them to one 
@@ -2193,14 +2220,14 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
         {
             if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                                poNewObjBlock, &poNewCoordBlock) <= 0)
-                return NULL;
+                goto error;
             continue;
         }
         else if (poNewObjBlock->GetNumUnusedBytes() < nObjSize+nSizeOfObjToAdd)
         {
             if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                                m_poCurObjBlock, &m_poCurCoordBlock) <= 0)
-                return NULL;
+                goto error;
             continue;
         }
 
@@ -2230,14 +2257,14 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
             // This entry stays in this block
             if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                                m_poCurObjBlock, &m_poCurCoordBlock) <= 0)
-                return NULL;
+                goto error;
         }
         else
         {
             // This entry goes to new block
             if (MoveObjToBlock(poObjHdr, poSrcCoordBlock,
                                poNewObjBlock, &poNewCoordBlock) <= 0)
-                return NULL;
+                goto error;
         }
     }
 
@@ -2257,7 +2284,9 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
     if (poNewCoordBlock)
     {
         if (poNewCoordBlock->CommitToFile() != 0)
-            return NULL;
+        {
+            goto error;
+        }
         delete poNewCoordBlock;
     }
 
@@ -2269,7 +2298,9 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
         if (poSrcCoordBlock->GetStartAddress() != nFirstSrcCoordBlock)
         {
             if (poSrcCoordBlock->GotoByteInFile(nFirstSrcCoordBlock, TRUE) != 0)
-                return NULL;
+            {
+                goto error;
+            }
         }
 
         int nNextCoordBlock = poSrcCoordBlock->GetNextCoordBlock();
@@ -2278,14 +2309,17 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
             // Mark this block as deleted
             if (poSrcCoordBlock->CommitAsDeleted(m_oBlockManager.
                                                  GetFirstGarbageBlock()) != 0)
-                return NULL;
+            {
+                goto error;
+            }
             m_oBlockManager.PushGarbageBlockAsFirst(poSrcCoordBlock->GetStartAddress());
 
             // Advance to next
             if (nNextCoordBlock > 0)
             {
                 if (poSrcCoordBlock->GotoByteInFile(nNextCoordBlock, TRUE) != 0)
-                    return NULL;
+                    goto error;
+
                 nNextCoordBlock = poSrcCoordBlock->GetNextCoordBlock();
             }
             else
@@ -2296,12 +2330,24 @@ TABMAPObjectBlock *TABMAPFile::SplitObjBlock(TABMAPObjHdr *poObjHdrToAdd,
             }
         }
     }
-            
 
     if (poNewObjBlock->CommitToFile() != 0)
-        return NULL;
+        goto error;
 
     return poNewObjBlock;
+
+error:
+    if( papoSrcObjHdrs )
+    {
+        for(i=0; i<numSrcObj; i++)
+        {
+            delete papoSrcObjHdrs[i];
+        }
+        CPLFree(papoSrcObjHdrs);
+    }
+    delete poSrcCoordBlock;
+    delete poNewObjBlock;
+    return NULL;
 }
 
 /**********************************************************************
@@ -2451,7 +2497,7 @@ int TABMAPFile::PrepareCoordBlock(int nObjType,
         {
             int nNewBlockOffset = m_oBlockManager.AllocNewBlock("COORD");
             (*ppoCoordBlock)->SetNextCoordBlock(nNewBlockOffset);
-            (*ppoCoordBlock)->CommitToFile();
+            CPL_IGNORE_RET_VAL((*ppoCoordBlock)->CommitToFile());
             (*ppoCoordBlock)->InitNewBlock(m_fp, 512, nNewBlockOffset);
             poObjBlock->AddCoordBlockRef((*ppoCoordBlock)->GetStartAddress());
         }
@@ -2669,13 +2715,13 @@ int TABMAPFile::InitDrawingTools()
         return -1;    // File not opened yet!
 
     /*-------------------------------------------------------------
-     * We want to perform this initialisation only ONCE
+     * We want to perform this initialization only once
      *------------------------------------------------------------*/
     if (m_poToolDefTable != NULL)
         return 0;
 
     /*-------------------------------------------------------------
-     * Create a new ToolDefTable... no more initialization is required 
+     * Create a new ToolDefTable... no more initialization is required
      * unless we want to read tool blocks from file.
      *------------------------------------------------------------*/
     m_poToolDefTable = new TABToolDefTable;
@@ -2687,7 +2733,7 @@ int TABMAPFile::InitDrawingTools()
 
         poBlock = new TABMAPToolBlock(TABRead);
         poBlock->InitNewBlock(m_fp, 512);
-    
+
         /*-------------------------------------------------------------
          * Use GotoByteInFile() to go to the first block's location.  This will
          * force loading the block if necessary and reading its header.

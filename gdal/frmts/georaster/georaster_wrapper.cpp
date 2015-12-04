@@ -111,7 +111,7 @@ GeoRasterWrapper::~GeoRasterWrapper()
 
     if( pahLocator && nBlockCount )
     {
-        OWStatement::Free( pahLocator, nBlockCount );
+        OWStatement::Free( pahLocator, static_cast<int>(nBlockCount) );
     }
 
     CPLFree( pahLocator );
@@ -809,7 +809,7 @@ bool GeoRasterWrapper::Create( char* pszDescription,
                 nRasterRows, nRasterColumns, nRasterBands );
         }
 
-        if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+        if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
         {
             sFormat.append( CPLSPrintf( 
                     "%s "
@@ -1411,13 +1411,13 @@ void GeoRasterWrapper::GetRasterInfo( void )
     sCompressionType  = CPLGetXMLValue( phMetadata,
         "rasterInfo.compression.type", "NONE" );
 
-    if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+    if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
     {
         nCompressQuality = atoi( CPLGetXMLValue( phMetadata,
                             "rasterInfo.compression.quality", "75" ) );
     }
 
-    if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+    if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
     {
         sInterleaving = "BIP";
     }
@@ -1783,8 +1783,8 @@ bool GeoRasterWrapper::InitializeIO( void )
     {
         int nRBS = nRowBlockSize;
         int nCBS = nColumnBlockSize;
-        int nTCB = nTotalColumnBlocks;
-        int nTRB = nTotalRowBlocks;
+        int nTCB;
+        int nTRB;
 
         // --------------------------------------------------------------------
         // Calculate the actual size of a lower resolution block
@@ -1851,15 +1851,10 @@ bool GeoRasterWrapper::InitializeIO( void )
 
     long nMaxBufferSize = MAX( nBlockBytes, nGDALBlockBytes );
 
-    pabyBlockBuf = (GByte*) VSIMalloc( sizeof(GByte) * nMaxBufferSize );
+    pabyBlockBuf = (GByte*) VSI_MALLOC_VERBOSE( nMaxBufferSize );
 
     if ( pabyBlockBuf == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory, 
-            "InitializeIO - Block Buffer error\n"
-            "Cannot allocate memory buffer of (%ld) bytes "
-            "Consider the use of *smaller* block size",
-            nMaxBufferSize );
         return false;
     }
 
@@ -1869,15 +1864,10 @@ bool GeoRasterWrapper::InitializeIO( void )
 
     if( bUpdate && ! EQUAL( sCompressionType.c_str(), "NONE") )
     {
-        pabyCompressBuf = (GByte*) VSIMalloc( sizeof(GByte) * nMaxBufferSize );
+        pabyCompressBuf = (GByte*) VSI_MALLOC_VERBOSE( nMaxBufferSize );
 
         if ( pabyCompressBuf == NULL )
         {
-            CPLError( CE_Failure, CPLE_OutOfMemory,
-                "InitializeIO - Compression Buffer error\n"
-                "Cannot allocate memory buffer of (%ld) bytes "
-                "Consider the use of *smaller* block size",
-                nMaxBufferSize );
             return false;
         }
     }
@@ -1886,15 +1876,10 @@ bool GeoRasterWrapper::InitializeIO( void )
     // Allocate array of LOB Locators
     // --------------------------------------------------------------------
 
-    pahLocator = (OCILobLocator**) VSIMalloc( sizeof(void*) * nBlockCount );
+    pahLocator = (OCILobLocator**) VSI_MALLOC_VERBOSE( sizeof(void*) * nBlockCount );
 
     if ( pahLocator == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory,
-                "InitializeIO - LobLocator Array error\n"
-                "Cannot allocate memory buffer of (%ld) bytes "
-                "Consider the use of *bigger* block size",
-                (sizeof(void*) * nBlockCount) );
         return false;
     }
 
@@ -1925,7 +1910,7 @@ bool GeoRasterWrapper::InitializeIO( void )
     poBlockStmt->Bind( &nRasterId );
     poBlockStmt->Define( pahLocator, nBlockCount );
 
-    if( ! poBlockStmt->Execute( nBlockCount ) )
+    if( ! poBlockStmt->Execute( static_cast<int>(nBlockCount) ) )
     {
         return false;
     }
@@ -1994,7 +1979,7 @@ bool GeoRasterWrapper::GetDataBlock( int nBand,
 
         nBytesRead = poBlockStmt->ReadBlob( pahLocator[nBlock],
                                             pabyBlockBuf,
-                                            nBlockBytes );
+                                            static_cast<int>(nBlockBytes) );
 
         CPLDebug( "Load  ", "Block = %4ld Size = %7ld", nBlock, nBlockBytes );
 
@@ -2036,7 +2021,7 @@ bool GeoRasterWrapper::GetDataBlock( int nBand,
         //  Uncompress
         //  ----------------------------------------------------------------
 
-        if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+        if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
         {
             UncompressJpeg( nBytesRead );
         }
@@ -2155,7 +2140,7 @@ bool GeoRasterWrapper::SetDataBlock( int nBand,
 
         nBytesRead = poBlockStmt->ReadBlob( pahLocator[nBlock],
                                             pabyBlockBuf,
-                                            nBlockBytes );
+                                            static_cast<int>(nBlockBytes) );
 
         CPLDebug( "Reload", "Block = %4ld Size = %7ld", nBlock, nBlockBytes );
 
@@ -2169,7 +2154,7 @@ bool GeoRasterWrapper::SetDataBlock( int nBand,
             //  Uncompress
             //  ------------------------------------------------------------
 
-            if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+            if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
             {
                 UncompressJpeg( nBytesRead );
             }
@@ -2258,7 +2243,7 @@ bool GeoRasterWrapper::FlushBlock( long nCacheBlock )
 
     if( ! EQUAL( sCompressionType.c_str(), "NONE" ) )
     {
-        if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+        if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
         {
             nFlushBlockSize = CompressJpeg();
         }
@@ -2279,7 +2264,7 @@ bool GeoRasterWrapper::FlushBlock( long nCacheBlock )
 
     if( ! poBlockStmt->WriteBlob( pahLocator[nCacheBlock],
                                   pabyFlushBuffer,
-                                  nFlushBlockSize ) )
+                                  static_cast<int>(nFlushBlockSize) ) )
     {
         return false;
     }
@@ -2294,7 +2279,7 @@ bool GeoRasterWrapper::FlushBlock( long nCacheBlock )
 //  ---------------------------------------------------------------------------
 //                                                           LoadNoDataValues()
 //  ---------------------------------------------------------------------------
-
+static
 CPLList* AddToNoDataList( CPLXMLNode* phNode, int nNumber, CPLList* poList )
 {
     CPLXMLNode* psChild = phNode->psChild;
@@ -2372,9 +2357,9 @@ void GeoRasterWrapper::LoadNoDataValues( void )
 //                                                                     GetRPC()
 //  ---------------------------------------------------------------------------
 
-/* This is the order for storing 20 coeffients in GeoRaster Metadata */
+/* This is the order for storing 20 coefficients in GeoRaster Metadata */
 
-static const int anOrder[] = { 
+static const int anOrder[] = {
     1, 2, 8, 12, 3, 5, 15, 9, 13, 16, 4, 6, 18, 7, 11, 19, 10, 14, 17, 20
 };
 
@@ -2857,14 +2842,14 @@ bool GeoRasterWrapper::SetNoData( int nLayer, const char* pszValue )
 
     char szRDT[OWCODE];
     char szNoData[OWTEXT];
-    
+
     strcpy( szRDT, sDataTable.c_str() );
     strcpy( szNoData, pszValue );
 
     int nRID = nRasterId;
 
     // ------------------------------------------------------------
-    //  Write the in memory XML metada to avoid lossing other changes
+    //  Write the in memory XML metadata to avoid losing other changes.
     // ------------------------------------------------------------
 
     char* pszMetadata = CPLSerializeXMLTree( phMetadata );
@@ -2876,7 +2861,7 @@ bool GeoRasterWrapper::SetNoData( int nLayer, const char* pszValue )
 
     OCILobLocator* phLocatorR = NULL;
     OCILobLocator* phLocatorW = NULL;
-    
+
     OWStatement* poStmt = poConnection->CreateStatement( CPLSPrintf(
         "DECLARE\n"
         "  GR1 sdo_georaster;\n"
@@ -3108,7 +3093,7 @@ bool GeoRasterWrapper::FlushMetadata()
     {
         CPLSetXMLValue( psNode, "type", sCompressionType.c_str() );
 
-        if( EQUALN( sCompressionType.c_str(), "JPEG", 4 ) )
+        if( STARTS_WITH_CI(sCompressionType.c_str(), "JPEG") )
         {
             CPLSetXMLValue( psNode, "quality",
                 CPLSPrintf( "%d", nCompressQuality ) );
@@ -3576,11 +3561,10 @@ void GeoRasterWrapper::PackNBits( GByte* pabyData )
 {
     int nPixCount = nBandBlockSize * nRowBlockSize * nColumnBlockSize;
 
-    GByte* pabyBuffer = (GByte*) VSIMalloc( nPixCount * sizeof(GByte*) );
+    GByte* pabyBuffer = (GByte*) VSI_MALLOC_VERBOSE( nPixCount * sizeof(GByte*) );
 
     if( pabyBuffer == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory, "PackNBits" );
         return;
     }
 
@@ -3687,7 +3671,7 @@ static const int DC_HUFFVAL[256] =
  * JPEGHuffmanTable.StdDCChrominance
  *
  ***/
-
+static
 void JPEG_LoadTables( JQUANT_TBL* hquant_tbl_ptr,
                       JHUFF_TBL* huff_ac_ptr,
                       JHUFF_TBL* huff_dc_ptr,
@@ -3922,11 +3906,10 @@ unsigned long GeoRasterWrapper::CompressJpeg( void )
 
 bool GeoRasterWrapper::UncompressDeflate( unsigned long nBufferSize )
 {
-    GByte* pabyBuf = (GByte*) VSIMalloc( nBufferSize );
+    GByte* pabyBuf = (GByte*) VSI_MALLOC_VERBOSE( nBufferSize );
 
     if( pabyBuf == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory, "UncompressDeflate" );
         return false;
     }
 
@@ -3964,11 +3947,10 @@ unsigned long GeoRasterWrapper::CompressDeflate( void )
 {
     unsigned long nLen = ((unsigned long)(nBlockBytes * 1.1)) + 12;
 
-    GByte* pabyBuf = (GByte*) VSIMalloc( nBlockBytes );
+    GByte* pabyBuf = (GByte*) VSI_MALLOC_VERBOSE( nBlockBytes );
 
     if( pabyBuf == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory, "CompressDeflate" );
         return 0;
     }
 

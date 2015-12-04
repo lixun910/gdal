@@ -2,7 +2,7 @@
  * $Id$
  *
  * Project:  ESRI ArcSDE Raster reader
- * Purpose:  Dataset implementaion for ESRI ArcSDE Rasters
+ * Purpose:  Dataset implementation for ESRI ArcSDE Rasters
  * Author:   Howard Butler, hobu@hobu.net
  *
  * This work was sponsored by the Geological Survey of Canada, Natural
@@ -41,7 +41,7 @@ int SDEDataset::GetRasterCount( void )
 
 {
     return nBands;
-}    
+}
 
 /************************************************************************/
 /*                          GetRasterXSize()                            */
@@ -51,7 +51,7 @@ int SDEDataset::GetRasterXSize( void )
 
 {
     return nRasterXSize;
-}  
+}
 
 /************************************************************************/
 /*                          GetRasterYSize()                            */
@@ -70,14 +70,14 @@ int SDEDataset::GetRasterYSize( void )
 CPLErr SDEDataset::ComputeRasterInfo() {
     long nSDEErr;
     SE_RASTERINFO raster;
-    
+
     nSDEErr = SE_rasterinfo_create(&raster);
     if( nSDEErr != SE_SUCCESS )
     {
         IssueSDEError( nSDEErr, "SE_rasterinfo_create" );
         return CE_Fatal;
     }
-    
+
     LONG nRasterColumnId = 0;
 
     nSDEErr = SE_rascolinfo_get_id( hRasterColumn, 
@@ -86,7 +86,7 @@ CPLErr SDEDataset::ComputeRasterInfo() {
     {
         IssueSDEError( nSDEErr, "SE_rascolinfo_get_id" );
         return CE_Fatal;
-    }        
+    }
 
     nSDEErr = SE_raster_get_info_by_id( hConnection, 
                                         nRasterColumnId, 
@@ -97,7 +97,7 @@ CPLErr SDEDataset::ComputeRasterInfo() {
         IssueSDEError( nSDEErr, "SE_rascolinfo_get_id" );
         return CE_Fatal;
     }
-    
+
     LONG nBandsRet;
     nSDEErr = SE_raster_get_bands(  hConnection, 
                                     raster, 
@@ -110,7 +110,7 @@ CPLErr SDEDataset::ComputeRasterInfo() {
     }
 
     nBands = nBandsRet;
-    
+
     SE_RASBANDINFO band;
     
     // grab our other stuff from the first band and hope for the best
@@ -360,7 +360,7 @@ GDALDataset *SDEDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      If we aren't prefixed with SDE: then ignore this datasource.    */
 /* -------------------------------------------------------------------- */
-    if( !EQUALN(poOpenInfo->pszFilename,"SDE:",4) )
+    if( !STARTS_WITH_CI(poOpenInfo->pszFilename, "SDE:") )
         return NULL;
 
 /* -------------------------------------------------------------------- */

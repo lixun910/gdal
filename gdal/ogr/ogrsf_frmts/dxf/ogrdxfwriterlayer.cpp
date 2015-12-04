@@ -36,10 +36,6 @@
 
 CPL_CVSID("$Id$");
 
-#ifndef PI
-#define PI  3.14159265358979323846
-#endif 
-
 /************************************************************************/
 /*                         OGRDXFWriterLayer()                          */
 /************************************************************************/
@@ -916,7 +912,7 @@ OGRErr OGRDXFWriterLayer::WriteHATCH( OGRFeature *poFeature,
 
     WriteValue( 2, "SOLID" ); // fill pattern
     WriteValue( 70, 1 ); // solid fill
-    WriteValue( 71, 0 ); // associativity 
+    WriteValue( 71, 0 ); // associativity
 
 /* -------------------------------------------------------------------- */
 /*      Do we have styling information?                                 */
@@ -954,7 +950,7 @@ OGRErr OGRDXFWriterLayer::WriteHATCH( OGRFeature *poFeature,
 
         if( poPen->Color(bDefault) != NULL && !bDefault )
             WriteValue( 62, ColorStringToDXFColor( poPen->Color(bDefault) ) );
-        
+
         double dfWidthInMM = poPen->Width(bDefault);
 
         if( !bDefault )
@@ -1133,7 +1129,7 @@ OGRErr OGRDXFWriterLayer::ICreateFeature( OGRFeature *poFeature )
             return WriteINSERT( poFeature );
             
         else if( poFeature->GetStyleString() != NULL
-            && EQUALN(poFeature->GetStyleString(),"LABEL",5) )
+            && STARTS_WITH_CI(poFeature->GetStyleString(), "LABEL") )
             return WriteTEXT( poFeature );
         else
             return WritePOINT( poFeature );

@@ -452,7 +452,7 @@ Version 1.2.4 (2003-07-23)
    to tab, and wasn't being written properly to .mif. NFW
 
  - mitab_feature.cpp: fixed C++ style true/false where TRUE/FALSE required.
-   As per GDAL bugzilla 311.  NFW
+   As per GDAL Bugzilla 311.  NFW
 
  - Fixed problem scanning node in TABINDNode::FindNext() - bug 2176, FW
 
@@ -673,7 +673,7 @@ Version 1.1.1 - (2001-05-01)
 ----------------------------
 
 - Added implementation for OGRLayer::GetExtent() that returns extents 
-  of the data, which is differents from the bounds of the projection.
+  of the data, which is different from the bounds of the projection.
 
 - Added code to set TOWGS84 values for mitab_coordsys.cpp and 
   mitab_spatialref.cpp.  
@@ -828,7 +828,7 @@ Version 1.0.1 - (2000-04-21)
 - Added C API documentation (mitab_capi.cpp) + functions to read vertices
   and field information and included C API in public release.
 
-- Modified fltering of new table field name to accept extended chars with
+- Modified filtering of new table field name to accept extended chars with
   accents. 
 
 

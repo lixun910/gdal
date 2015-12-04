@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_DXF_H_INCLUDED
-#define _OGR_DXF_H_INCLUDED
+#ifndef OGR_DXF_H_INCLUDED
+#define OGR_DXF_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "ogr_autocad_services.h"
@@ -67,8 +67,8 @@ class OGRDXFBlocksLayer : public OGRLayer
 
     OGRFeatureDefn     *poFeatureDefn;
     
-    int                 iNextFID;
-    unsigned int        iNextSubFeature;
+    GIntBig             iNextFID;
+    size_t              iNextSubFeature;
 
     std::map<CPLString,DXFBlockDefinition>::iterator oIt;
 
@@ -94,7 +94,7 @@ class OGRDXFLayer : public OGRLayer
     OGRDXFDataSource   *poDS;
 
     OGRFeatureDefn     *poFeatureDefn;
-    int                 iNextFID;
+    GIntBig             iNextFID;
 
     std::set<CPLString> oIgnoredEntities;
 
@@ -212,7 +212,7 @@ class OGRDXFDataSource : public OGRDataSource
 
     const char          *GetName() { return osName; }
 
-    int                 GetLayerCount() { return apoLayers.size(); }
+    int                 GetLayerCount() { return static_cast<int>(apoLayers.size()); }
     OGRLayer            *GetLayer( int );
 
     int                 TestCapability( const char * );
@@ -399,4 +399,4 @@ class OGRDXFWriterDS : public OGRDataSource
     void                UpdateExtent( OGREnvelope* psEnvelope );
 };
 
-#endif /* ndef _OGR_DXF_H_INCLUDED */
+#endif /* ndef OGR_DXF_H_INCLUDED */

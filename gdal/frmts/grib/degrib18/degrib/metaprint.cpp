@@ -83,7 +83,7 @@ static const char *Lookup(const char **table, size_t n, size_t index)
  * a fmt == NULL.  This last call will return the constructed message to the
  * caller, and reset the message to NULL.  It is caller's responsibility to
  * free the message, and to make sure that last call to Print has fmt = NULL,
- * so that the routine doesn't accidently keep memory.
+ * so that the routine doesn't accidentally keep memory.
  *
  * ARGUMENTS
  *   label = A label for this set of data. (Input)
@@ -97,8 +97,8 @@ static const char *Lookup(const char **table, size_t n, size_t index)
  * FILES/DATABASES: None
  *
  * RETURNS: char *
- *   NULL if (fmt != NULL) (ie we added to message)
- *   message if (fmt == NULL) (ie return the message).
+ *   NULL if (fmt != NULL) (i.e. we added to message)
+ *   message if (fmt == NULL) (i.e. return the message).
  *       It is caller's responsibility to free the message, and to make sure
  *       that last call to Print has fmt = NULL.
  *
@@ -502,7 +502,7 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
    /* Based on Grib2 Code Table 4.6 */
    static const char *tbl46[] = {
       "Unperturbed high-resolution control forecast",
-      "Unperturbed low-reosulution control foreacst",
+      "Unperturbed low-resolution control forecast",
       "Negatively perturbed forecast", "Positively perturbed forecast"
    };
 
@@ -512,7 +512,7 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
       "Standard deviation with respect to cluster mean",
       "Standard deviation with respect to cluster mean, normalized",
       "Spread of all members",
-      "Large anomally index of all memebers",
+      "Large anomaly index of all members",
       "Unweighted mean of the cluster members"
    };
 
@@ -1186,9 +1186,9 @@ static int PrintGDS (gdsType *gds, int version)
       Print ("GDS", "Dx", Prt_FS, gds->Dx, "m");
       Print ("GDS", "Dy", Prt_FS, gds->Dy, "m");
    }
-   /* For scan mode... The user of this data doesn't necesarily care how it
-    * was stored in the Grib2 grid (ie gds->scan), they just care about how
-    * the data they are accessing is scanned (ie scan=0000) */
+   /* For scan mode... The user of this data doesn't necessarily care how it
+    * was stored in the Grib2 grid (i.e. gds->scan), they just care about how
+    * the data they are accessing is scanned (i.e. scan=0000) */
    sprintf (buffer, "%d%d%d%d", ((gds->scan & GRIB2BIT_1) / GRIB2BIT_1),
             ((gds->scan & GRIB2BIT_2) / GRIB2BIT_2),
             ((gds->scan & GRIB2BIT_3) / GRIB2BIT_3),

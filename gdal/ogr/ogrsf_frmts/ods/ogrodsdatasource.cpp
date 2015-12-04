@@ -153,8 +153,8 @@ OGRErr OGRODSLayer::DeleteFeature( GIntBig nFID )
 /*                          OGRODSDataSource()                          */
 /************************************************************************/
 
-OGRODSDataSource::OGRODSDataSource()
-
+OGRODSDataSource::OGRODSDataSource() :
+    nFlags(0)
 {
     pszName = NULL;
     fpContent = NULL;
@@ -430,7 +430,7 @@ OGRFieldType OGRODSDataSource::GetOGRFieldType(const char* pszValue,
         if (CPLGetValueType(pszValue) == CPL_VALUE_INTEGER)
         {
             GIntBig nVal = CPLAtoGIntBig(pszValue);
-            if( (GIntBig)(int)nVal != nVal )
+            if( !CPL_INT64_FITS_ON_INT32(nVal) )
                 return OFTInteger64;
             else
                 return OFTInteger;
@@ -471,20 +471,20 @@ static void SetField(OGRFeature* poFeature,
     {
         int nHour, nHourRepeated, nMinute, nSecond;
         char c;
-        if (strncmp(pszValue, "PT", 2) == 0 &&
+        if (STARTS_WITH(pszValue, "PT") &&
             sscanf(pszValue + 2, "%02d%c%02d%c%02d%c",
                    &nHour, &c, &nMinute, &c, &nSecond, &c) == 6)
         {
-            poFeature->SetField(i, 0, 0, 0, nHour, nMinute, nSecond, 0);
+            poFeature->SetField(i, 0, 0, 0, nHour, nMinute, static_cast<float>(nSecond), 0);
         }
         /* bug with kspread 2.1.2 ? */
         /* ex PT121234M56S */
-        else if (strncmp(pszValue, "PT", 2) == 0 &&
+        else if (STARTS_WITH(pszValue, "PT") &&
                  sscanf(pszValue + 2, "%02d%02d%02d%c%02d%c",
                         &nHour, &nHourRepeated, &nMinute, &c, &nSecond, &c) == 6 &&
                  nHour == nHourRepeated)
         {
-            poFeature->SetField(i, 0, 0, 0, nHour, nMinute, nSecond, 0);
+            poFeature->SetField(i, 0, 0, 0, nHour, nMinute, static_cast<float>(nSecond), 0);
         }
     }
     else if (eType == OFTDate || eType == OFTDateTime)
@@ -644,9 +644,9 @@ void OGRODSDataSource::endElementTable(CPL_UNUSED const char *pszName)
             OGRFeature* poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
             for(i = 0; i < apoFirstLineValues.size(); i++)
             {
-                SetField(poFeature, i, apoFirstLineValues[i].c_str());
+                SetField(poFeature, static_cast<int>(i), apoFirstLineValues[i].c_str());
             }
-            poCurLayer->CreateFeature(poFeature);
+            CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
             delete poFeature;
         }
 
@@ -668,7 +668,7 @@ void OGRODSDataSource::endElementTable(CPL_UNUSED const char *pszName)
                             poFeature->GetFieldDefnRef(i)->GetType() == OFTString)
                         {
                             const char* pszVal = poFeature->GetFieldAsString(i);
-                            if (strncmp(pszVal, "of:=", 4) == 0)
+                            if (STARTS_WITH(pszVal, "of:="))
                             {
                                 ODSCellEvaluator oCellEvaluator(poCurLayer);
                                 oCellEvaluator.Evaluate(nRow, i);
@@ -720,7 +720,7 @@ void OGRODSDataSource::startElementRow(const char *pszName,
         }
 
         const char* pszFormula = GetAttributeValue(ppszAttr, "table:formula", NULL);
-        if (pszFormula && strncmp(pszFormula, "of:=", 4) == 0)
+        if (pszFormula && STARTS_WITH(pszFormula, "of:="))
         {
             osFormula = pszFormula;
             if (osValueType.size() == 0)
@@ -782,7 +782,7 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
             for(i = 0; i < (size_t)nEmptyRowsAccumulated; i++)
             {
                 poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
-                poCurLayer->CreateFeature(poFeature);
+                CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
                 delete poFeature;
             }
             nCurLine += nEmptyRowsAccumulated;
@@ -845,9 +845,9 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
                 poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
                 for(i = 0; i < apoFirstLineValues.size(); i++)
                 {
-                    SetField(poFeature, i, apoFirstLineValues[i].c_str());
+                    SetField(poFeature, static_cast<int>(i), apoFirstLineValues[i].c_str());
                 }
-                poCurLayer->CreateFeature(poFeature);
+                CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
                 delete poFeature;
             }
         }
@@ -883,7 +883,7 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
                                                 apoCurLineValues[i].c_str(),
                                                 apoCurLineTypes[i].c_str());
                         OGRFieldType eFieldType =
-                            poCurLayer->GetLayerDefn()->GetFieldDefn(i)->GetType();
+                            poCurLayer->GetLayerDefn()->GetFieldDefn(static_cast<int>(i))->GetType();
                         if (eFieldType == OFTDateTime &&
                             (eValType == OFTDate || eValType == OFTTime) )
                         {
@@ -900,7 +900,7 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
                         else if (eFieldType != OFTString && eValType != eFieldType)
                         {
                             OGRFieldDefn oNewFieldDefn(
-                                poCurLayer->GetLayerDefn()->GetFieldDefn(i));
+                                poCurLayer->GetLayerDefn()->GetFieldDefn(static_cast<int>(i)));
                             if ((eFieldType == OFTDate || eFieldType == OFTTime) &&
                                    eValType == OFTDateTime)
                                 oNewFieldDefn.SetType(OFTDateTime);
@@ -911,7 +911,7 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
                                 oNewFieldDefn.SetType(OFTInteger64);
                             else
                                 oNewFieldDefn.SetType(OFTString);
-                            poCurLayer->AlterFieldDefn(i, &oNewFieldDefn,
+                            poCurLayer->AlterFieldDefn(static_cast<int>(i), &oNewFieldDefn,
                                                        ALTER_TYPE_FLAG);
                         }
                     }
@@ -924,9 +924,9 @@ void OGRODSDataSource::endElementRow(CPL_UNUSED const char *pszName)
                 poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
                 for(i = 0; i < apoCurLineValues.size(); i++)
                 {
-                    SetField(poFeature, i, apoCurLineValues[i].c_str());
+                    SetField(poFeature, static_cast<int>(i), apoCurLineValues[i].c_str());
                 }
-                poCurLayer->CreateFeature(poFeature);
+                CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
                 delete poFeature;
             }
         }
@@ -1498,7 +1498,7 @@ static void WriteLayer(VSILFILE* fp, OGRLayer* poLayer)
                 {
                     const char* pszVal = poFeature->GetFieldAsString(j);
                     pszXML = OGRGetXML_UTF8_EscapedString(pszVal);
-                    if (strncmp(pszVal, "of:=", 4) == 0)
+                    if (STARTS_WITH(pszVal, "of:="))
                     {
                         VSIFPrintfL(fp, "<table:table-cell table:formula=\"%s\"/>\n", pszXML);
                     }
@@ -1567,7 +1567,7 @@ void OGRODSDataSource::FlushCache()
     }
     CSLDestroy(papszOptions);
     if( CPLWriteFileInZip(hZIP, "application/vnd.oasis.opendocument.spreadsheet",
-                      strlen("application/vnd.oasis.opendocument.spreadsheet")) != CE_None )
+                          static_cast<int>(strlen("application/vnd.oasis.opendocument.spreadsheet"))) != CE_None )
     {
         CPLCloseZip(hZIP);
         return;
@@ -1793,7 +1793,7 @@ int ODSCellEvaluator::EvaluateRange(int nRow1, int nCol1, int nRow2, int nCol2,
         return FALSE;
     }
 
-    int nIndexBackup = poLayer->GetNextReadFID();
+    int nIndexBackup = static_cast<int>(poLayer->GetNextReadFID());
 
     if (poLayer->SetNextByIndex(nRow1) != OGRERR_NONE)
     {
@@ -1831,7 +1831,7 @@ int ODSCellEvaluator::EvaluateRange(int nRow1, int nCol1, int nRow2, int nCol2,
             else
             {
                 std::string osVal(poFeature->GetFieldAsString(nCol));
-                if (strncmp(osVal.c_str(), "of:=", 4) == 0)
+                if (STARTS_WITH(osVal.c_str(), "of:="))
                 {
                     delete poFeature;
                     poFeature = NULL;
@@ -1863,7 +1863,7 @@ int ODSCellEvaluator::EvaluateRange(int nRow1, int nCol1, int nRow2, int nCol2,
                     else
                     {
                         osVal = poFeature->GetFieldAsString(nCol);
-                        if (strncmp(osVal.c_str(), "of:=", 4) != 0)
+                        if (!STARTS_WITH(osVal.c_str(), "of:="))
                         {
                             CPLValueType eType = CPLGetValueType(osVal.c_str());
                             /* Try to convert into numeric value if possible */
@@ -1921,7 +1921,7 @@ int ODSCellEvaluator::Evaluate(int nRow, int nCol)
         poFeature->GetFieldDefnRef(nCol)->GetType() == OFTString)
     {
         const char* pszVal = poFeature->GetFieldAsString(nCol);
-        if (strncmp(pszVal, "of:=", 4) == 0)
+        if (STARTS_WITH(pszVal, "of:="))
         {
             ods_formula_node* expr_out = ods_formula_compile( pszVal + 4 );
             if (expr_out &&

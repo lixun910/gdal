@@ -54,7 +54,7 @@ AIGInfo_t *AIGOpen( const char * pszInputName, const char * pszAccess )
     {
         int      i;
 
-        for( i = strlen(pszCoverName)-1; i > 0; i-- )
+        for( i = (int)strlen(pszCoverName)-1; i > 0; i-- )
         {
             if( pszCoverName[i] == '\\' || pszCoverName[i] == '/' )
             {
@@ -153,11 +153,10 @@ AIGInfo_t *AIGOpen( const char * pszInputName, const char * pszAccess )
 /*      Setup tile infos, but defer reading of tile data.               */
 /* -------------------------------------------------------------------- */
     psInfo->pasTileInfo = (AIGTileInfo *) 
-        VSICalloc(sizeof(AIGTileInfo),
+        VSI_CALLOC_VERBOSE(sizeof(AIGTileInfo),
                   psInfo->nTilesPerRow * psInfo->nTilesPerColumn);
     if (psInfo->pasTileInfo == NULL)
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate tile info array");
         AIGClose( psInfo );
         return NULL;
     }
@@ -251,7 +250,7 @@ CPLErr AIGReadTile( AIGInfo_t * psInfo, int nBlockXOff, int nBlockYOff,
     AIGTileInfo *psTInfo;
 
 /* -------------------------------------------------------------------- */
-/*      Compute our tile, and ensure it is accessable (open).  Then     */
+/*      Compute our tile, and ensure it is accessible (open).  Then     */
 /*      reduce block x/y values to be the block within that tile.       */
 /* -------------------------------------------------------------------- */
     iTileX = nBlockXOff / psInfo->nBlocksPerRow;
@@ -341,7 +340,7 @@ CPLErr AIGReadFloatTile( AIGInfo_t * psInfo, int nBlockXOff, int nBlockYOff,
     AIGTileInfo *psTInfo;
 
 /* -------------------------------------------------------------------- */
-/*      Compute our tile, and ensure it is accessable (open).  Then     */
+/*      Compute our tile, and ensure it is accessible (open).  Then     */
 /*      reduce block x/y values to be the block within that tile.       */
 /* -------------------------------------------------------------------- */
     iTileX = nBlockXOff / psInfo->nBlocksPerRow;
@@ -462,7 +461,7 @@ VSILFILE *AIGLLOpen( const char *pszFilename, const char *pszAccess )
         char *pszUCFilename = CPLStrdup(pszFilename);
         int  i;
 
-        for( i = strlen(pszUCFilename)-1; 
+        for( i = (int)strlen(pszUCFilename)-1; 
              pszUCFilename[i] != '/' && pszUCFilename[i] != '\\';
              i-- )
         {

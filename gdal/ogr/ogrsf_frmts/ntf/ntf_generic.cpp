@@ -169,7 +169,7 @@ void OGRNTFDataSource::WorkupGeneric( NTFFileReader * poReader )
 /* ==================================================================== */
 /*      Read all record groups in the file.                             */
 /* ==================================================================== */
-    while( TRUE )
+    while( true )
     {
 /* -------------------------------------------------------------------- */
 /*      Read a record group                                             */
@@ -215,7 +215,7 @@ void OGRNTFDataSource::WorkupGeneric( NTFFileReader * poReader )
                       {
                           poClass->CheckAddAttr( poAttDesc->val_type,
                                                  poAttDesc->finter,
-                                                 strlen(papszValues[iAtt]) );
+                                                 static_cast<int>(strlen(papszValues[iAtt])) );
                       }
 
                       if( CSLFindString( papszFullAttList, 
@@ -223,7 +223,7 @@ void OGRNTFDataSource::WorkupGeneric( NTFFileReader * poReader )
                           papszFullAttList = 
                               CSLAddString( papszFullAttList, 
                                             papszTypes[iAtt] );
-                      else
+                      else if( poAttDesc != NULL )
                           poClass->SetMultiple( poAttDesc->val_type );
                   }
 
@@ -633,7 +633,7 @@ static OGRFeature *TranslateGenericPoint( NTFFileReader *poReader,
     {
         char    szValType[3];
 
-        strcpy( szValType, papoGroup[0]->GetField(9,10) );
+        snprintf( szValType, sizeof(szValType), "%s", papoGroup[0]->GetField(9,10) );
         if( !EQUAL(szValType,"  ") )
         {
             char        *pszProcessedValue;
@@ -685,7 +685,7 @@ static OGRFeature *TranslateGenericLine( NTFFileReader *poReader,
     {
         char    szValType[3];
 
-        strcpy( szValType, papoGroup[0]->GetField(9,10) );
+        snprintf( szValType, sizeof(szValType), "%s", papoGroup[0]->GetField(9,10) );
         if( !EQUAL(szValType,"  ") )
         {
             char        *pszProcessedValue;
@@ -789,12 +789,12 @@ static OGRFeature *TranslateGenericCPoly( NTFFileReader *poReader,
 /* -------------------------------------------------------------------- */
     if( papoGroup[0]->GetType() != NRT_CPOLY )
         return NULL;
-    
+
     if( papoGroup[1] == NULL || 
         (papoGroup[1]->GetType() != NRT_GEOMETRY 
          && papoGroup[1]->GetType() != NRT_GEOMETRY3D) ) 
         return NULL;
-    
+
     if( papoGroup[1] != NULL 
         && papoGroup[2]->GetType() != NRT_ATTREC )
         return NULL;
@@ -806,10 +806,10 @@ static OGRFeature *TranslateGenericCPoly( NTFFileReader *poReader,
 
     // CPOLY_ID
     poFeature->SetField( "CPOLY_ID", atoi(papoGroup[0]->GetField( 3, 8 )) );
-    
+
     // ATTREC Attributes
     AddGenericAttributes( poReader, papoGroup, poFeature );
-    
+
     // Read point geometry
     if( papoGroup[1] != NULL 
         && (papoGroup[1]->GetType() == NRT_GEOMETRY
@@ -820,11 +820,11 @@ static OGRFeature *TranslateGenericCPoly( NTFFileReader *poReader,
         poFeature->SetField( "GEOM_ID", 
                              atoi(papoGroup[1]->GetField(3,8)) );
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Collect the chains for each of the rings, and just aggregate    */
 /*      these into the master list without any concept of where the     */
-/*      boundaries are.  The boundary information will be emmitted      */
+/*      boundaries are.  The boundary information will be emitted      */
 /*      in the RingStart field.                                         */
 /* -------------------------------------------------------------------- */
     int         nNumLink = 0, iLink;
@@ -854,7 +854,7 @@ void OGRNTFDataSource::EstablishGenericLayers()
 
 {
     int         iType;
-    
+
 /* -------------------------------------------------------------------- */
 /*      Pick an initial NTFFileReader to build the layers against.      */
 /* -------------------------------------------------------------------- */

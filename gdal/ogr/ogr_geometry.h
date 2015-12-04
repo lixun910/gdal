@@ -29,8 +29,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_GEOMETRY_H_INCLUDED
-#define _OGR_GEOMETRY_H_INCLUDED
+#ifndef OGR_GEOMETRY_H_INCLUDED
+#define OGR_GEOMETRY_H_INCLUDED
 
 #include "ogr_core.h"
 #include "ogr_spatialref.h"
@@ -52,7 +52,7 @@ class OGRRawPoint
                   x = y = 0.0;
           }
 
-          OGRRawPoint(double x, double y) : x(x), y(y) {}
+          OGRRawPoint(double xIn, double yIn) : x(xIn), y(yIn) {}
     double      x;
     double      y;
 };
@@ -112,7 +112,8 @@ class CPL_DLL OGRGeometry
     int                   nCoordDimension;
 
     OGRErr                importPreambuleFromWkt( char ** ppszInput,
-                                                  int* pbHasZ, int* pbHasM );
+                                                  int* pbHasZ, int* pbHasM,
+                                                  bool* pbIsEmpty );
     OGRErr                importCurveCollectionFromWkt( char ** ppszInput,
                                                   int bAllowEmptyComponent,
                                                   int bAllowLineString,
@@ -132,9 +133,14 @@ class CPL_DLL OGRGeometry
                                                         int nMinSubGeomSize,
                                                         int& nGeomCount,
                                                         OGRwkbVariant eWkbVariant );
+    OGRErr                PointOnSurfaceInternal( OGRPoint * poPoint ) const;
+
   public:
                 OGRGeometry();
+                OGRGeometry( const OGRGeometry& other );
     virtual     ~OGRGeometry();
+    
+    OGRGeometry& operator=( const OGRGeometry& other );
                         
     // standard IGeometry
     virtual int getDimension() const = 0;
@@ -144,7 +150,7 @@ class CPL_DLL OGRGeometry
     virtual OGRBoolean  IsSimple() const;
     virtual OGRBoolean  IsRing() const;
     virtual void        empty() = 0;
-    virtual OGRGeometry *clone() const = 0;
+    virtual OGRGeometry *clone() const CPL_WARN_UNUSED_RESULT = 0;
     virtual void getEnvelope( OGREnvelope * psEnvelope ) const = 0;
     virtual void getEnvelope( OGREnvelope3D * psEnvelope ) const = 0;
 
@@ -162,16 +168,16 @@ class CPL_DLL OGRGeometry
     virtual void   dumpReadable( FILE *, const char * = NULL, char** papszOptions = NULL ) const;
     virtual void   flattenTo2D() = 0;
     virtual char * exportToGML( const char* const * papszOptions = NULL ) const;
-	virtual char * exportToKML() const;
+    virtual char * exportToKML() const;
     virtual char * exportToJson() const;
 
     static GEOSContextHandle_t createGEOSContext();
     static void freeGEOSContext(GEOSContextHandle_t hGEOSCtxt);
-    virtual GEOSGeom exportToGEOS(GEOSContextHandle_t hGEOSCtxt) const;
+    virtual GEOSGeom exportToGEOS(GEOSContextHandle_t hGEOSCtxt) const CPL_WARN_UNUSED_RESULT;
     virtual OGRBoolean hasCurveGeometry(int bLookForNonLinear = FALSE) const;
-    virtual OGRGeometry* getCurveGeometry(const char* const* papszOptions = NULL) const;
+    virtual OGRGeometry* getCurveGeometry(const char* const* papszOptions = NULL) const CPL_WARN_UNUSED_RESULT;
     virtual OGRGeometry* getLinearGeometry(double dfMaxAngleStepSizeDegrees = 0,
-                                             const char* const* papszOptions = NULL) const;
+                                             const char* const* papszOptions = NULL) const CPL_WARN_UNUSED_RESULT;
 
     virtual void closeRings();
 
@@ -196,26 +202,27 @@ class CPL_DLL OGRGeometry
     virtual OGRBoolean  Overlaps( const OGRGeometry * ) const;
 //    virtual OGRBoolean  Relate( const OGRGeometry *, const char * ) const;
 
-    virtual OGRGeometry *Boundary() const;
-    virtual double  Distance( const OGRGeometry * ) const;
-    virtual OGRGeometry *ConvexHull() const;
-    virtual OGRGeometry *Buffer( double dfDist, int nQuadSegs = 30 ) const;
-    virtual OGRGeometry *Intersection( const OGRGeometry *) const;
-    virtual OGRGeometry *Union( const OGRGeometry * ) const;
-    virtual OGRGeometry *UnionCascaded() const;
-    virtual OGRGeometry *Difference( const OGRGeometry * ) const;
-    virtual OGRGeometry *SymDifference( const OGRGeometry * ) const;
+    virtual OGRGeometry *Boundary() const CPL_WARN_UNUSED_RESULT;
+    virtual double  Distance( const OGRGeometry * ) const ;
+    virtual OGRGeometry *ConvexHull() const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *Buffer( double dfDist, int nQuadSegs = 30 ) const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *Intersection( const OGRGeometry *) const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *Union( const OGRGeometry * ) const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *UnionCascaded() const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *Difference( const OGRGeometry * ) const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *SymDifference( const OGRGeometry * ) const CPL_WARN_UNUSED_RESULT;
     virtual OGRErr       Centroid( OGRPoint * poPoint ) const;
-    virtual OGRGeometry *Simplify(double dTolerance) const;
-    OGRGeometry *SimplifyPreserveTopology(double dTolerance) const;
+    virtual OGRGeometry *Simplify(double dTolerance) const CPL_WARN_UNUSED_RESULT;
+    OGRGeometry *SimplifyPreserveTopology(double dTolerance) const CPL_WARN_UNUSED_RESULT;
+    virtual OGRGeometry *DelaunayTriangulation(double dfTolerance, int bOnlyEdges) const CPL_WARN_UNUSED_RESULT;
 
-    virtual OGRGeometry *Polygonize() const;
+    virtual OGRGeometry *Polygonize() const CPL_WARN_UNUSED_RESULT;
 
     // backward compatibility to non-standard method names. 
     OGRBoolean  Intersect( OGRGeometry * ) const CPL_WARN_DEPRECATED("Non standard method. Use Intersects() instead");
     OGRBoolean  Equal( OGRGeometry * ) const CPL_WARN_DEPRECATED("Non standard method. Use Equals() instead");
-    virtual OGRGeometry *SymmetricDifference( const OGRGeometry * ) const CPL_WARN_DEPRECATED("Non standard method. Use SymDifference() instead");
-    virtual OGRGeometry *getBoundary() const CPL_WARN_DEPRECATED("Non standard method. Use Boundary() instead");
+    OGRGeometry *SymmetricDifference( const OGRGeometry * ) const CPL_WARN_DEPRECATED("Non standard method. Use SymDifference() instead");
+    OGRGeometry *getBoundary() const CPL_WARN_DEPRECATED("Non standard method. Use Boundary() instead");
     
     // Special HACK for DB2 7.2 support
     static int bGenerate_DB2_V72_BYTE_ORDER;
@@ -246,7 +253,10 @@ class CPL_DLL OGRPoint : public OGRGeometry
                 OGRPoint();
                 OGRPoint( double x, double y );
                 OGRPoint( double x, double y, double z );
+                OGRPoint( const OGRPoint& other );
     virtual     ~OGRPoint();
+    
+    OGRPoint& operator=( const OGRPoint& other );
 
     // IWks Interface
     virtual int WkbSize() const;
@@ -321,6 +331,7 @@ class CPL_DLL OGRCurve : public OGRGeometry
 {
   protected:
             OGRCurve();
+            OGRCurve( const OGRCurve& other );
 
     virtual OGRCurveCasterToLineString GetCasterToLineString() const = 0;
     virtual OGRCurveCasterToLinearRing GetCasterToLinearRing() const = 0;
@@ -332,6 +343,8 @@ class CPL_DLL OGRCurve : public OGRGeometry
 
   public:
     virtual ~OGRCurve();
+    
+    OGRCurve& operator=( const OGRCurve& other );
 
     // ICurve methods
     virtual double get_Length() const = 0;
@@ -386,9 +399,12 @@ class CPL_DLL OGRSimpleCurve: public OGRCurve
     virtual double get_LinearArea() const;
 
                 OGRSimpleCurve();
+                OGRSimpleCurve( const OGRSimpleCurve& other );
 
   public:
     virtual     ~OGRSimpleCurve();
+    
+    OGRSimpleCurve& operator=( const OGRSimpleCurve& other );
 
     // IWks Interface
     virtual int WkbSize() const;
@@ -481,7 +497,10 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
 
   public:
                 OGRLineString();
+                OGRLineString(const OGRLineString& other);
     virtual    ~OGRLineString();
+    
+    OGRLineString& operator=(const OGRLineString& other);
 
     virtual OGRLineString* CurveToLine(double dfMaxAngleStepSizeDegrees = 0,
                                        const char* const* papszOptions = NULL) const;
@@ -500,7 +519,7 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
 /**
  * Concrete representation of a closed ring.
  *
- * This class is functionally equivelent to an OGRLineString, but has a
+ * This class is functionally equivalent to an OGRLineString, but has a
  * separate identity to maintain alignment with the OpenGIS simple feature
  * data model.  It exists to serve as a component of an OGRPolygon.  
  *
@@ -510,7 +529,7 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
  *
  * Because OGRLinearRing is not a "proper" free standing simple features 
  * object, it cannot be directly used on a feature via SetGeometry(), and
- * cannot genearally be used with GEOS for operations like Intersects(). 
+ * cannot generally be used with GEOS for operations like Intersects(). 
  * Instead the polygon should be used, or the OGRLinearRing should be
  * converted to an OGRLineString for such operations. 
  *
@@ -536,8 +555,11 @@ class CPL_DLL OGRLinearRing : public OGRLineString
 
   public:
                         OGRLinearRing();
+                        OGRLinearRing(const OGRLinearRing& other);
                         OGRLinearRing( OGRLinearRing * );
     virtual            ~OGRLinearRing();
+    
+    OGRLinearRing& operator=(const OGRLinearRing& other);
 
     // Non standard.
     virtual const char *getGeometryName() const;
@@ -587,7 +609,10 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
 
   public:
                 OGRCircularString();
+                OGRCircularString(const OGRCircularString& other);
     virtual    ~OGRCircularString();
+    
+    OGRCircularString& operator=(const OGRCircularString& other);
 
     // IWks Interface
     virtual OGRErr importFromWkb( unsigned char *, int = -1, OGRwkbVariant=wkbVariantOldOgc );
@@ -642,7 +667,10 @@ class CPL_DLL OGRCurveCollection
 
   public:
                 OGRCurveCollection();
+                OGRCurveCollection(const OGRCurveCollection& other);
                ~OGRCurveCollection();
+    
+    OGRCurveCollection& operator=(const OGRCurveCollection& other);
 
     void            empty(OGRGeometry* poGeom);
     OGRBoolean      IsEmpty() const;
@@ -720,7 +748,10 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
 
   public:
                 OGRCompoundCurve();
+                OGRCompoundCurve(const OGRCompoundCurve& other);
     virtual     ~OGRCompoundCurve();
+    
+    OGRCompoundCurve& operator=(const OGRCompoundCurve& other);
 
     // IWks Interface
     virtual int WkbSize() const;
@@ -838,7 +869,10 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
 
   public:
                 OGRCurvePolygon();
+                OGRCurvePolygon(const OGRCurvePolygon&);
     virtual    ~OGRCurvePolygon();
+    
+    OGRCurvePolygon& operator=(const OGRCurvePolygon& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -855,7 +889,7 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
 
     // ISurface Interface
     virtual double      get_Area() const;
-    virtual int         PointOnSurface( OGRPoint * poPoint ) const;
+    virtual OGRErr      PointOnSurface( OGRPoint * poPoint ) const;
     
     // IWks Interface
     virtual int WkbSize() const;
@@ -925,7 +959,10 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
 
   public:
                 OGRPolygon();
+                OGRPolygon(const OGRPolygon& other);
     virtual    ~OGRPolygon();
+    
+    OGRPolygon& operator=(const OGRPolygon& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -936,7 +973,7 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
                                              const char* const* papszOptions = NULL) const;
 
     // ISurface Interface
-    virtual int         PointOnSurface( OGRPoint * poPoint ) const;
+    virtual OGRErr        PointOnSurface( OGRPoint * poPoint ) const;
     
     // IWks Interface
     virtual int WkbSize() const;
@@ -993,7 +1030,10 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
 
   public:
                 OGRGeometryCollection();
+                OGRGeometryCollection(const OGRGeometryCollection& other);
     virtual     ~OGRGeometryCollection();
+    
+    OGRGeometryCollection& operator=(const OGRGeometryCollection& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1059,7 +1099,10 @@ class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
 
   public:
             OGRMultiSurface();
+            OGRMultiSurface(const OGRMultiSurface& other);
     virtual ~OGRMultiSurface();
+    
+    OGRMultiSurface& operator=(const OGRMultiSurface& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1094,7 +1137,10 @@ class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
 
   public:
             OGRMultiPolygon();
+            OGRMultiPolygon(const OGRMultiPolygon& other);
     virtual ~OGRMultiPolygon();
+    
+    OGRMultiPolygon& operator=(const OGRMultiPolygon& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1128,7 +1174,10 @@ class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
 
   public:
             OGRMultiPoint();
+            OGRMultiPoint(const OGRMultiPoint& other);
     virtual ~OGRMultiPoint();
+    
+    OGRMultiPoint& operator=(const OGRMultiPoint& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1161,7 +1210,10 @@ class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
 
   public:
             OGRMultiCurve();
+            OGRMultiCurve(const OGRMultiCurve& other);
     virtual ~OGRMultiCurve();
+    
+    OGRMultiCurve& operator=(const OGRMultiCurve& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1193,7 +1245,10 @@ class CPL_DLL OGRMultiLineString : public OGRMultiCurve
 
   public:
             OGRMultiLineString();
+            OGRMultiLineString(const OGRMultiLineString& other);
     virtual ~OGRMultiLineString();
+    
+    OGRMultiLineString& operator=(const OGRMultiLineString& other);
 
     // Non standard (OGRGeometry).
     virtual const char *getGeometryName() const;
@@ -1289,4 +1344,4 @@ void OGRDestroyPreparedGeometry( OGRPreparedGeometry* poPreparedGeom );
 int OGRPreparedGeometryIntersects( const OGRPreparedGeometry* poPreparedGeom,
                                    const OGRGeometry* poOtherGeom );
 
-#endif /* ndef _OGR_GEOMETRY_H_INCLUDED */
+#endif /* ndef OGR_GEOMETRY_H_INCLUDED */

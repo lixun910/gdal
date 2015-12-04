@@ -46,7 +46,9 @@ CPL_CVSID("$Id$");
 OGRVFKLayer::OGRVFKLayer(const char *pszName,
                          OGRSpatialReference *poSRSIn,
                          OGRwkbGeometryType eReqType,
-                         OGRVFKDataSource *poDSIn)
+                         OGRVFKDataSource *poDSIn) :
+    poDS(poDSIn),
+    m_iNextFeature(0)
 {
     /* set spatial reference */
     if( poSRSIn == NULL ) {
@@ -60,9 +62,6 @@ OGRVFKLayer::OGRVFKLayer(const char *pszName,
     else {
         poSRS = poSRSIn->Clone();
     }
-
-    /* layer datasource */
-    poDS = poDSIn;
 
     /* feature definition */
     poFeatureDefn = new OGRFeatureDefn(pszName);
@@ -158,33 +157,19 @@ GIntBig OGRVFKLayer::GetFeatureCount(CPL_UNUSED int bForce)
 */
 OGRFeature *OGRVFKLayer::GetNextFeature()
 {
-    VFKFeature  *poVFKFeature;
-    
-    OGRFeature  *poOGRFeature;
-    OGRGeometry *poOGRGeom;
-    
-    poOGRFeature = NULL;
-    poOGRGeom    = NULL;
-    
     /* loop till we find and translate a feature meeting all our
        requirements
     */
-    while (TRUE) {
-        /* cleanup last feature, and get a new raw vfk feature */
-        if (poOGRGeom != NULL) {
-            delete poOGRGeom;
-            poOGRGeom = NULL;
-        }
-        
-        poVFKFeature = (VFKFeature *) poDataBlock->GetNextFeature();
+    while( true ) {
+        IVFKFeature* poVFKFeature = poDataBlock->GetNextFeature();
         if (!poVFKFeature)
-            return NULL;        
-        
+            return NULL;
+
         /* skip feature with unknown geometry type */
         if (poVFKFeature->GetGeometryType() == wkbUnknown)
             continue;
         
-        poOGRFeature = GetFeature(poVFKFeature);
+        OGRFeature* poOGRFeature = GetFeature(poVFKFeature);
         if (poOGRFeature)
             return poOGRFeature;
     }

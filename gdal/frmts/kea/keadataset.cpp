@@ -32,7 +32,16 @@
 #include "keaband.h"
 #include "keacopy.h"
 
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4290 )  /* C++ exception specification ignored except to indicate a function is not __declspec(nothrow)*/
+#endif
+
 #include "libkea/KEACommon.h"
+
+#ifdef _MSC_VER
+#pragma warning( pop ) 
+#endif
 
 // Function for converting a libkea type into a GDAL type
 GDALDataType KEA_to_GDAL_Type( kealib::KEADataType ekeaType )
@@ -128,7 +137,7 @@ GDALDataset *KEADataset::Open( GDALOpenInfo * poOpenInfo )
 
             return pDataset;
         }
-        catch (kealib::KEAIOException &e)
+        catch (const kealib::KEAIOException &)
         {
             // was a problem - can't be a valid file
             return NULL;
@@ -164,7 +173,7 @@ int KEADataset::Identify( GDALOpenInfo * poOpenInfo )
         // is this a KEA file?
         bisKEA = kealib::KEAImageIO::isKEAImage( poOpenInfo->pszFilename );
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &)
     {
         bisKEA = false;
     }
@@ -277,7 +286,7 @@ GDALDataset *KEADataset::Create( const char * pszFilename,
     if( keaImgH5File == NULL )
         return NULL;
 
-    bool bThematic = CSLTestBoolean(CSLFetchNameValueDef( papszParmList, "THEMATIC", "FALSE" ));
+    bool bThematic = CPL_TO_BOOL(CSLTestBoolean(CSLFetchNameValueDef( papszParmList, "THEMATIC", "FALSE" )));
 
     try
     {
@@ -322,7 +331,7 @@ GDALDataset *KEADataset::CreateCopy( const char * pszFilename, GDALDataset *pSrc
     if( keaImgH5File == NULL )
         return NULL;
 
-    bool bThematic = CSLTestBoolean(CSLFetchNameValueDef( papszParmList, "THEMATIC", "FALSE" ));
+    bool bThematic = CPL_TO_BOOL(CSLTestBoolean(CSLFetchNameValueDef( papszParmList, "THEMATIC", "FALSE" )));
 
     try
     {
@@ -344,7 +353,7 @@ GDALDataset *KEADataset::CreateCopy( const char * pszFilename, GDALDataset *pSrc
         {
             pImageIO->close();
         }
-        catch (kealib::KEAIOException &e)
+        catch (const kealib::KEAIOException &)
         {
         }
         delete pImageIO;
@@ -379,10 +388,14 @@ GDALDataset *KEADataset::CreateCopy( const char * pszFilename, GDALDataset *pSrc
             if( pSrcDs->GetRasterBand(nCount+1)->GetMaskFlags() == 0 ) // Per-band mask
             {
                 pDataset->GetRasterBand(nCount+1)->CreateMaskBand(0);
-                GDALRasterBandCopyWholeRaster(
+                if( GDALRasterBandCopyWholeRaster(
                     (GDALRasterBandH)pSrcDs->GetRasterBand(nCount+1)->GetMaskBand(),
                     (GDALRasterBandH)pDataset->GetRasterBand(nCount+1)->GetMaskBand(),
-                    NULL, NULL, NULL);
+                    NULL, NULL, NULL) != CE_None )
+                {
+                    delete pDataset;
+                    return NULL;
+                }
             }
         }
 
@@ -399,15 +412,15 @@ GDALDataset *KEADataset::CreateCopy( const char * pszFilename, GDALDataset *pSrc
 }
 
 // constructor
-KEADataset::KEADataset( H5::H5File *keaImgH5File, GDALAccess eAccess )
+KEADataset::KEADataset( H5::H5File *keaImgH5File, GDALAccess eAccessIn )
 {
     try
     {
-        // create the image IO and initilize the refcount
+        // Create the image IO and initialize the refcount.
         m_pImageIO = new kealib::KEAImageIO();
         m_pnRefcount = new int(1);
 
-        // NULL until we read them in 
+        // NULL until we read them in.
         m_papszMetadataList = NULL;
         m_pGCPs = NULL;
         m_pszGCPProjection = NULL;
@@ -418,16 +431,17 @@ KEADataset::KEADataset( H5::H5File *keaImgH5File, GDALAccess eAccess )
 
         // get the dimensions
         this->nBands = m_pImageIO->getNumOfImageBands();
-        this->nRasterXSize = pSpatialInfo->xSize;
-        this->nRasterYSize = pSpatialInfo->ySize;
-        this->eAccess = eAccess;
+        this->nRasterXSize = static_cast<int>(pSpatialInfo->xSize);
+        this->nRasterYSize = static_cast<int>(pSpatialInfo->ySize);
+        this->eAccess = eAccessIn;
 
         // create all the bands
         for( int nCount = 0; nCount < nBands; nCount++ )
         {
-            // note GDAL uses indices starting at 1 and so does kealib
-            // create band object
-            KEARasterBand *pBand = new KEARasterBand( this, nCount + 1, eAccess, m_pImageIO, m_pnRefcount );
+            // Note: GDAL uses indices starting at 1 and so does kealib.
+            // Create band object.
+            KEARasterBand *pBand = new KEARasterBand(
+                this, nCount + 1, eAccess, m_pImageIO, m_pnRefcount );
             // read in overviews
             pBand->readExistingOverviews();
             // set the band into this dataset
@@ -437,7 +451,7 @@ KEADataset::KEADataset( H5::H5File *keaImgH5File, GDALAccess eAccess )
         // read in the metadata
         this->UpdateMetadataList();
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         // ignore?
         CPLError( CE_Warning, CPLE_AppDefined,
@@ -457,7 +471,7 @@ KEADataset::~KEADataset()
         {
             m_pImageIO->close();
         }
-        catch (kealib::KEAIOException &e)
+        catch (const kealib::KEAIOException &)
         {
         }
         delete m_pImageIO;
@@ -495,7 +509,7 @@ CPLErr KEADataset::GetGeoTransform( double * padfTransform )
     
         return CE_None;
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         CPLError( CE_Warning, CPLE_AppDefined,
                 "Unable to read geotransform: %s", e.what() );
@@ -512,7 +526,7 @@ const char *KEADataset::GetProjectionRef()
         // should be safe since pSpatialInfo should be around a while...
         return pSpatialInfo->wktString.c_str();
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &)
     {
         return NULL;
     }
@@ -536,7 +550,7 @@ CPLErr KEADataset::SetGeoTransform (double *padfTransform )
         m_pImageIO->setSpatialInfo( pSpatialInfo );
         return CE_None;
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         CPLError( CE_Warning, CPLE_AppDefined,
                 "Unable to write geotransform: %s", e.what() );
@@ -557,7 +571,7 @@ CPLErr KEADataset::SetProjection( const char *pszWKT )
         m_pImageIO->setSpatialInfo( pSpatialInfo );
         return CE_None;
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         CPLError( CE_Warning, CPLE_AppDefined,
                 "Unable to write projection: %s", e.what() );
@@ -620,7 +634,7 @@ CPLErr KEADataset::SetMetadataItem(const char *pszName, const char *pszValue, co
         m_papszMetadataList = CSLSetNameValue( m_papszMetadataList, pszName, pszValue );
         return CE_None;
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                 "Unable to write metadata: %s", e.what() );
@@ -677,7 +691,7 @@ CPLErr KEADataset::SetMetadata(char **papszMetadata, const char *pszDomain)
             nIndex++;
         }
     }
-    catch (kealib::KEAIOException &e)
+    catch (const kealib::KEAIOException &e)
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                 "Unable to write metadata: %s", e.what() );
@@ -699,17 +713,17 @@ CPLErr KEADataset::AddBand(GDALDataType eType, char **papszOptions)
     if (papszOptions != NULL) {
         const char *pszValue = CSLFetchNameValue(papszOptions,"IMAGEBLOCKSIZE");
         if ( pszValue != NULL ) {
-            nimageBlockSize = atol(pszValue);
+            nimageBlockSize = atoi(pszValue);
         }
 
         pszValue = CSLFetchNameValue(papszOptions, "ATTBLOCKSIZE");
         if (pszValue != NULL) {
-            nattBlockSize = atol(pszValue);
+            nattBlockSize = atoi(pszValue);
         }
 
         pszValue = CSLFetchNameValue(papszOptions, "DEFLATE");
         if (pszValue != NULL) {
-            ndeflate = atol(pszValue);
+            ndeflate = atoi(pszValue);
         }
     }
     
@@ -725,7 +739,7 @@ CPLErr KEADataset::AddBand(GDALDataType eType, char **papszOptions)
     try {
         m_pImageIO->addImageBand(keaDataType, "", nimageBlockSize,
                 nattBlockSize, ndeflate);
-    } catch (kealib::KEAIOException &e) {
+    } catch (const kealib::KEAIOException &e) {
         CPLError( CE_Failure, CPLE_AppDefined,
                 "Unable to create band: %s", e.what() );
         return CE_Failure;
@@ -747,7 +761,7 @@ int KEADataset::GetGCPCount()
     {
         return m_pImageIO->getGCPCount();
     }
-    catch (kealib::KEAIOException &e) 
+    catch (const kealib::KEAIOException &) 
     {
         return 0;
     }
@@ -763,7 +777,7 @@ const char* KEADataset::GetGCPProjection()
             std::string sProj = m_pImageIO->getGCPProjection();
             m_pszGCPProjection = CPLStrdup( sProj.c_str() );
         }
-        catch (kealib::KEAIOException &e) 
+        catch (const kealib::KEAIOException &) 
         {
             return NULL;
         }
@@ -799,7 +813,7 @@ const GDAL_GCP* KEADataset::GetGCPs()
 
             delete pKEAGCPs;
         }
-        catch (kealib::KEAIOException &e) 
+        catch (const kealib::KEAIOException &) 
         {
             return NULL;
         }
@@ -832,7 +846,7 @@ CPLErr KEADataset::SetGCPs(int nGCPCount, const GDAL_GCP *pasGCPList, const char
     {
         m_pImageIO->setGCPs(pKEAGCPs, pszGCPProjection);
     }
-    catch (kealib::KEAIOException &e) 
+    catch (const kealib::KEAIOException &e) 
     {
         CPLError( CE_Warning, CPLE_AppDefined,
                 "Unable to write GCPs: %s", e.what() );

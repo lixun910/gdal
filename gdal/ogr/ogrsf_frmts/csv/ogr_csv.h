@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_CSV_H_INCLUDED
-#define _OGR_CSV_H_INCLUDED
+#ifndef OGR_CSV_H_INCLUDED
+#define OGR_CSV_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 
@@ -37,6 +37,7 @@ typedef enum
 {
     OGR_CSV_GEOM_NONE,
     OGR_CSV_GEOM_AS_WKT,
+    OGR_CSV_GEOM_AS_SOME_GEOM_FORMAT,
     OGR_CSV_GEOM_AS_XYZ,
     OGR_CSV_GEOM_AS_XY,
     OGR_CSV_GEOM_AS_YX,
@@ -82,11 +83,10 @@ class OGRCSVLayer : public OGRLayer
     int                 bHiddenWKTColumn;
 
     /*http://www.faa.gov/airports/airport_safety/airportdata_5010/menu/index.cfm specific */
-    int                 iNfdcLatitudeS, iNfdcLongitudeS;
+    int                 iNfdcLongitudeS, iNfdcLatitudeS;
     int                 bDontHonourStrings;
 
-    /* GNIS specific */
-    int                 iLongitudeField, iLatitudeField;
+    int                 iLongitudeField, iLatitudeField, iZField;
 
     int                 bIsEurostatTSV;
     int                 nEurostatDims;
@@ -97,10 +97,15 @@ class OGRCSVLayer : public OGRLayer
     
     int                 bWarningBadTypeOrWidth;
     int                 bKeepSourceColumns;
+    int                 bKeepGeomColumns;
     
     int                 bMergeDelimiter;
     
+    int                 bEmptyStringNull;
+    
     char              **GetNextLineTokens();
+    
+    static int          Matches(const char* pszFieldName, char** papszPossibleNames);
 
   public:
     OGRCSVLayer( const char *pszName, VSILFILE *fp, const char *pszFilename,
@@ -128,7 +133,8 @@ class OGRCSVLayer : public OGRLayer
 
     void                SetCRLF(int);
     void                SetWriteGeometry(OGRwkbGeometryType eGType,
-                                         OGRCSVGeometryFormat eGeometryFormat);
+                                         OGRCSVGeometryFormat eGeometryFormat,
+                                         const char* pszGeomCol = NULL);
     void                SetCreateCSVT(int bCreateCSVT);
     void                SetWriteBOM(int bWriteBOM);
 
@@ -180,12 +186,12 @@ class OGRCSVDataSource : public OGRDataSource
 
     int                 TestCapability( const char * );
 
-    void                SetDefaultCSVName( const char *pszName ) 
-        { osDefaultCSVName = pszName; }
+    void                CreateForSingleFile( const char* pszDirname,
+                                             const char *pszFilename );
 
     void                EnableGeometryFields() { bEnableGeometryFields = TRUE; }
 
     static CPLString    GetRealExtension(CPLString osFilename);
 };
 
-#endif /* ndef _OGR_CSV_H_INCLUDED */
+#endif /* ndef OGR_CSV_H_INCLUDED */

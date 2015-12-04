@@ -296,7 +296,7 @@ OGRLayer* OGRWFSDataSource::GetLayerByName(const char* pszName)
         poLayerGetCapabilitiesLayer->CreateField(&oFDefn);
         OGRFeature* poFeature = new OGRFeature(poLayerGetCapabilitiesLayer->GetLayerDefn());
         poFeature->SetField(0, osGetCapabilities);
-        poLayerGetCapabilitiesLayer->CreateFeature(poFeature);
+        CPL_IGNORE_RET_VAL(poLayerGetCapabilitiesLayer->CreateFeature(poFeature));
         delete poFeature;
 
         return poLayerGetCapabilitiesLayer;
@@ -754,7 +754,7 @@ static int FindComparisonOperator(CPLXMLNode* psNode, const char* pszVal)
 
             /* For WFS 2.0.0 */
             const char* pszName = CPLGetXMLValue(psChild, "name", NULL);
-            if (pszName != NULL && strncmp(pszName, "PropertyIs", 10) == 0 &&
+            if (pszName != NULL && STARTS_WITH(pszName, "PropertyIs") &&
                 strcmp(pszName + 10, pszVal) == 0)
                 return TRUE;
         }
@@ -783,14 +783,14 @@ CPLXMLNode* OGRWFSDataSource::LoadFromFile( const char * pszFilename )
         return NULL;
 
     int nRead;
-    if( (nRead = VSIFReadL( achHeader, 1, sizeof(achHeader) - 1, fp )) == 0 )
+    if( (nRead = static_cast<int>(VSIFReadL( achHeader, 1, sizeof(achHeader) - 1, fp ))) == 0 )
     {
         VSIFCloseL( fp );
         return NULL;
     }
     achHeader[nRead] = 0;
 
-    if( !EQUALN(achHeader,"<OGRWFSDataSource>",18) &&
+    if( !STARTS_WITH_CI(achHeader, "<OGRWFSDataSource>") &&
         strstr(achHeader,"<WFS_Capabilities") == NULL &&
         strstr(achHeader,"<wfs:WFS_Capabilities") == NULL)
     {
@@ -807,7 +807,7 @@ CPLXMLNode* OGRWFSDataSource::LoadFromFile( const char * pszFilename )
     nLen = (int) VSIFTellL( fp );
     VSIFSeekL( fp, 0, SEEK_SET );
 
-    char* pszXML = (char *) VSIMalloc(nLen+1);
+    char* pszXML = (char *) VSI_MALLOC_VERBOSE(nLen+1);
     if (pszXML == NULL)
     {
         VSIFCloseL( fp );
@@ -907,7 +907,7 @@ int OGRWFSDataSource::Open( const char * pszFilename, int bUpdateIn,
 
     if (psXML == NULL)
     {
-        if (!EQUALN(pszFilename, "WFS:", 4) &&
+        if (!STARTS_WITH_CI(pszFilename, "WFS:") &&
             FindSubStringInsensitive(pszFilename, "SERVICE=WFS") == NULL)
         {
             return FALSE;
@@ -917,15 +917,15 @@ int OGRWFSDataSource::Open( const char * pszFilename, int bUpdateIn,
         if( pszBaseURL == NULL )
         {
             pszBaseURL = pszFilename;
-            if (EQUALN(pszFilename, "WFS:", 4))
+            if (STARTS_WITH_CI(pszFilename, "WFS:"))
                 pszBaseURL += 4;
         }
 
         osBaseURL = pszBaseURL;
 
-        if (strncmp(pszBaseURL, "http://", 7) != 0 &&
-            strncmp(pszBaseURL, "https://", 8) != 0 &&
-            strncmp(pszBaseURL, "/vsimem/", strlen("/vsimem/")) != 0)
+        if (!STARTS_WITH(pszBaseURL, "http://") &&
+            !STARTS_WITH(pszBaseURL, "https://") &&
+            !STARTS_WITH(pszBaseURL, "/vsimem/"))
             return FALSE;
 
         CPLString strOriginalTypeName = "";
@@ -1165,7 +1165,7 @@ int OGRWFSDataSource::Open( const char * pszFilename, int bUpdateIn,
     else
     {
         /* Some servers happen to support RESULTTYPE=hits in 1.0.0, but there */
-        /* is no way to advertisze this */
+        /* is no way to advertises this */
         if (atoi(osVersion) >= 2)
             bGetFeatureSupportHits = TRUE;  /* WFS >= 2.0.0 supports hits */
         else
@@ -1800,7 +1800,7 @@ void OGRWFSDataSource::LoadMultipleLayerDefn(const char* pszLayerName,
     CPLSerializeXMLTreeToFile(psSchema, osTmpFileName);
 
     std::vector<GMLFeatureClass*> aosClasses;
-    int bFullyUnderstood = FALSE;
+    bool bFullyUnderstood = false;
     GMLParseXSD( osTmpFileName, aosClasses, bFullyUnderstood );
 
     int nLayersFound = 0;
@@ -2051,18 +2051,20 @@ CPLHTTPResult* OGRWFSDataSource::HTTPFetch( const char* pszURL, char** papszOpti
         papszNewOptions = CSLMerge(papszNewOptions, papszHttpOptions);
     CPLHTTPResult* psResult = CPLHTTPFetch( pszURL, papszNewOptions );
     CSLDestroy(papszNewOptions);
-    
+
     if (psResult == NULL)
     {
         return NULL;
     }
     if (psResult->nStatus != 0 || psResult->pszErrBuf != NULL)
     {
-        /* A few buggy servers return chunked data with errouneous remaining bytes value */
-        /* curl doesn't like this. Retry with HTTP 1.0 protocol instead that doesn't support */
-        /* chunked data */
+        // A few buggy servers return chunked data with erroneous
+        // remaining bytes value curl does not like this. Retry with
+        // HTTP 1.0 protocol instead that does not support chunked
+        // data.
         if (psResult->pszErrBuf &&
-            strstr(psResult->pszErrBuf, "transfer closed with outstanding read data remaining") &&
+            strstr(psResult->pszErrBuf,
+                   "transfer closed with outstanding read data remaining") &&
             !bUseHttp10)
         {
             CPLDebug("WFS", "Probably buggy remote server. Retrying with HTTP 1.0 protocol");
@@ -2113,7 +2115,7 @@ OGRLayer * OGRWFSDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Deal with "SELECT _LAST_INSERTED_FIDS_ FROM layername" statement */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand, "SELECT _LAST_INSERTED_FIDS_ FROM ", 33) )
+    if( STARTS_WITH_CI(pszSQLCommand, "SELECT _LAST_INSERTED_FIDS_ FROM ") )
     {
         const char* pszIter = pszSQLCommand + 33;
         while(*pszIter && *pszIter != ' ')
@@ -2149,7 +2151,7 @@ OGRLayer * OGRWFSDataSource::ExecuteSQL( const char *pszSQLCommand,
             const CPLString& osFID = *iter;
             OGRFeature* poFeature = new OGRFeature(poMEMLayer->GetLayerDefn());
             poFeature->SetField(0, osFID);
-            poMEMLayer->CreateFeature(poFeature);
+            CPL_IGNORE_RET_VAL(poMEMLayer->CreateFeature(poFeature));
             delete poFeature;
             iter ++;
         }
@@ -2162,7 +2164,7 @@ OGRLayer * OGRWFSDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Deal with "DELETE FROM layer_name WHERE expression" statement   */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand, "DELETE FROM ", 12) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DELETE FROM ") )
     {
         const char* pszIter = pszSQLCommand + 12;
         while(*pszIter && *pszIter != ' ')
@@ -2185,7 +2187,7 @@ OGRLayer * OGRWFSDataSource::ExecuteSQL( const char *pszSQLCommand,
 
         while(*pszIter && *pszIter == ' ')
             pszIter ++;
-        if (!EQUALN(pszIter, "WHERE ", 5))
+        if (!STARTS_WITH_CI(pszIter, "WHERE "))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "WHERE clause missing");
             return NULL;
@@ -2233,10 +2235,10 @@ OGRLayer * OGRWFSDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Deal with "SELECT xxxx ORDER BY" statement                      */
 /* -------------------------------------------------------------------- */
-    if (EQUALN(pszSQLCommand, "SELECT", 6))
+    if (STARTS_WITH_CI(pszSQLCommand, "SELECT"))
     {
         swq_select* psSelectInfo = new swq_select();
-        if( psSelectInfo->preparse( pszSQLCommand, TRUE ) != CPLE_None )
+        if( psSelectInfo->preparse( pszSQLCommand, TRUE ) != CE_None )
         {
             delete psSelectInfo;
             return NULL;

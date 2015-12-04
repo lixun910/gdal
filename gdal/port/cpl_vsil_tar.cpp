@@ -41,11 +41,11 @@ CPL_CVSID("$Id$");
 class VSITarEntryFileOffset : public VSIArchiveEntryFileOffset
 {
 public:
-        GUIntBig nOffset;
+        GUIntBig m_nOffset;
 
         VSITarEntryFileOffset(GUIntBig nOffset)
         {
-            this->nOffset = nOffset;
+            m_nOffset = nOffset;
         }
 };
 
@@ -84,25 +84,25 @@ class VSITarReader : public VSIArchiveReader
 /*                               VSIIsTGZ()                             */
 /************************************************************************/
 
-static int VSIIsTGZ(const char* pszFilename)
+static bool VSIIsTGZ(const char* pszFilename)
 {
-    return (!EQUALN(pszFilename, "/vsigzip/", 9) &&
+    return (!STARTS_WITH_CI(pszFilename, "/vsigzip/") &&
             ((strlen(pszFilename) > 4 &&
-            EQUALN(pszFilename + strlen(pszFilename) - 4, ".tgz", 4)) ||
+            STARTS_WITH_CI(pszFilename + strlen(pszFilename) - 4, ".tgz")) ||
             (strlen(pszFilename) > 7 &&
-            EQUALN(pszFilename + strlen(pszFilename) - 7, ".tar.gz", 7))));
+            STARTS_WITH_CI(pszFilename + strlen(pszFilename) - 7, ".tar.gz"))));
 }
 
 /************************************************************************/
 /*                           VSITarReader()                             */
 /************************************************************************/
 
-VSITarReader::VSITarReader(const char* pszTarFileName)
+VSITarReader::VSITarReader(const char* pszTarFileName) :
+    nCurOffset(0),
+    nNextFileSize(0),
+    nModifiedTime(0)
 {
     fp = VSIFOpenL(pszTarFileName, "rb");
-    nNextFileSize = 0;
-    nCurOffset = 0;
-    nModifiedTime = 0;
 }
 
 /************************************************************************/
@@ -139,24 +139,24 @@ int VSITarReader::GotoNextFile()
 
     osNextFileName = abyHeader;
     nNextFileSize = 0;
-    int i;
-    for(i=0;i<11;i++)
+    for(int i=0;i<11;i++)
         nNextFileSize = nNextFileSize * 8 + (abyHeader[124+i] - '0');
 
     nModifiedTime = 0;
-    for(i=0;i<11;i++)
+    for(int i=0;i<11;i++)
         nModifiedTime = nModifiedTime * 8 + (abyHeader[136+i] - '0');
 
     nCurOffset = VSIFTellL(fp);
 
-    GUIntBig nBytesToSkip = ((nNextFileSize + 511) / 512) * 512;
+    const GUIntBig nBytesToSkip = ((nNextFileSize + 511) / 512) * 512;
     if( nBytesToSkip > (~((GUIntBig)0)) - nCurOffset )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Bad .tar structure");
         return FALSE;
     }
 
-    VSIFSeekL(fp, nBytesToSkip, SEEK_CUR);
+    if( VSIFSeekL(fp, nBytesToSkip, SEEK_CUR) < 0 )
+        return FALSE;
 
     return TRUE;
 }
@@ -167,7 +167,8 @@ int VSITarReader::GotoNextFile()
 
 int VSITarReader::GotoFirstFile()
 {
-    VSIFSeekL(fp, 0, SEEK_SET);
+    if( VSIFSeekL(fp, 0, SEEK_SET) < 0 )
+        return FALSE;
     return GotoNextFile();
 }
 
@@ -178,7 +179,8 @@ int VSITarReader::GotoFirstFile()
 int VSITarReader::GotoFileOffset(VSIArchiveEntryFileOffset* pOffset)
 {
     VSITarEntryFileOffset* pTarEntryOffset = (VSITarEntryFileOffset*)pOffset;
-    VSIFSeekL(fp, pTarEntryOffset->nOffset - 512, SEEK_SET);
+    if( VSIFSeekL(fp, pTarEntryOffset->m_nOffset - 512, SEEK_SET) < 0 )
+        return FALSE;
     return GotoNextFile();
 }
 
@@ -253,8 +255,6 @@ VSIArchiveReader* VSITarFilesystemHandler::CreateReader(const char* pszTarFileNa
 VSIVirtualHandle* VSITarFilesystemHandler::Open( const char *pszFilename, 
                                                  const char *pszAccess)
 {
-    char* tarFilename;
-    CPLString osTarInFileName;
 
     if (strchr(pszAccess, 'w') != NULL ||
         strchr(pszAccess, '+') != NULL)
@@ -264,7 +264,9 @@ VSIVirtualHandle* VSITarFilesystemHandler::Open( const char *pszFilename,
         return NULL;
     }
 
-    tarFilename = SplitFilename(pszFilename, osTarInFileName, TRUE);
+    CPLString osTarInFileName;
+    char* tarFilename
+        = SplitFilename(pszFilename, osTarInFileName, TRUE);
     if (tarFilename == NULL)
         return NULL;
 
@@ -277,12 +279,12 @@ VSIVirtualHandle* VSITarFilesystemHandler::Open( const char *pszFilename,
 
     CPLString osSubFileName("/vsisubfile/");
     VSITarEntryFileOffset* pOffset = (VSITarEntryFileOffset*) poReader->GetFileOffset();
-    osSubFileName += CPLString().Printf(CPL_FRMT_GUIB, pOffset->nOffset);
+    osSubFileName += CPLString().Printf(CPL_FRMT_GUIB, pOffset->m_nOffset);
     osSubFileName += "_";
     osSubFileName += CPLString().Printf(CPL_FRMT_GUIB, poReader->GetFileSize());
     osSubFileName += ",";
     delete pOffset;
-    
+
     if (VSIIsTGZ(tarFilename))
     {
         osSubFileName += "/vsigzip/";
@@ -320,8 +322,8 @@ VSIVirtualHandle* VSITarFilesystemHandler::Open( const char *pszFilename,
  * so the line looks like /vsitar//home/gdal/...
  * For example gdalinfo /vsitar/myarchive.tar/subdir1/file1.tif
  *
- * Syntaxic sugar : if the tar archive contains only one file located at its root,
- * just mentionning "/vsitar/path/to/the/file.tar" will work
+ * Syntactic sugar : if the tar archive contains only one file located at its
+ * root, just mentionning "/vsitar/path/to/the/file.tar" will work
  *
  * VSIStatL() will return the uncompressed size in st_size member and file
  * nature- file or directory - in st_mode member.

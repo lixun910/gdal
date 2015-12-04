@@ -149,6 +149,9 @@
 /* Define to 1 if you have the `vfork' function. */
 #undef HAVE_VFORK
 
+/* Define to 1 if you have the `mmap' function. */
+#undef HAVE_MMAP
+
 /* Define to 1 if you have the `lstat' function. */
 #undef HAVE_LSTAT
 
@@ -228,5 +231,8 @@
 
 /* Use this file to override settings in instances where you're doing FAT compiles
    on Apple.  It is currently off by default because it doesn't seem to work with 
-   newish ( XCode >= 3/28/11) XCodes */
+   XCode >= 3/28/11 */
 /* #include "cpl_config_extras.h" */
+
+/* Define to 1 if you have the `uselocale' function. */
+#undef HAVE_USELOCALE

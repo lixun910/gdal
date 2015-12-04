@@ -52,6 +52,8 @@ void CPL_DLL CPLVerifyConfiguration(void);
 
 const char CPL_DLL * CPL_STDCALL
 CPLGetConfigOption( const char *, const char * ) CPL_WARN_UNUSED_RESULT;
+const char CPL_DLL * CPL_STDCALL
+CPLGetThreadLocalConfigOption( const char *, const char * ) CPL_WARN_UNUSED_RESULT;
 void CPL_DLL CPL_STDCALL CPLSetConfigOption( const char *, const char * );
 void CPL_DLL CPL_STDCALL CPLSetThreadLocalConfigOption( const char *pszKey, 
                                                         const char *pszValue );
@@ -64,7 +66,7 @@ void CPL_DLL CPL_STDCALL CPLFreeConfig(void);
 void CPL_DLL *CPLMalloc( size_t ) CPL_WARN_UNUSED_RESULT;
 void CPL_DLL *CPLCalloc( size_t, size_t ) CPL_WARN_UNUSED_RESULT;
 void CPL_DLL *CPLRealloc( void *, size_t ) CPL_WARN_UNUSED_RESULT;
-char CPL_DLL *CPLStrdup( const char * ) CPL_WARN_UNUSED_RESULT;
+char CPL_DLL *CPLStrdup( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 char CPL_DLL *CPLStrlwr( char *);
 
 #define CPLFree VSIFree
@@ -78,7 +80,7 @@ const char CPL_DLL *CPLReadLineL( VSILFILE * );
 const char CPL_DLL *CPLReadLine2L( VSILFILE * , int nMaxCols, char** papszOptions);
 
 /* -------------------------------------------------------------------- */
-/*      Convert ASCII string to floationg point number                  */
+/*      Convert ASCII string to floating point number                  */
 /*      (THESE FUNCTIONS ARE NOT LOCALE AWARE!).                        */
 /* -------------------------------------------------------------------- */
 double CPL_DLL CPLAtof(const char *);
@@ -91,7 +93,7 @@ float CPL_DLL CPLStrtofDelim(const char *, char **, char);
 
 /* -------------------------------------------------------------------- */
 /*      Convert number to string.  This function is locale agnostic     */
-/*      (ie. it will support "," or "." regardless of current locale)   */
+/*      (i.e. it will support "," or "." regardless of current locale)  */
 /* -------------------------------------------------------------------- */
 double CPL_DLL CPLAtofM(const char *);
 
@@ -133,30 +135,30 @@ int CPL_DLL CPLGetExecPath( char *pszPathBuf, int nMaxLength );
 /* -------------------------------------------------------------------- */
 /*      Filename handling functions.                                    */
 /* -------------------------------------------------------------------- */
-const char CPL_DLL *CPLGetPath( const char * );
-const char CPL_DLL *CPLGetDirname( const char * );
-const char CPL_DLL *CPLGetFilename( const char * );
-const char CPL_DLL *CPLGetBasename( const char * );
-const char CPL_DLL *CPLGetExtension( const char * );
+const char CPL_DLL *CPLGetPath( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLGetDirname( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLGetFilename( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLGetBasename( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLGetExtension( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 char       CPL_DLL *CPLGetCurrentDir(void);
 const char CPL_DLL *CPLFormFilename( const char *pszPath,
                                      const char *pszBasename,
-                                     const char *pszExtension );
+                                     const char *pszExtension ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 const char CPL_DLL *CPLFormCIFilename( const char *pszPath,
                                        const char *pszBasename,
-                                       const char *pszExtension );
-const char CPL_DLL *CPLResetExtension( const char *, const char * );
+                                       const char *pszExtension ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLResetExtension( const char *, const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 const char CPL_DLL *CPLProjectRelativeFilename( const char *pszProjectDir, 
-                                            const char *pszSecondaryFilename );
+                                            const char *pszSecondaryFilename ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 int CPL_DLL CPLIsFilenameRelative( const char *pszFilename );
-const char CPL_DLL *CPLExtractRelativePath(const char *, const char *, int *);
-const char CPL_DLL *CPLCleanTrailingSlash( const char * );
+const char CPL_DLL *CPLExtractRelativePath(const char *, const char *, int *) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
+const char CPL_DLL *CPLCleanTrailingSlash( const char * ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 char CPL_DLL      **CPLCorrespondingPaths( const char *pszOldFilename, 
                                            const char *pszNewFilename, 
-                                           char **papszFileList );
+                                           char **papszFileList ) CPL_WARN_UNUSED_RESULT;
 int CPL_DLL CPLCheckForFile( char *pszFilename, char **papszSiblingList );
 
-const char CPL_DLL *CPLGenerateTempFilename( const char *pszStem );
+const char CPL_DLL *CPLGenerateTempFilename( const char *pszStem ) CPL_WARN_UNUSED_RESULT CPL_RETURNS_NONNULL;
 
 /* -------------------------------------------------------------------- */
 /*      Find File Function                                              */
@@ -176,7 +178,7 @@ void          CPL_DLL CPLFinderClean(void);
 /* -------------------------------------------------------------------- */
 /*      Safe version of stat() that works properly on stuff like "C:".  */
 /* -------------------------------------------------------------------- */
-int CPL_DLL     CPLStat( const char *, VSIStatBuf * );
+int CPL_DLL     CPLStat( const char *, VSIStatBuf * ) CPL_WARN_UNUSED_RESULT;
 
 /* -------------------------------------------------------------------- */
 /*      Reference counted file handle manager.  Makes sharing file      */
@@ -215,6 +217,7 @@ int CPL_DLL CPLUnlinkTree( const char * );
 int CPL_DLL CPLCopyFile( const char *pszNewPath, const char *pszOldPath );
 int CPL_DLL CPLCopyTree( const char *pszNewPath, const char *pszOldPath );
 int CPL_DLL CPLMoveFile( const char *pszNewPath, const char *pszOldPath );
+int CPL_DLL CPLSymlink( const char* pszOldPath, const char* pszNewPath, char** papszOptions );
 
 /* -------------------------------------------------------------------- */
 /*      ZIP Creation.                                                   */
@@ -271,6 +274,32 @@ private:
     /* Make it non-copyable */
     CPLLocaleC(CPLLocaleC&);
     CPLLocaleC& operator=(CPLLocaleC&);
+};
+
+// Does the same as CPLLocaleC except that, when available, it tries to
+// only affect the current thread. But code that would be dependent of
+// setlocale(LC_NUMERIC, NULL) returning "C", such as current proj.4 versions,
+// will not work depending on the actual implementation
+class CPL_DLL CPLThreadLocaleC
+{
+public:
+    CPLThreadLocaleC();
+    ~CPLThreadLocaleC();
+
+private:
+#ifdef HAVE_USELOCALE
+    locale_t nNewLocale;
+    locale_t nOldLocale;
+#else
+#if defined(_MSC_VER)
+    int   nOldValConfigThreadLocale;
+#endif
+    char *pszOldLocale;
+#endif
+
+    /* Make it non-copyable */
+    CPLThreadLocaleC(CPLThreadLocaleC&);
+    CPLThreadLocaleC& operator=(CPLThreadLocaleC&);
 };
 
 #endif /* def __cplusplus */

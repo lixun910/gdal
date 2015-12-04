@@ -279,7 +279,7 @@ int TABView::OpenForRead(const char *pszFname,
         const char *pszStr = m_papszTABFile[i];
         while(*pszStr != '\0' && isspace((unsigned char)*pszStr))
             pszStr++;
-        if (EQUALN(pszStr, "create view", 11))
+        if (STARTS_WITH_CI(pszStr, "create view"))
             bCreateViewFound = TRUE;
     }
 
@@ -304,7 +304,7 @@ int TABView::OpenForRead(const char *pszFname,
      * to build the filename of the sub-tables
      *----------------------------------------------------------------*/
     pszPath = CPLStrdup(m_pszFname);
-    nFnameLen = strlen(pszPath);
+    nFnameLen = static_cast<int>(strlen(pszPath));
     for( ; nFnameLen > 0; nFnameLen--)
     {
         if (pszPath[nFnameLen-1] == '/' || 
@@ -424,7 +424,7 @@ int TABView::OpenForWrite(const char *pszFname)
      * Extract the path component from the main .TAB filename
      *----------------------------------------------------------------*/
     char *pszPath = CPLStrdup(m_pszFname);
-    nFnameLen = strlen(pszPath);
+    nFnameLen = static_cast<int>(strlen(pszPath));
     for( ; nFnameLen > 0; nFnameLen--)
     {
         if (pszPath[nFnameLen-1] == '/' || 
@@ -456,6 +456,7 @@ int TABView::OpenForWrite(const char *pszFname)
         m_papszTABFnames = CSLAppendPrintf(m_papszTABFnames, "%s%s%d.tab", 
                                                pszPath, pszBasename, iFile+1);
 #ifndef _WIN32
+        /* coverity[var_deref_op] */
         TABAdjustFilenameExtension(m_papszTABFnames[iFile]);
 #endif
         
@@ -550,7 +551,7 @@ int TABView::ParseTABFile(const char *pszDatasetPath,
                  CSLCount(papszTok) >= 3)
         {
             // Source table name may be either "filename" or "filename.tab"
-            int nLen = strlen(papszTok[2]);
+            int nLen = static_cast<int>(strlen(papszTok[2]));
             if (nLen > 4 && EQUAL(papszTok[2]+nLen-4, ".tab"))
                 papszTok[2][nLen-4] = '\0';
 
@@ -603,6 +604,7 @@ int TABView::ParseTABFile(const char *pszDatasetPath,
                     CPLError(CE_Failure, CPLE_NotSupported,
                      "WHERE clause in %s is not in a supported format: \"%s\"",
                              m_pszFname, m_papszTABFile[iLine]);
+                CSLDestroy(papszTok);
                 return -1;
             }
         }
@@ -879,7 +881,7 @@ TABFeature *TABView::GetFeatureRef(GIntBig nFeatureId)
         return NULL;
     }
 
-    if( (GIntBig)(int)nFeatureId != nFeatureId )
+    if( !CPL_INT64_FITS_ON_INT32(nFeatureId) )
         return NULL;
 
     if(m_poCurFeature)
@@ -1113,7 +1115,7 @@ OGRErr TABView::GetExtent (OGREnvelope *psExtent, int bForce)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
              "GetExtent() can be called only after dataset has been opened.");
-        return -1;
+        return OGRERR_FAILURE;
     }
 
     return m_papoTABFiles[m_nMainTableIndex]->GetExtent(psExtent, bForce);
@@ -1498,7 +1500,7 @@ int  TABRelation::Init(const char *pszViewName,
                      poMainDefn->GetName(), poRelDefn->GetName());
         }
     }
-
+    CSLDestroy(papszSelectedFields);
     return 0;
 }
 

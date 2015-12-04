@@ -129,8 +129,9 @@ def ogr_rfc28_6():
 # test with distinguished name for field in where clause.
 
 def ogr_rfc28_7_wrong_quoting():
-    ql = gdaltest.ds.ExecuteSQL( "select eas_id from idlink where \"idlink.eas_id\" = 166" )
-    
+    with gdaltest.error_handler():
+        ql = gdaltest.ds.ExecuteSQL( "select eas_id from idlink where \"idlink.eas_id\" = 166" )
+
     count = ql.GetFeatureCount()
     if count != 1:
         gdaltest.post_reason( 'Got wrong count with GetFeatureCount() - %d, expecting 1' % count )
@@ -154,8 +155,9 @@ def ogr_rfc28_7_good_quoting():
 # test with distinguished name for field in target columns.
 
 def ogr_rfc28_8_wrong_quoting():
-    ql = gdaltest.ds.ExecuteSQL( "select \"idlink.eas_id\" from idlink where \"idlink.eas_id\" = 166" )
-    
+    with gdaltest.error_handler():
+        ql = gdaltest.ds.ExecuteSQL( "select \"idlink.eas_id\" from idlink where \"idlink.eas_id\" = 166" )
+
     count = ql.GetFeatureCount()
     if count != 1:
         gdaltest.post_reason( 'Got wrong count with GetFeatureCount() - %d, expecting 1' % count )
@@ -788,7 +790,7 @@ def ogr_rfc28_33():
         return 'fail'
 
 ###############################################################################
-# Test wildchar expension of an unknown table
+# Test wildchar expansion of an unknown table.
 
 def ogr_rfc28_34():
 
@@ -1248,7 +1250,6 @@ def ogr_rfc28_45():
 ###############################################################################
 def ogr_rfc28_cleanup():
     gdaltest.lyr = None
-    gdaltest.ds.Destroy()
     gdaltest.ds = None
 
     return 'success'
@@ -1313,4 +1314,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

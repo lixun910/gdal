@@ -113,8 +113,8 @@
  *
  **********************************************************************/
 
-#ifndef _MITAB_H_INCLUDED_
-#define _MITAB_H_INCLUDED_
+#ifndef MITAB_H_INCLUDED_
+#define MITAB_H_INCLUDED_
 
 #include "mitab_priv.h"
 #include "ogr_feature.h"
@@ -126,10 +126,6 @@
  *--------------------------------------------------------------------*/
 #define MITAB_VERSION      "2.0.0-dev (2008-10)"
 #define MITAB_VERSION_INT  2000000  /* version x.y.z -> xxxyyyzzz */
-
-#ifndef PI
-#  define PI 3.14159265358979323846
-#endif
 
 #ifndef ROUND_INT
 #  define ROUND_INT(dX) ((int)((dX) < 0.0 ? (dX)-0.5 : (dX)+0.5 ))
@@ -207,7 +203,9 @@ class IMapInfoFile : public OGRLayer
     virtual OGRFeature *GetFeature(GIntBig nFeatureId);
     virtual OGRErr      ICreateFeature(OGRFeature *poFeature);
     virtual int         TestCapability( const char * pszCap ) =0;
-    virtual int         GetExtent(OGREnvelope *psExtent, int bForce) =0;
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce) =0;
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     ///////////////
     // Read access specific stuff
@@ -332,7 +330,9 @@ class TABFile: public IMapInfoFile
     virtual void        ResetReading();
     virtual int         TestCapability( const char * pszCap );
     virtual GIntBig     GetFeatureCount (int bForce);
-    virtual int         GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     /* Implement OGRLayer's SetFeature() for random write, only with TABFile */
     virtual OGRErr      ISetFeature( OGRFeature * );
@@ -478,7 +478,9 @@ class TABView: public IMapInfoFile
     virtual void        ResetReading();
     virtual int         TestCapability( const char * pszCap );
     virtual GIntBig     GetFeatureCount (int bForce);
-    virtual int         GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
     
     ///////////////
     // Read access specific stuff
@@ -589,11 +591,15 @@ class TABSeamless: public IMapInfoFile
            {return m_poFeatureDefnRef?m_poFeatureDefnRef->GetName():"";};
 
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     virtual void        ResetReading();
     virtual int         TestCapability( const char * pszCap );
     virtual GIntBig     GetFeatureCount (int bForce);
-    virtual int         GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
     
     ///////////////
     // Read access specific stuff
@@ -744,7 +750,9 @@ class MIFFile: public IMapInfoFile
     virtual int         TestCapability( const char * pszCap ) ;
     virtual GIntBig     GetFeatureCount (int bForce);
     virtual void        ResetReading();
-    virtual int         GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     ///////////////
     // Read access specific stuff
@@ -1010,7 +1018,7 @@ class ITABFeatureSymbol
  *
  * TABFeature will be used as a base class for all the feature classes.
  *
- * This class will also be used to instanciate objects with no Geometry
+ * This class will also be used to instantiate objects with no Geometry
  * (i.e. type TAB_GEOM_NONE) which is a valid case in MapInfo.
  *
  * The logic to read/write the object from/to the .DAT and .MAP files is also
@@ -1404,13 +1412,13 @@ class TABRegion: public TABFeature,
  *     TAB_GEOM_ROUNDRECT      0x17
  *
  * A rectangle is defined by the coords of its 2 opposite corners (the MBR)
- * Its corners can optionaly be rounded, in which case a X and Y rounding
+ * Its corners can optionally be rounded, in which case a X and Y rounding
  * radius will be defined.
  *
  * Feature geometry will be OGRPolygon
  *--------------------------------------------------------------------*/
-class TABRectangle: public TABFeature, 
-                    public ITABFeaturePen, 
+class TABRectangle: public TABFeature,
+                    public ITABFeaturePen,
                     public ITABFeatureBrush
 {
   private:
@@ -1905,4 +1913,4 @@ int     MITABLoadCoordSysTable(const char *pszFname);
 void    MITABFreeCoordSysTable();
 GBool   MITABCoordSysTableLoaded();
 
-#endif /* _MITAB_H_INCLUDED_ */
+#endif /* MITAB_H_INCLUDED_ */

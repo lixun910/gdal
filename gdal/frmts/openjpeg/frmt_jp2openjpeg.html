@@ -11,7 +11,7 @@
 
 <p>This driver is an implementation of a JPEG2000 reader/writer based on OpenJPEG library <b>v2</b>.</p>
 
-<p>For GDAL 1.10 or later, use openjpeg 2.X.</p>
+<p>For GDAL 1.10, use openjpeg 2.0. For GDAL 1.11 or later, use openjpeg 2.X.</p>
 <p>For GDAL 1.9.x or before, use the v2 branch from its Subversion repository : http://openjpeg.googlecode.com/svn/branches/v2 (before r2230 when it was deleted).</p>
 
 <p>The driver uses the VSI Virtual File API, so it can read JPEG2000 compressed NITF files.</p>
@@ -110,7 +110,7 @@ are unable to open such files. And regarding the ECW JPEG2000 SDK, decoding of
 </p></li>
 
 <li><p><b>ALPHA=YES/NO</b>: (GDAL &gt;= 2.0) Whether to force encoding last
-channel as alpha channel. Only usefull if the color interpretation of that channel
+channel as alpha channel. Only useful if the color interpretation of that channel
 is not already Alpha. Defaults to NO.</p></li>
 
 <li><p><b>PROFILE=AUTO/UNRESTRICTED/PROFILE_1</b>: (GDAL &gt;= 2.0) Determine
@@ -204,11 +204,11 @@ be written. Defaults to NO.
 <li><p><b>USE_SRC_CODESTREAM=YES/NO</b>: (GDAL &gt;= 2.0)
 (EXPERIMENTAL!) When source dataset is JPEG2000, whether to reuse the codestream
 of the source dataset unmodified. Defaults to NO. Note that enabling that feature might result
-in inconsistant content of the JP2 boxes w.r.t. to the content of the source codestream.
-Most other creation options will be ignored in that mode. Can be usefull in some
+in inconsistent content of the JP2 boxes w.r.t. to the content of the source codestream.
+Most other creation options will be ignored in that mode. Can be useful in some
 use cases when adding/correcting georeferencing, metadata, ... INSPIRE_TG and
 PROFILE options will be ignored, and the profile of the codestream will be overriden
-with the one specified/implied by the options (which may be inconsistant with
+with the one specified/implied by the options (which may be inconsistent with
 the characteristics of the codestream).
 </p></li>
 
@@ -272,7 +272,7 @@ the below syntax (elements starting with "#" are documentation, and can be omitt
                     [ "The metadata file will be generated from a template and a source file.",
                       "The template is a valid GMLJP2 metadata XML tree with placeholders like",
                       "{{{XPATH(some_xpath_expression)}}}",
-                      "that are evalated from the source XML file. Typical use case",
+                      "that are evaluated from the source XML file. Typical use case",
                       "is to generate a gmljp2:eopMetadata from the XML metadata",
                       "provided by the image provider in their own particular format." ],
                 "dynamic_metadata" :
@@ -380,7 +380,7 @@ against the content of the source file. xpath_expr must be a XPath 1.0 compatibl
 expression, with the addition of the following functions :
 
 <ul>
-<li><b>if(cond_expr,expr_if_true,expr_if_false)</b>: if cond_expr evalutes to
+<li><b>if(cond_expr,expr_if_true,expr_if_false)</b>: if cond_expr evaluates to
 true, returns expr_if_true. Otherwise returns expr_if_false</li>
 <li><b>uuid()</b>: evaluates to a random UUID</b></li>
 </ul>
@@ -417,7 +417,7 @@ OPEN_REMOTE_GML is set to YES.</p>
 <ul>
 <li><p> Implemented as <tt>gdal/frmts/openjpeg/openjpegdataset.cpp</tt>.</p></li>
 <li><p> <a href="http://www.jpeg.org/jpeg2000/index.html">Official JPEG-2000 page<a></p></li>
-<li><p> <a href="http://code.google.com/p/openjpeg/">The OpenJPEG library home page</a></p></li>
+<li><p> <a href="https://github.com/uclouvain/openjpeg">The OpenJPEG library home page</a></p></li>
 <li><p> <a href="http://inspire.ec.europa.eu/documents/Data_Specifications/INSPIRE_DataSpecification_OI_v3.0.pdf">
 Inspire Data Specification on Orthoimagery - Technical Guidelines</a></p></li>
 </ul>

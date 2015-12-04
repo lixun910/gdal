@@ -476,7 +476,7 @@ def ogr_plscenes_2():
         gdaltest.post_reason('fail')
         return 'fail'
     lyr.SetSpatialFilterRect(2.5,49.5,2.5,49.5)
-    if lyr.GetFeatureCount() != 1:
+    if lyr.GetFeatureCount() != 1 and gdal.GetLastErrorMsg().find('GEOS support not enabled') < 0:
         gdaltest.post_reason('fail')
         return 'fail'
     ds = None
@@ -537,7 +537,7 @@ def ogr_plscenes_3():
         gdaltest.post_reason('fail')
         return 'fail'
 
-    # Error case: mssing properties
+    # Error case: missing properties.
     gdal.FileFromMemBuffer('/vsimem/root/ortho/my_id', """{}""")
 
     gdal.SetConfigOption('PL_URL', '/vsimem/root/')

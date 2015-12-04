@@ -286,6 +286,7 @@ SBNSearchHandle SBNOpenDiskTree( const char* pszSBNFilename,
         return NULL;
     }
 
+    /* coverity[tainted_data] */
     pabyData = (uchar*) malloc( nNodeDescSize );
     pasNodeDescriptor = (SBNNodeDescriptor*)
                 calloc ( nMaxNodes, sizeof(SBNNodeDescriptor) );
@@ -350,7 +351,7 @@ SBNSearchHandle SBNOpenDiskTree( const char* pszSBNFilename,
     }
 
     pasNodeDescriptor[nCurNode].nBinOffset =
-        hSBN->sHooks.FTell(hSBN->fpSBN);
+        (int) hSBN->sHooks.FTell(hSBN->fpSBN);
 
     /* Compute the index of the next non empty node. */
     nNextNonEmptyNode = nCurNode + 1;
@@ -398,7 +399,7 @@ SBNSearchHandle SBNOpenDiskTree( const char* pszSBNFilename,
         {
             nCurNode = nNextNonEmptyNode;
             pasNodeDescriptor[nCurNode].nBinOffset =
-                hSBN->sHooks.FTell(hSBN->fpSBN) - 8;
+                (int) hSBN->sHooks.FTell(hSBN->fpSBN) - 8;
 
             /* Compute the index of the next non empty node. */
             nNextNonEmptyNode = nCurNode + 1;
@@ -931,7 +932,7 @@ int* SBNSearchDiskTreeInteger( SBNSearchHandle hSBN,
     sSearch.bMaxY = (coord) (bMaxY <= 255 ? bMaxY : 255);
     sSearch.nShapeCount = 0;
     sSearch.nShapeAlloc = 0;
-    sSearch.panShapeId = NULL;
+    sSearch.panShapeId = (int*) calloc(1, sizeof(int));
 #ifdef DEBUG_IO
     sSearch.nBytesRead = 0;
 #endif
@@ -945,8 +946,7 @@ int* SBNSearchDiskTreeInteger( SBNSearchHandle hSBN,
 
     if( !bRet )
     {
-        if( sSearch.panShapeId != NULL )
-            free( sSearch.panShapeId );
+        free( sSearch.panShapeId );
         *pnShapeCount = 0;
         return NULL;
     }
@@ -957,10 +957,6 @@ int* SBNSearchDiskTreeInteger( SBNSearchHandle hSBN,
 /*      Sort the id array                                               */
 /* -------------------------------------------------------------------- */
     qsort(sSearch.panShapeId, *pnShapeCount, sizeof(int), compare_ints);
-
-    /* To distinguish between empty intersection from error case */
-    if( sSearch.panShapeId == NULL )
-        sSearch.panShapeId = (int*) calloc(1, sizeof(int));
 
     return sSearch.panShapeId;
 }

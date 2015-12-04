@@ -270,7 +270,7 @@ OGRFeature *OGROSMLayer::GetNextFeature()
         }
         else
         {
-            while(TRUE)
+            while( true )
             {
                 int bRet = poDS->ParseNextChunk(nIdxLayer);
                 if (nFeatureArraySize != 0)
@@ -331,7 +331,7 @@ int  OGROSMLayer::AddToArray(OGRFeature* poFeature, int bCheckFeatureThreshold)
     {
         nFeatureArrayMaxSize = nFeatureArrayMaxSize + nFeatureArrayMaxSize / 2 + 128;
         CPLDebug("OSM", "For layer %s, new max size is %d", GetName(), nFeatureArrayMaxSize);
-        OGRFeature** papoNewFeatures = (OGRFeature**)VSIRealloc(papoFeatures,
+        OGRFeature** papoNewFeatures = (OGRFeature**)VSI_REALLOC_VERBOSE(papoFeatures,
                                 nFeatureArrayMaxSize * sizeof(OGRFeature*));
         if (papoNewFeatures == NULL)
         {
@@ -590,7 +590,7 @@ void OGROSMLayer::SetFieldsFromTags(OGRFeature* poFeature,
                                 brokendown.tm_mday,
                                 brokendown.tm_hour,
                                 brokendown.tm_min,
-                                brokendown.tm_sec,
+                                static_cast<float>(brokendown.tm_sec),
                                 0);
         }
 
@@ -674,7 +674,7 @@ void OGROSMLayer::SetFieldsFromTags(OGRFeature* poFeature,
     for(size_t i=0; i<oComputedAttributes.size();i++)
     {
         const OGROSMComputedAttribute& oAttr = oComputedAttributes[i];
-        for(size_t j=0;j<oAttr.anIndexToBind.size();j++)
+        for(int j=0;j<static_cast<int>(oAttr.anIndexToBind.size());j++)
         {
             if( oAttr.anIndexToBind[j] >= 0 )
             {
@@ -824,7 +824,7 @@ void OGROSMLayer::AddComputedAttribute(const char* pszName,
     std::vector<CPLString> aosAttrToBind;
     std::vector<int> anIndexToBind;
     size_t nStartSearch = 0;
-    while(TRUE)
+    while( true )
     {
         size_t nPos = osSQL.find("[", nStartSearch);
         if( nPos == std::string::npos )
@@ -844,7 +844,7 @@ void OGROSMLayer::AddComputedAttribute(const char* pszName,
             anIndexToBind.push_back(poFeatureDefn->GetFieldIndex(osAttr));
         }
     }
-    while(TRUE)
+    while( true )
     {
         size_t nPos = osSQL.find("\\");
         if( nPos == std::string::npos || nPos == osSQL.size() - 1 )

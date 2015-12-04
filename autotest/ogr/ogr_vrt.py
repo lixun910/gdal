@@ -6,21 +6,21 @@
 # Project:  GDAL/OGR Test Suite
 # Purpose:  Test OGR VRT driver functionality.
 # Author:   Frank Warmerdam <warmerdam@pobox.com>
-# 
+#
 ###############################################################################
 # Copyright (c) 2003, Frank Warmerdam <warmerdam@pobox.com>
 # Copyright (c) 2009-2014, Even Rouault <even dot rouault at mines-paris dot org>
-# 
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
 # License as published by the Free Software Foundation; either
 # version 2 of the License, or (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
@@ -44,8 +44,10 @@ import test_cli_utilities
 
 def ogr_vrt_1():
 
-    gdaltest.vrt_ds = ogr.Open( 'data/vrt_test.vrt' )
-    
+    with gdaltest.error_handler():
+        # Complains about dummySrcDataSource as expected.
+        gdaltest.vrt_ds = ogr.Open( 'data/vrt_test.vrt' )
+
     if gdaltest.vrt_ds is not None:
         return 'success'
     else:
@@ -69,7 +71,7 @@ def ogr_vrt_2():
         return 'fail'
 
     expect = ['First', 'Second']
-    
+
     tr = ogrtest.check_features_against_list( lyr, 'other', expect )
     if not tr:
         return 'fail'
@@ -85,8 +87,6 @@ def ogr_vrt_2():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     feat = lyr.GetNextFeature()
     if ogrtest.check_feature_geometry(feat,'POINT(100 200)',
                                       max_error = 0.000000001 ) != 0:
@@ -96,8 +96,6 @@ def ogr_vrt_2():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     return 'success'
 
 ###############################################################################
@@ -128,8 +126,6 @@ def ogr_vrt_3():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     feat = lyr.GetNextFeature()
     if ogrtest.check_feature_geometry(feat,'POINT(100 200)',
                                       max_error = 0.000000001 ) != 0:
@@ -139,11 +135,9 @@ def ogr_vrt_3():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     return 'success'
 
-    
+
 ###############################################################################
 # Test a spatial query. 
 
@@ -169,10 +163,8 @@ def ogr_vrt_4():
                                       max_error = 0.000000001 ) != 0:
         return 'fail'
 
-    feat.Destroy()
-
     lyr.SetSpatialFilter( None )
-    
+
     return 'success'
 
     
@@ -199,10 +191,8 @@ def ogr_vrt_5():
                                       max_error = 0.000000001 ) != 0:
         return 'fail'
 
-    feat.Destroy()
-
     lyr.SetAttributeFilter( None )
-    
+
     return 'success'
 
 ###############################################################################
@@ -220,8 +210,6 @@ def ogr_vrt_6():
     if feat.GetField( 'other' ) != 'Second':
         gdaltest.post_reason( 'GetFeature() did not work properly.' )
         return 'fail'
-    
-    feat.Destroy()
 
     return 'success'
     
@@ -252,8 +240,6 @@ def ogr_vrt_7():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     feat = lyr.GetNextFeature()
     if ogrtest.check_feature_geometry(feat,'POINT(100 200)',
                                       max_error = 0.000000001 ) != 0:
@@ -263,11 +249,8 @@ def ogr_vrt_7():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     return 'success'
 
-    
 ###############################################################################
 # Similar test, but now we put the whole VRT contents directly into the
 # "filename". 
@@ -298,8 +281,6 @@ def ogr_vrt_8():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-    
     feat = lyr.GetNextFeature()
     if ogrtest.check_feature_geometry(feat,'POINT(100 200)',
                                       max_error = 0.000000001 ) != 0:
@@ -309,11 +290,6 @@ def ogr_vrt_8():
         gdaltest.post_reason( 'Unexpected fid' )
         return 'fail'
 
-    feat.Destroy()
-
-    ds.Destroy()
-    ds = None
-    
     return 'success'
 
     
@@ -333,8 +309,6 @@ def ogr_vrt_9():
     if feat.GetField( 'other' ) != 'Second':
         gdaltest.post_reason( 'attribute filter did not work.' )
         return 'fail'
-    
-    feat.Destroy()
 
     sub_ds = ogr.OpenShared( 'data/flat.dbf' )
     sub_layer = sub_ds.GetLayerByName( 'flat' )
@@ -373,11 +347,6 @@ def ogr_vrt_10():
     if vrt_lyr.TestCapability(ogr.OLCRandomRead) != src_lyr.TestCapability(ogr.OLCRandomRead):
         return 'fail'
 
-    vrt_ds.Destroy()
-    vrt_ds = None
-    src_ds.Destroy()
-    src_ds = None
-    
     return 'success'
 
 ###############################################################################
@@ -433,7 +402,6 @@ def ogr_vrt_11():
     feat.SetGeometryDirectly(geom)
     feat.SetField('val1', 'val21')
     vrt_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     vrt_lyr.ResetReading()
     feat = vrt_lyr.GetFeature(2)
@@ -445,7 +413,6 @@ def ogr_vrt_11():
     if feat.GetFieldAsString('val1') != 'val21':
         gdaltest.post_reason('failure')
         return 'fail'
-    feat.Destroy()
 
     # The x and y fields are considered as string by default, so spatial
     # filter cannot be turned into attribute filter
@@ -460,7 +427,6 @@ def ogr_vrt_11():
         gdaltest.post_reason('failure')
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     # Add a .csvt file to specify the x and y columns as reals
@@ -488,7 +454,6 @@ def ogr_vrt_11():
         gdaltest.post_reason('failure')
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     os.remove('tmp/test.csv')
@@ -524,7 +489,6 @@ def ogr_vrt_12():
     feat.SetGeometryDirectly(geom)
     feat.SetField('val1', 'val21')
     vrt_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     vrt_lyr.ResetReading()
     feat = vrt_lyr.GetFeature(2)
@@ -533,9 +497,7 @@ def ogr_vrt_12():
         return 'fail'
     if feat.GetFieldAsString('val1') != 'val21':
         return 'fail'
-    feat.Destroy()
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     os.remove('tmp/test.csv')
@@ -569,7 +531,6 @@ def ogr_vrt_13():
     feat.SetGeometryDirectly(geom)
     feat.SetField('val1', 'val21')
     vrt_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     vrt_lyr.ResetReading()
     feat = vrt_lyr.GetFeature(1)
@@ -578,9 +539,7 @@ def ogr_vrt_13():
         return 'fail'
     if feat.GetFieldAsString('val1') != 'val21':
         return 'fail'
-    feat.Destroy()
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     os.remove('tmp/test.csv')
@@ -600,7 +559,7 @@ def ogr_vrt_14():
     except:
         pass
     gdal.PopErrorHandler()
-    
+
     shp_ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('tmp/test.shp')
     shp_lyr = shp_ds.CreateLayer('test')
 
@@ -608,29 +567,25 @@ def ogr_vrt_14():
     geom = ogr.CreateGeometryFromWkt('POINT (-10 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (-10 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (2 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (-10 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test');
 
-    shp_ds.Destroy()
+    shp_ds = None
 
     vrt_xml = """
 <OGRVRTDataSource>
@@ -666,14 +621,14 @@ def ogr_vrt_14():
     if geom.ExportToWkt() != 'POINT (2 49)':
         gdaltest.post_reason( 'did not get expected point geometry.' )
         return 'fail'
-    feat.Destroy()
 
     vrt_lyr.SetSpatialFilterRect(1, 41, 3, 49.5)
     if vrt_lyr.GetFeatureCount() != 1:
         if gdal.GetLastErrorMsg().find('GEOS support not enabled') != -1:
+            vrt_ds = None
             ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/test.shp')
             return 'skip'
-        
+
         print(vrt_lyr.GetFeatureCount())
         gdaltest.post_reason( 'did not get one feature on rect spatial filter.' )
         return 'fail'
@@ -688,9 +643,7 @@ def ogr_vrt_14():
         gdaltest.post_reason( 'Did not get expected one feature count with no filter.')
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
-
     ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/test.shp')
 
     return 'success'
@@ -736,7 +689,6 @@ def ogr_vrt_15():
     geom = feat.GetGeometryRef()
     if geom.ExportToWkt() != 'POINT (2 49)':
         return 'fail'
-    feat.Destroy()
 
     vrt_lyr.SetSpatialFilterRect(1, 41, 3, 49.5)
     if vrt_lyr.GetFeatureCount() != 1:
@@ -750,7 +702,6 @@ def ogr_vrt_15():
     if vrt_lyr.GetFeatureCount() != 1:
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     os.remove('tmp/test.csv')
@@ -802,12 +753,11 @@ def ogr_vrt_16():
     geom = feat.GetGeometryRef()
     if geom.ExportToWkt() != 'POINT (2 49)':
         return 'fail'
-    feat.Destroy()
 
     vrt_lyr.SetSpatialFilterRect(1, 41, 3, 49.5)
     if vrt_lyr.GetFeatureCount() != 1:
         if gdal.GetLastErrorMsg().find('GEOS support not enabled') != -1:
-            vrt_ds.Destroy()
+            vrt_ds = None
             os.remove('tmp/test.csv')
             os.remove('tmp/test.csvt')
             return 'skip'
@@ -821,7 +771,6 @@ def ogr_vrt_16():
     if vrt_lyr.GetFeatureCount() != 1:
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
 
     os.remove('tmp/test.csv')
@@ -894,11 +843,6 @@ def ogr_vrt_17():
        or feat.GetField(2) != None:
         gdaltest.post_reason( 'did not get expected field value(s).' )
         return 'fail'
-    
-    feat.Destroy()
-    
-    vrt_ds.Destroy()
-    vrt_ds = None
 
     return 'success'
 
@@ -931,11 +875,6 @@ def ogr_vrt_18():
     if feat.GetField(0) != 8904:
         gdaltest.post_reason( 'Attribute filter not working properly' )
         return 'fail'
-    
-    feat.Destroy()
-    
-    vrt_ds.Destroy()
-    vrt_ds = None
 
     return 'success'
 
@@ -998,29 +937,25 @@ def ogr_vrt_20():
     geom = ogr.CreateGeometryFromWkt('POINT (-10 45)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (-10 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (2 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     feat = ogr.Feature(shp_lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POINT (-10 49)')
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
-    feat.Destroy()
 
     shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test');
 
-    shp_ds.Destroy()
+    shp_ds = None
 
     vrt_xml = """
 <OGRVRTDataSource>
@@ -1057,6 +992,7 @@ def ogr_vrt_20():
     vrt_lyr.SetSpatialFilterRect(1, 48.5, 3, 49.5)
     if vrt_lyr.GetFeatureCount() != 1:
         if gdal.GetLastErrorMsg().find('GEOS support not enabled') != -1:
+            vrt_ds = None
             ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/test.shp')
             return 'skip'
 
@@ -1104,9 +1040,7 @@ def ogr_vrt_20():
         feat.DumpReadable()
         return 'fail'
 
-    vrt_ds.Destroy()
     vrt_ds = None
-
     ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/test.shp')
 
     return 'success'
@@ -1440,7 +1374,8 @@ def ogr_vrt_24():
 
 def ogr_vrt_25():
 
-    ds = ogr.Open('data/vrt_test.vrt')
+    with gdaltest.error_handler():
+        ds = ogr.Open('data/vrt_test.vrt')
 
     # test3 layer just declares fid, and implicit fields (so all source
     # fields are taken as VRT fields), we can report the fid column 
@@ -1579,17 +1514,20 @@ def ogr_vrt_27():
 
 def ogr_vrt_28():
 
-    ds = ogr.Open("<OGRVRTDataSource></foo>")
+    with gdaltest.error_handler():
+        ds = ogr.Open("<OGRVRTDataSource></foo>")
     if ds is not None:
         return 'fail'
 
     gdal.FileFromMemBuffer('/vsimem/ogr_vrt_28_invalid.vrt', "<bla><OGRVRTDataSource></OGRVRTDataSource></bla>")
-    ds = ogr.Open("/vsimem/ogr_vrt_28_invalid.vrt")
+    with gdaltest.error_handler():
+        ds = ogr.Open("/vsimem/ogr_vrt_28_invalid.vrt")
     if ds is not None:
         return 'fail'
     gdal.Unlink("/vsimem/ogr_vrt_28_invalid.vrt")
 
-    ds = ogr.Open("data/invalid.vrt")
+    with gdaltest.error_handler():
+        ds = ogr.Open("data/invalid.vrt")
     if ds is None:
         return 'fail'
 
@@ -2606,7 +2544,7 @@ def ogr_vrt_33():
     feat.SetField("X", -1)
     feat.SetField("Y", -2)
     lyr.CreateFeature(feat)
-    
+
     lyr = ds.GetLayerByName('test2')
     feat = ogr.Feature(lyr.GetLayerDefn())
     feat.SetGeomField(0, ogr.CreateGeometryFromWkt('POLYGON ((1 1,1 2,2 2,2 1,1 1))'))
@@ -2619,7 +2557,7 @@ def ogr_vrt_33():
 
     for i in range(2):
         if i == 0:
-            # Minimalistic definition
+            # Minimalist definition.
             ds_str = """<OGRVRTDataSource>
     <OGRVRTLayer name="test">
         <SrcDataSource>tmp/ogr_vrt_33</SrcDataSource>
@@ -3469,7 +3407,6 @@ def ogr_vrt_cleanup():
     except:
         pass
 
-    gdaltest.vrt_ds.Destroy()
     gdaltest.vrt_ds = None
 
     return 'success'
@@ -3520,4 +3457,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

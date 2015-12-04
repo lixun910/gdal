@@ -8,9 +8,9 @@ OBJ	=	gdalmediancut.o gdaldither.o gdal_crs.o gdaltransformer.o \
 		gdalgrid.o gdalcutline.o gdalproximity.o rasterfill.o \
 		gdalrasterpolygonenumerator.o \
 		gdalsievefilter.o gdalwarpkernel_opencl.o polygonize.o \
-		gdalrasterfpolygonenumerator.o fpolygonize.o \
 		contour.o gdaltransformgeolocs.o \
-		gdal_octave.o gdal_simplesurf.o gdalmatching.o
+		gdal_octave.o gdal_simplesurf.o gdalmatching.o delaunay.o \
+		gdalpansharpen.o
 
 ifeq ($(HAVE_AVX_AT_COMPILE_TIME),yes)
 CPPFLAGS 	:=	-DHAVE_AVX_AT_COMPILE_TIME $(CPPFLAGS)
@@ -28,7 +28,14 @@ ifeq ($(HAVE_ARMADILLO),yes)
 CPPFLAGS 	:=	-DHAVE_ARMADILLO $(CPPFLAGS)
 endif
 
-CPPFLAGS	:=	$(CPPFLAGS) $(OPENCL_FLAGS)
+ifeq ($(QHULL_SETTING),external)
+CPPFLAGS 	:=	-DEXTERNAL_QHULL $(CPPFLAGS)
+endif
+ifeq ($(QHULL_SETTING),internal)
+CPPFLAGS 	:=	-DINTERNAL_QHULL -Ilibqhull $(CPPFLAGS)
+endif
+
+CPPFLAGS	:=	$(CPPFLAGS) $(OPENCL_FLAGS) $(SHADOW_WFLAGS)
 
 default:	$(OBJ:.o=.$(OBJ_EXT)) gdalgridavx.$(OBJ_EXT) gdalgridsse.$(OBJ_EXT)
 

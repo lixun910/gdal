@@ -249,7 +249,7 @@ int OGRPDSDataSource::LoadTable(const char* pszFilename,
         osTableStructure = CPLFormCIFilename( osTPath, osTableStructure, NULL );
     }
 
-    GByte* pabyRecord = (GByte*) VSIMalloc(nRecordSize + 1);
+    GByte* pabyRecord = (GByte*) VSI_MALLOC_VERBOSE(nRecordSize + 1);
     if (pabyRecord == NULL)
     {
         VSIFCloseL(fp);
@@ -299,7 +299,7 @@ int OGRPDSDataSource::Open( const char * pszFilename )
         return FALSE;
     }
 
-    if (!oKeywords.Ingest(fp, pszPos - szBuffer))
+    if (!oKeywords.Ingest(fp, static_cast<int>(pszPos - szBuffer)))
     {
         VSIFCloseL(fp);
         return FALSE;
@@ -334,7 +334,7 @@ int OGRPDSDataSource::Open( const char * pszFilename )
         if (fp == NULL)
             return FALSE;
 
-        while(TRUE)
+        while( true )
         {
             CPLPushErrorHandler(CPLQuietErrorHandler);
             const char* pszLine = CPLReadLine2L(fp, 256, NULL);

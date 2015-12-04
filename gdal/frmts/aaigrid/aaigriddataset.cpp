@@ -151,24 +151,21 @@ class AAIGRasterBand : public GDALPamRasterBand
 /*                           AAIGRasterBand()                            */
 /************************************************************************/
 
-AAIGRasterBand::AAIGRasterBand( AAIGDataset *poDS, int nDataStart )
+AAIGRasterBand::AAIGRasterBand( AAIGDataset *poDSIn, int nDataStart )
 
 {
-    this->poDS = poDS;
+    this->poDS = poDSIn;
 
     nBand = 1;
-    eDataType = poDS->eDataType;
+    eDataType = poDSIn->eDataType;
 
-    nBlockXSize = poDS->nRasterXSize;
+    nBlockXSize = poDSIn->nRasterXSize;
     nBlockYSize = 1;
 
     panLineOffset = 
-        (GUIntBig *) VSICalloc( poDS->nRasterYSize, sizeof(GUIntBig) );
+        (GUIntBig *) VSI_CALLOC_VERBOSE( poDSIn->nRasterYSize, sizeof(GUIntBig) );
     if (panLineOffset == NULL)
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory,
-                 "AAIGRasterBand::AAIGRasterBand : Out of memory (nRasterYSize = %d)",
-                 poDS->nRasterYSize);
         return;
     }
     panLineOffset[0] = nDataStart;
@@ -390,7 +387,7 @@ char AAIGDataset::Getc()
         return achReadBuf[nOffsetInBuffer++];
 
     nBufferOffset = VSIFTellL( fp );
-    int nRead = VSIFReadL( achReadBuf, 1, sizeof(achReadBuf), fp );
+    int nRead = static_cast<int>(VSIFReadL( achReadBuf, 1, sizeof(achReadBuf), fp ));
     unsigned int i;
     for(i=nRead;i<sizeof(achReadBuf);i++)
         achReadBuf[i] = '\0';
@@ -426,15 +423,15 @@ int AAIGDataset::Identify( GDALOpenInfo * poOpenInfo )
 /*      Does this look like an AI grid file?                            */
 /* -------------------------------------------------------------------- */
     if( poOpenInfo->nHeaderBytes < 40
-        || !( EQUALN((const char *) poOpenInfo->pabyHeader,"ncols",5) ||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"nrows",5) ||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"xllcorner",9)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"yllcorner",9)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"xllcenter",9)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"yllcenter",9)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"dx",2)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"dy",2)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"cellsize",8)) )
+        || !( STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "ncols") ||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "nrows") ||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "xllcorner")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "yllcorner")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "xllcenter")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "yllcenter")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "dx")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "dy")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "cellsize")) )
         return FALSE;
 
     return TRUE;
@@ -451,12 +448,12 @@ int GRASSASCIIDataset::Identify( GDALOpenInfo * poOpenInfo )
 /*      Does this look like a GRASS ASCII grid file?                    */
 /* -------------------------------------------------------------------- */
     if( poOpenInfo->nHeaderBytes < 40
-        || !( EQUALN((const char *) poOpenInfo->pabyHeader,"north:",6) ||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"south:",6) ||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"east:",5)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"west:",5)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"rows:",5)||
-              EQUALN((const char *) poOpenInfo->pabyHeader,"cols:",5) ) )
+        || !( STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "north:") ||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "south:") ||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "east:")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "west:")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "rows:")||
+              STARTS_WITH_CI((const char *) poOpenInfo->pabyHeader, "cols:") ) )
         return FALSE;
 
     return TRUE;
@@ -784,7 +781,7 @@ GDALDataset *AAIGDataset::CommonOpen( GDALOpenInfo * poOpenInfo,
 /* -------------------------------------------------------------------- */
     int         nStartOfData;
 
-    for( i = 2; TRUE ; i++ )
+    for( i = 2; true ; i++ )
     {
         if( poOpenInfo->pabyHeader[i] == '\0' )
         {
@@ -820,22 +817,25 @@ GDALDataset *AAIGDataset::CommonOpen( GDALOpenInfo * poOpenInfo,
     {
         /* Allocate 100K chunk + 1 extra byte for NULL character. */
         const size_t nChunkSize = 1024 * 100;
-        GByte* pabyChunk = (GByte *) VSICalloc( nChunkSize + 1, sizeof(GByte) );
+        GByte* pabyChunk = (GByte *) VSI_CALLOC_VERBOSE( nChunkSize + 1, sizeof(GByte) );
         if (pabyChunk == NULL)
         {
-            CPLError( CE_Failure, CPLE_OutOfMemory, "Out of memory");
             delete poDS;
             return NULL;
         }
         pabyChunk[nChunkSize] = '\0';
 
-        VSIFSeekL( poDS->fp, nStartOfData, SEEK_SET );
+        if( VSIFSeekL( poDS->fp, nStartOfData, SEEK_SET ) < 0 )
+        {
+            delete poDS;
+            VSIFree( pabyChunk );
+            return NULL;
+        }
 
         /* Scan for dot in subsequent chunks of data. */
         while( !VSIFEofL( poDS->fp) )
         {
-            VSIFReadL( pabyChunk, sizeof(GByte), nChunkSize, poDS->fp );
-            CPLAssert( pabyChunk[nChunkSize] == '\0' );
+            CPL_IGNORE_RET_VAL(VSIFReadL( pabyChunk, nChunkSize, 1, poDS->fp ));
 
             for(i = 0; i < (int)nChunkSize; i++)
             {
@@ -958,16 +958,16 @@ GDALDataset * AAIGDataset::CreateCopy(
     char ** papszOptions,
     GDALProgressFunc pfnProgress, void * pProgressData )
 {
-    int  nBands = poSrcDS->GetRasterCount();
-    int  nXSize = poSrcDS->GetRasterXSize();
-    int  nYSize = poSrcDS->GetRasterYSize();
+    const int nBands = poSrcDS->GetRasterCount();
+    const int nXSize = poSrcDS->GetRasterXSize();
+    const int nYSize = poSrcDS->GetRasterYSize();
 
 /* -------------------------------------------------------------------- */
 /*      Some rudimentary checks                                         */
 /* -------------------------------------------------------------------- */
     if( nBands != 1 )
     {
-        CPLError( CE_Failure, CPLE_NotSupported, 
+        CPLError( CE_Failure, CPLE_NotSupported,
                   "AAIG driver doesn't support %d bands.  Must be 1 band.\n",
                   nBands );
 
@@ -980,9 +980,7 @@ GDALDataset * AAIGDataset::CreateCopy(
 /* -------------------------------------------------------------------- */
 /*      Create the dataset.                                             */
 /* -------------------------------------------------------------------- */
-    VSILFILE        *fpImage;
-
-    fpImage = VSIFOpenL( pszFilename, "wt" );
+    VSILFILE *fpImage = VSIFOpenL( pszFilename, "wt" );
     if( fpImage == NULL )
     {
         CPLError( CE_Failure, CPLE_OpenFailed, 
@@ -996,42 +994,42 @@ GDALDataset * AAIGDataset::CreateCopy(
 /* -------------------------------------------------------------------- */
     double      adfGeoTransform[6];
     char        szHeader[2000];
-    const char *pszForceCellsize = 
+    const char *pszForceCellsize =
         CSLFetchNameValue( papszOptions, "FORCE_CELLSIZE" );
 
     poSrcDS->GetGeoTransform( adfGeoTransform );
 
-    if( ABS(adfGeoTransform[1]+adfGeoTransform[5]) < 0.0000001 
-        || ABS(adfGeoTransform[1]-adfGeoTransform[5]) < 0.0000001 
+    if( ABS(adfGeoTransform[1]+adfGeoTransform[5]) < 0.0000001
+        || ABS(adfGeoTransform[1]-adfGeoTransform[5]) < 0.0000001
         || (pszForceCellsize && CSLTestBoolean(pszForceCellsize)) )
-        CPLsprintf( szHeader, 
-                 "ncols        %d\n" 
+        CPLsnprintf( szHeader, sizeof(szHeader),
+                 "ncols        %d\n"
                  "nrows        %d\n"
                  "xllcorner    %.12f\n"
                  "yllcorner    %.12f\n"
-                 "cellsize     %.12f\n", 
-                 nXSize, nYSize, 
-                 adfGeoTransform[0], 
+                 "cellsize     %.12f\n",
+                 nXSize, nYSize,
+                 adfGeoTransform[0],
                  adfGeoTransform[3] - nYSize * adfGeoTransform[1],
                  adfGeoTransform[1] );
     else
     {
         if( pszForceCellsize == NULL )
-            CPLError( CE_Warning, CPLE_AppDefined, 
+            CPLError( CE_Warning, CPLE_AppDefined,
                       "Producing a Golden Surfer style file with DX and DY instead\n"
                       "of CELLSIZE since the input pixels are non-square.  Use the\n"
                       "FORCE_CELLSIZE=TRUE creation option to force use of DX for\n"
                       "even though this will be distorted.  Most ASCII Grid readers\n"
                       "(ArcGIS included) do not support the DX and DY parameters.\n" );
-        CPLsprintf( szHeader, 
-                 "ncols        %d\n" 
+        CPLsnprintf( szHeader, sizeof(szHeader),
+                 "ncols        %d\n"
                  "nrows        %d\n"
                  "xllcorner    %.12f\n"
                  "yllcorner    %.12f\n"
                  "dx           %.12f\n"
-                 "dy           %.12f\n", 
-                 nXSize, nYSize, 
-                 adfGeoTransform[0], 
+                 "dy           %.12f\n",
+                 nXSize, nYSize,
+                 adfGeoTransform[0],
                  adfGeoTransform[3] + nYSize * adfGeoTransform[5],
                  adfGeoTransform[1],
                  fabs(adfGeoTransform[5]) );
@@ -1093,7 +1091,11 @@ GDALDataset * AAIGDataset::CreateCopy(
         sprintf( szHeader+strlen( szHeader ), "\n" );
     }
 
-    VSIFWriteL( szHeader, 1, strlen(szHeader), fpImage );
+    if( VSIFWriteL( szHeader, strlen(szHeader), 1, fpImage ) != 1)
+    {
+        VSIFCloseL(fpImage);
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Loop over image, copying image data.                            */
@@ -1111,6 +1113,7 @@ GDALDataset * AAIGDataset::CreateCopy(
         padfScanline = (double *) CPLMalloc( nXSize *
                                     GDALGetDataTypeSize(GDT_Float64) / 8 );
 
+    int bHasOutputDecimalDot = FALSE;
     for( iLine = 0; eErr == CE_None && iLine < nYSize; iLine++ )
     {
         CPLString osBuf;
@@ -1143,6 +1146,19 @@ GDALDataset * AAIGDataset::CreateCopy(
             for ( iPixel = 0; iPixel < nXSize; iPixel++ )
             {
                 CPLsprintf( szHeader, szFormatFloat, padfScanline[iPixel] );
+
+                // Make sure that as least one value has a decimal point (#6060)
+                if( !bHasOutputDecimalDot )
+                {
+                    if( strchr(szHeader, '.') || strchr(szHeader, 'e') || strchr(szHeader, 'E') )
+                        bHasOutputDecimalDot = TRUE;
+                    else if( !CPLIsInf(padfScanline[iPixel]) && !CPLIsNan(padfScanline[iPixel]) )
+                    {
+                        strcat(szHeader, ".0");
+                        bHasOutputDecimalDot = TRUE;
+                    }
+                }
+
                 osBuf += szHeader;
                 if( (iPixel & 1023) == 0 || iPixel == nXSize - 1 )
                 {
@@ -1157,7 +1173,8 @@ GDALDataset * AAIGDataset::CreateCopy(
                 }
             }
         }
-        VSIFWriteL( (void *) "\n", 1, 1, fpImage );
+        if( VSIFWriteL( (void *) "\n", 1, 1, fpImage ) != 1 )
+            eErr = CE_Failure;
 
         if( eErr == CE_None &&
             !pfnProgress((iLine + 1) / ((double) nYSize), NULL, pProgressData) )
@@ -1199,7 +1216,7 @@ GDALDataset * AAIGDataset::CreateCopy(
             oSRS.importFromWkt( (char **) &pszOriginalProjection );
             oSRS.morphToESRI();
             oSRS.exportToWkt( &pszESRIProjection );
-            VSIFWriteL( pszESRIProjection, 1, strlen(pszESRIProjection), fp );
+            CPL_IGNORE_RET_VAL(VSIFWriteL( pszESRIProjection, 1, strlen(pszESRIProjection), fp ));
 
             VSIFCloseL( fp );
             CPLFree( pszESRIProjection );

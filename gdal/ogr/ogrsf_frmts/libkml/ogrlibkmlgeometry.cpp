@@ -29,7 +29,7 @@
 
 #include <ogr_geometry.h>
 #include "ogr_p.h"
-#include <kml/dom.h>
+#include "libkml_headers.h"
 
 using kmldom::KmlFactory;
 using kmldom::CoordinatesPtr;
@@ -53,7 +53,7 @@ using kmlbase::Vec3;
 #include "ogrlibkmlgeometry.h"
 
 /******************************************************************************
- funtion to write out a ogr geometry to kml
+ function to write out a ogr geometry to kml
 
 args:
           poOgrGeom     the ogr geometry
@@ -205,7 +205,7 @@ ElementPtr geom2kml (
             break;
         }
 
-      /***** fallthough *****/
+      /***** fallthrough *****/
 
     case wkbLinearRing:        //this case is for readability only
 
@@ -222,6 +222,8 @@ ElementPtr geom2kml (
                 poKmlFactory->CreateInnerBoundaryIs (  );
             poKmlInnerRing->set_linearring ( poKmlLinearRing );
         }
+
+        break;
 
     case wkbLineString25D:
 
@@ -279,7 +281,7 @@ ElementPtr geom2kml (
 
             break;
         }
-            /***** fallthough *****/
+            /***** fallthrough *****/
 
         //case wkbLinearRing25D: // this case is for readability only
 
@@ -418,7 +420,7 @@ Returns:
 
 ******************************************************************************/
 
-OGRGeometry *kml2geom_rec (
+static OGRGeometry *kml2geom_rec (
     GeometryPtr poKmlGeometry,
     OGRSpatialReference *poOgrSRS)
 
@@ -571,7 +573,8 @@ OGRGeometry *kml2geom_rec (
         poKmlMultiGeometry = AsMultiGeometry ( poKmlGeometry );
         nGeom = poKmlMultiGeometry->get_geometry_array_size (  );
 
-        /* Detect subgeometry type to instanciate appropriate Multi geometry type */
+        // Detect subgeometry type to instantiate appropriate
+        // multi geometry type.
         kmldom::KmlDomType type = kmldom::Type_Unknown;
         for ( i = 0; i < nGeom; i++ ) {
             poKmlTmpGeometry = poKmlMultiGeometry->get_geometry_array_at ( i );

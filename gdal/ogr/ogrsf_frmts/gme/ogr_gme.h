@@ -6,6 +6,9 @@
  * Author:   Frank Warmerdam <warmerdam@pobox.com>
  *           (derived from GFT driver by Even)
  *
+ * GME will be turned down January 2016.  This driver will be removed from GDAL
+ * at that time.
+ *
  ******************************************************************************
  * Copyright (c) 2013, Frank Warmerdam <warmerdam@pobox.com>
  *
@@ -28,8 +31,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_GME_H_INCLUDED
-#define _OGR_GME_H_INCLUDED
+#ifndef OGR_GME_H_INCLUDED
+#define OGR_GME_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "ogrgeojsonreader.h"
@@ -115,6 +118,8 @@ class OGRGMELayer : public OGRLayer
     virtual int         TestCapability( const char * );
 
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     virtual OGRErr      SetAttributeFilter( const char * pszWhere );
 
@@ -157,8 +162,6 @@ class OGRGMEDataSource : public OGRDataSource
     CPLString           osSelect;
     CPLString           osWhere;
     CPLString           osProjectId;
-
-    void                DeleteLayer( const char *pszLayerName );
 
     int                 bMustCleanPersistant;
     int                 nRetries;
@@ -210,4 +213,4 @@ class OGRGMEDriver : public OGRSFDriver
     virtual int                 TestCapability( const char * );
 };
 
-#endif /* ndef _OGR_GME_H_INCLUDED */
+#endif /* ndef OGR_GME_H_INCLUDED */

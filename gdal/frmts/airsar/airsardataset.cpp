@@ -68,7 +68,7 @@ class AirSARDataset : public GDALPamDataset
   public:
                 AirSARDataset();
 		~AirSARDataset();
-    
+
     static GDALDataset *Open( GDALOpenInfo * );
 };
 
@@ -83,34 +83,34 @@ class AirSARRasterBand : public GDALPamRasterBand
   public:
     		AirSARRasterBand( AirSARDataset *, int );
     virtual     ~AirSARRasterBand();
-    
+
     virtual CPLErr IReadBlock( int, int, void * );
 };
 
 /* locations of stokes matrix values within padfMatrix ... same order as they
    are computed in the document. */
 
-#define M11 0
-#define M12 1
-#define M13 2
-#define M14 3
-#define M23 4
-#define M24 5
-#define M33 6
-#define M34 7
-#define M44 8
-#define M22 9
+static const int M11 = 0;
+static const int M12 = 1;
+static const int M13 = 2;
+static const int M14 = 3;
+static const int M23 = 4;
+static const int M24 = 5;
+static const int M33 = 6;
+static const int M34 = 7;
+static const int M44 = 8;
+static const int M22 = 9;
 
 /************************************************************************/
 /*                          AirSARRasterBand()                          */
 /************************************************************************/
 
-AirSARRasterBand::AirSARRasterBand( AirSARDataset *poDS,
-                                    int nBand )
+AirSARRasterBand::AirSARRasterBand( AirSARDataset *poDSIn,
+                                    int nBandIn )
 
 {
-    this->poDS = poDS;
-    this->nBand = nBand;
+    this->poDS = poDSIn;
+    this->nBand = nBandIn;
 
     nBlockXSize = poDS->GetRasterXSize();
     nBlockYSize = 1;
@@ -173,26 +173,22 @@ AirSARRasterBand::~AirSARRasterBand()
 /*                             IReadBlock()                             */
 /************************************************************************/
 
-CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
+CPLErr AirSARRasterBand::IReadBlock( int /* nBlockXOff */,
                                      int nBlockYOff,
                                      void * pImage )
 {
-    CPLErr eErr;
     float *pafLine = (float *) pImage;
-    int iPixel;
-    double *padfMatrix;
+    const double SQRT_2 = 1.4142135623730951;
 
-    eErr = ((AirSARDataset *)poDS)->LoadLine( nBlockYOff );
+    CPLErr eErr = ((AirSARDataset *)poDS)->LoadLine( nBlockYOff );
     if( eErr != CE_None )
         return eErr;
 
-    padfMatrix = ((AirSARDataset *) poDS)->padfMatrix;
-
-#define SQRT_2 1.4142135623730951
+    double *padfMatrix = ((AirSARDataset *) poDS)->padfMatrix;
 
     if( nBand == 1 ) /* C11 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
 
@@ -202,10 +198,10 @@ CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
     }
     else if( nBand == 2 ) /* C12 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
-            
+
             // real
             pafLine[iPixel*2 + 0] = (float)(SQRT_2 * (m[M13] + m[M23]));
 
@@ -215,10 +211,10 @@ CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
     }
     else if( nBand == 3 ) /* C13 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
-            
+
             // real
             pafLine[iPixel*2 + 0] = (float)(2*m[M33] + m[M22] - m[M11]);
 
@@ -228,20 +224,20 @@ CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
     }
     else if( nBand == 4 ) /* C22 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
-            
+
             pafLine[iPixel*2+0] = (float)(2 * (m[M11] - m[M22]));
             pafLine[iPixel*2+1] = 0.0;
         }
     }
     else if( nBand == 5 ) /* C23 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
-            
+
             // real
             pafLine[iPixel*2 + 0] = (float)(SQRT_2 * (m[M13] - m[M23]));
 
@@ -251,10 +247,10 @@ CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
     }
     else if( nBand == 6 ) /* C33 */
     {
-        for( iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
         {
             double *m = padfMatrix + 10 * iPixel;
-            
+
             pafLine[iPixel*2+0] = (float)(m[M11] + m[M22] - 2 * m[M12]);
             pafLine[iPixel*2+1] = 0.0;
         }
@@ -273,15 +269,14 @@ CPLErr AirSARRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
 /*                           AirSARDataset()                            */
 /************************************************************************/
 
-AirSARDataset::AirSARDataset()
-
-{
-    fp = NULL;
-
-    nLoadedLine = -1;
-    pabyCompressedLine = NULL;
-    padfMatrix = NULL;
-}
+AirSARDataset::AirSARDataset() :
+    fp(NULL),
+    nLoadedLine(-1),
+    pabyCompressedLine(NULL),
+    padfMatrix(NULL),
+    nDataStart(0),
+    nRecordLength(0)
+{ }
 
 /************************************************************************/
 /*                           ~AirSARDataset()                           */
@@ -291,11 +286,8 @@ AirSARDataset::~AirSARDataset()
 
 {
     FlushCache();
-    if( pabyCompressedLine != NULL )
-    {
-        CPLFree( pabyCompressedLine );
-        CPLFree( padfMatrix );
-    }
+    CPLFree( pabyCompressedLine );
+    CPLFree( padfMatrix );
 
     if( fp != NULL )
     {
@@ -319,16 +311,12 @@ CPLErr AirSARDataset::LoadLine( int iLine )
 /* -------------------------------------------------------------------- */
     if( pabyCompressedLine == NULL )
     {
-        pabyCompressedLine = (GByte *) VSIMalloc2(nRasterXSize, 10);
+        pabyCompressedLine = (GByte *) VSI_MALLOC2_VERBOSE(nRasterXSize, 10);
 
-        padfMatrix = (double *) VSIMalloc2(10* sizeof(double), nRasterXSize);
+        padfMatrix = (double *) VSI_MALLOC2_VERBOSE(10* sizeof(double), nRasterXSize);
         if (pabyCompressedLine == NULL ||
             padfMatrix == NULL)
         {
-            CPLError(CE_Failure, CPLE_OutOfMemory,
-                     "AirSARDataset::LoadLine : Out of memory. "
-                     "Probably due to corrupted dataset (nRasterXSize = %d)",
-                     nRasterXSize);
             CPLFree (pabyCompressedLine);
             CPLFree (padfMatrix);
             return CE_Failure;
@@ -358,8 +346,8 @@ CPLErr AirSARDataset::LoadLine( int iLine )
     {
         double *M = padfMatrix + 10 * iPixel;
         signed char *byte = (signed char *) pabyCompressedLine + 10*iPixel - 1;
-        double gen_fac = 1.0; // should we have a general scale factor?
-        
+        const double gen_fac = 1.0; // should we have a general scale factor?
+
         M[M11] = (byte[2] / 254.0 + 1.5) * pow(2.0,byte[1]) * gen_fac;
         M[M12] = byte[3] * M[M11] / 127.0;
         M[M13] = byte[4] * fabs((double) byte[4]) * M[M11] / (127*127);
@@ -393,14 +381,13 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 {
     char **papszHeadInfo = NULL;
     char szLine[51];
-    int  iLine;
 
     VSIFSeekL( fp, nFileOffset, SEEK_SET );
 
 /* ==================================================================== */
 /*      Loop collecting one line at a time.                             */
 /* ==================================================================== */
-    for( iLine = 0; iLine < nMaxLines; iLine++ )
+    for( int iLine = 0; iLine < nMaxLines; iLine++ )
     {
 /* -------------------------------------------------------------------- */
 /*      Read a 50 byte header record.                                   */
@@ -409,6 +396,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
         {
             CPLError( CE_Failure, CPLE_FileIO,
                       "Read error collecting AirSAR header." );
+            CSLDestroy( papszHeadInfo );
             return NULL;
         }
 
@@ -417,21 +405,20 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 /* -------------------------------------------------------------------- */
 /*      Is it all spaces, or does it have a zero byte?                  */
 /* -------------------------------------------------------------------- */
-        int bAllSpaces = TRUE;
-        int bHasIllegalChars = FALSE;
-        int i;
+        bool bAllSpaces = true;
+        bool bHasIllegalChars = false;
 
-        for( i = 0; i < 50; i++ )
+        for( int i = 0; i < 50; i++ )
         {
             if( szLine[i] == '\0' )
                 break;
 
             if( szLine[i] != ' ' )
-                bAllSpaces = FALSE;
-            
+                bAllSpaces = false;
+
             if( ((unsigned char *) szLine)[i] > 127 
                 || ((unsigned char *) szLine)[i] < 10 )
-                bHasIllegalChars = TRUE;
+                bHasIllegalChars = true;
         }
 
         if( bAllSpaces || bHasIllegalChars )
@@ -442,7 +429,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 /* -------------------------------------------------------------------- */
         int iPivot = -1;
 
-        for( i = 0; i < 50; i++ )
+        for( int i = 0; i < 50; i++ )
         {
             if( szLine[i] == '=' )
             {
@@ -454,7 +441,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
         // If no "=" found, split on first double white space
         if( iPivot == -1 )
         {
-            for( i = 48; i >= 0; i-- )
+            for( int i = 48; i >= 0; i-- )
             {
                 if( szLine[i] == ' ' && szLine[i+1] == ' ' )
                 {
@@ -484,7 +471,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 /*      Strip any white space off the keyword.                          */
 /* -------------------------------------------------------------------- */
         int iKeyEnd = iPivot - 1;
-        
+
         while( iKeyEnd > 0 && szLine[iKeyEnd] == ' ' )
             iKeyEnd--;
 
@@ -493,7 +480,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 /* -------------------------------------------------------------------- */
 /*      Convert spaces or colons into underscores in the key name.      */
 /* -------------------------------------------------------------------- */
-        for( i = 0; szLine[i] != '\0'; i++ )
+        for( int i = 0; szLine[i] != '\0'; i++ )
         {
             if( szLine[i] == ' ' || szLine[i] == ':' || szLine[i] == ',' )
                 szLine[i] = '_';
@@ -508,7 +495,7 @@ char ** AirSARDataset::ReadHeader( VSILFILE * fp, int nFileOffset,
 
         papszHeadInfo = 
             CSLSetNameValue( papszHeadInfo, szPrefixedKeyName, szLine+iValue );
-        
+
     }
 
     return papszHeadInfo;
@@ -528,7 +515,7 @@ GDALDataset *AirSARDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Check for AirSAR/ keyword.                                      */
 /* -------------------------------------------------------------------- */
-    if( !EQUALN((char *) poOpenInfo->pabyHeader, "RECORD LENGTH IN BYTES",22) )
+    if( !STARTS_WITH_CI((char *) poOpenInfo->pabyHeader, "RECORD LENGTH IN BYTES") )
         return NULL;
 
     if( strstr((char *) poOpenInfo->pabyHeader, "COMPRESSED") == NULL 
@@ -541,7 +528,7 @@ GDALDataset *AirSARDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      "well behaved" as metadata keywords.                            */
 /* -------------------------------------------------------------------- */
     char **papszMD = ReadHeader( poOpenInfo->fpL, 0, "MH", 20 );
-    
+
     if( papszMD == NULL )
         return NULL;
 
@@ -550,17 +537,16 @@ GDALDataset *AirSARDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     if( poOpenInfo->eAccess == GA_Update )
     {
-        CPLError( CE_Failure, CPLE_NotSupported, 
+        CPLError( CE_Failure, CPLE_NotSupported,
                   "The AIRSAR driver does not support update access to existing"
                   " datasets.\n" );
+        CSLDestroy( papszMD );
         return NULL;
     }
 /* -------------------------------------------------------------------- */
 /*      Create a corresponding GDALDataset.                             */
 /* -------------------------------------------------------------------- */
-    AirSARDataset 	*poDS;
-
-    poDS = new AirSARDataset();
+    AirSARDataset *poDS = new AirSARDataset();
 
 /* -------------------------------------------------------------------- */
 /*      Extract some key information.                                   */
@@ -652,22 +638,20 @@ GDALDataset *AirSARDataset::Open( GDALOpenInfo * poOpenInfo )
 void GDALRegister_AirSAR()
 
 {
-    GDALDriver	*poDriver;
+    if( GDALGetDriverByName( "AirSAR" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "AirSAR" ) == NULL )
-    {
-        poDriver = new GDALDriver();
-        
-        poDriver->SetDescription( "AirSAR" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "AirSAR Polarimetric Image" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_airsar.html" );
+    GDALDriver	*poDriver = new GDALDriver();
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetDescription( "AirSAR" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "AirSAR Polarimetric Image" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_airsar.html" );
 
-        poDriver->pfnOpen = AirSARDataset::Open;
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    poDriver->pfnOpen = AirSARDataset::Open;
+
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

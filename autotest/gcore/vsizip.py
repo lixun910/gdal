@@ -233,9 +233,9 @@ def vsizip_4():
     if res is None:
         gdaltest.post_reason('fail read')
         return 'fail'
-    if res != ['subdir/', 'subdir/subdir/', 'subdir/subdir/uint16.tif', \
-                   'subdir/subdir/test_rpc.txt', 'subdir/test_rpc.txt', \
-                   'test_rpc.txt', 'uint16.tif']:
+    if res != ['subdir/', 'subdir/subdir/', 'subdir/subdir/uint16.tif',
+               'subdir/subdir/test_rpc.txt', 'subdir/test_rpc.txt',
+               'test_rpc.txt', 'uint16.tif']:
         gdaltest.post_reason('bad content')
         print(res)
         return 'fail'
@@ -326,14 +326,16 @@ def vsizip_6():
     return 'success'
 
 ###############################################################################
-# Test that we use the extented field for UTF-8 filenames (#5361)
+# Test that we use the extended field for UTF-8 filenames (#5361).
 
 def vsizip_7():
 
     content = gdal.ReadDir("/vsizip/data/cp866_plus_utf8.zip")
     ok = 0
     try:
-        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1")
+        local_vars = { 'content': content, 'ok': ok }
+        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1", None, local_vars)
+        ok = local_vars['ok']
     except:
         if content == ['\u0430\u0431\u0432\u0433\u0434\u0435', '\u0436\u0437\u0438\u0439\u043a\u043b']:
             ok = 1
@@ -396,12 +398,17 @@ def vsizip_10():
     gdal.SetConfigOption('CPL_ZIP_ENCODING', None)
     ok = 0
     try:
-        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1")
+        local_vars = { 'content': content, 'ok': ok }
+        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1", None, local_vars)
+        ok = local_vars['ok']
     except:
         if content == ['\u0430\u0431\u0432\u0433\u0434\u0435', '\u0436\u0437\u0438\u0439\u043a\u043b']:
             ok = 1
 
     if ok == 0:
+        if gdal.GetLastErrorMsg().find('Recode from CP866 to UTF-8 not supported') >= 0:
+            return 'skip'
+
         gdaltest.post_reason('bad content')
         print(content)
         return 'fail'
@@ -416,7 +423,9 @@ def vsizip_11():
     content = gdal.ReadDir("/vsizip/data/utf8.zip")
     ok = 0
     try:
-        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1")
+        local_vars = { 'content': content, 'ok': ok }
+        exec("if content == [u'\u0430\u0431\u0432\u0433\u0434\u0435', u'\u0436\u0437\u0438\u0439\u043a\u043b']: ok = 1", None, local_vars)
+        ok = local_vars['ok']
     except:
         if content == ['\u0430\u0431\u0432\u0433\u0434\u0435', '\u0436\u0437\u0438\u0439\u043a\u043b']:
             ok = 1
@@ -428,6 +437,59 @@ def vsizip_11():
 
     return 'success'
     
+###############################################################################
+# Test changing the content of a zip file (#6005)
+
+def vsizip_12():
+    
+    fmain = gdal.VSIFOpenL("/vsizip/vsimem/vsizip_12_src1.zip", "wb")
+    f = gdal.VSIFOpenL("/vsizip/vsimem/vsizip_12_src1.zip/foo.bar", "wb")
+    data = '0123456'
+    gdal.VSIFWriteL(data, 1, len(data), f)
+    gdal.VSIFCloseL(f)
+    gdal.VSIFCloseL(fmain)
+    
+    fmain = gdal.VSIFOpenL("/vsizip/vsimem/vsizip_12_src2.zip", "wb")
+    f = gdal.VSIFOpenL("/vsizip/vsimem/vsizip_12_src2.zip/bar.baz", "wb")
+    data = '01234567'
+    gdal.VSIFWriteL(data, 1, len(data), f)
+    gdal.VSIFCloseL(f)
+    gdal.VSIFCloseL(fmain)
+    
+    # Copy vsizip_12_src1 into vsizip_12
+    f = gdal.VSIFOpenL('/vsimem/vsizip_12_src1.zip', 'rb')
+    data = gdal.VSIFReadL(1, 10000, f)
+    gdal.VSIFCloseL(f)
+    
+    f = gdal.VSIFOpenL('/vsimem/vsizip_12.zip', 'wb')
+    gdal.VSIFWriteL(data, 1, len(data), f)
+    gdal.VSIFCloseL(f)
+
+    gdal.ReadDir('/vsizip/vsimem/vsizip_12.zip')
+    
+    # Copy vsizip_12_src2 into vsizip_12
+    f = gdal.VSIFOpenL('/vsimem/vsizip_12_src2.zip', 'rb')
+    data = gdal.VSIFReadL(1, 10000, f)
+    gdal.VSIFCloseL(f)
+    
+    f = gdal.VSIFOpenL('/vsimem/vsizip_12.zip', 'wb')
+    gdal.VSIFWriteL(data, 1, len(data), f)
+    gdal.VSIFCloseL(f)
+    
+    content = gdal.ReadDir('/vsizip/vsimem/vsizip_12.zip')
+    
+    gdal.Unlink('/vsizip/vsimem/vsizip_12_src1.zip')
+    gdal.Unlink('/vsizip/vsimem/vsizip_12_src2.zip')
+    gdal.Unlink('/vsizip/vsimem/vsizip_12.zip')
+    
+    if content != ['bar.baz']:
+        gdaltest.post_reason('fail')
+        print(content)
+        return 'fail'
+
+    return 'success'
+
+
 gdaltest_list = [ vsizip_1,
                   vsizip_2,
                   vsizip_3,
@@ -439,6 +501,7 @@ gdaltest_list = [ vsizip_1,
                   vsizip_9,
                   vsizip_10,
                   vsizip_11,
+                  vsizip_12,
                   ]
 
 
@@ -449,4 +512,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

@@ -142,7 +142,7 @@ TABMAPCoordBlock::~TABMAPCoordBlock()
  * Perform some initialization on the block after its binary data has
  * been set or changed (or loaded from a file).
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::InitBlockFromData(GByte *pabyBuf,
@@ -153,7 +153,7 @@ int     TABMAPCoordBlock::InitBlockFromData(GByte *pabyBuf,
 {
     int nStatus;
 #ifdef DEBUG_VERBOSE
-    CPLDebug("MITAB", "Instanciating COORD block to/from offset %d", nOffset);
+    CPLDebug("MITAB", "Instantiating COORD block to/from offset %d", nOffset);
 #endif
     /*-----------------------------------------------------------------
      * First of all, we must call the base class' InitBlockFromData()
@@ -205,7 +205,7 @@ int     TABMAPCoordBlock::InitBlockFromData(GByte *pabyBuf,
  * block header and then calls TABRawBinBlock::CommitToFile() to do
  * the actual writing to disk.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::CommitToFile()
@@ -265,7 +265,7 @@ int     TABMAPCoordBlock::CommitToFile()
  * that puts the block in a stable state without loading any initial
  * data in it.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize, 
@@ -273,7 +273,8 @@ int     TABMAPCoordBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize,
 {
     CPLErrorReset();
 #ifdef DEBUG_VERBOSE
-    CPLDebug("MITAB", "Instanciating new COORD block at offset %d", nFileOffset);
+    CPLDebug( "MITAB", "Instantiating new COORD block at offset %d",
+              nFileOffset);
 #endif
     /*-----------------------------------------------------------------
      * Start with the default initialisation
@@ -349,7 +350,7 @@ void     TABMAPCoordBlock::SetComprCoordOrigin(GInt32 nX, GInt32 nY)
  * This means that the returned coordinates are always absolute integer
  * coordinates, even when the source coords are in compressed form.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::ReadIntCoord(GBool bCompressed, 
@@ -386,7 +387,7 @@ int     TABMAPCoordBlock::ReadIntCoord(GBool bCompressed,
  * panXY should point to an array big enough to receive the specified
  * number of coordinates.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::ReadIntCoords(GBool bCompressed, int numCoordPairs, 
@@ -444,7 +445,7 @@ int     TABMAPCoordBlock::ReadIntCoords(GBool bCompressed, int numCoordPairs,
  *            an error will be produced and the code to read region and
  *            multipline objects will have to be updated. 
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::ReadCoordSecHdrs(GBool bCompressed, 
@@ -554,7 +555,7 @@ int     TABMAPCoordBlock::ReadCoordSecHdrs(GBool bCompressed,
  * At the end of the call, this TABMAPCoordBlock object will be ready to
  * receive the coordinate data.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::WriteCoordSecHdrs(int nVersion,
@@ -612,7 +613,7 @@ int     TABMAPCoordBlock::WriteCoordSecHdrs(int nVersion,
  * Write a pair of integer coordinates values to the current position in the
  * the block.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 
@@ -635,12 +636,12 @@ int     TABMAPCoordBlock::WriteIntCoord(GInt32 nX, GInt32 nY,
         m_nMinX = nX;
     if (nX > m_nMaxX)
         m_nMaxX = nX;
-    
+
     if (nY < m_nMinY)
         m_nMinY = nY;
     if (nY > m_nMaxY)
         m_nMaxY = nY;
-    
+
     /*-------------------------------------------------------------
      * Also keep track of current feature MBR.
      *------------------------------------------------------------*/
@@ -687,7 +688,7 @@ void TABMAPCoordBlock::SetMAPBlockManagerRef(TABBinBlockManager *poBlockMgr)
  * specified number of bytes as if the copy had happened... but it 
  * won't crash.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPCoordBlock::ReadBytes(int numBytes, GByte *pabyDstBuf)
@@ -746,7 +747,7 @@ int     TABMAPCoordBlock::ReadBytes(int numBytes, GByte *pabyDstBuf)
  * specified number of bytes as if the copy had happened... but it 
  * won't crash.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int  TABMAPCoordBlock::WriteBytes(int nBytesToWrite, GByte *pabySrcBuf)
@@ -915,6 +916,3 @@ void TABMAPCoordBlock::Dump(FILE *fpOut /*=NULL*/)
 }
 
 #endif // DEBUG
-
-
-

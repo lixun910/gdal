@@ -39,9 +39,9 @@ using namespace PCIDSK;
 /*                            CPCIDSK_ARRAY()                           */
 /************************************************************************/
 
-CPCIDSK_ARRAY::CPCIDSK_ARRAY( PCIDSKFile *file, int segment,
+CPCIDSK_ARRAY::CPCIDSK_ARRAY( PCIDSKFile *fileIn, int segmentIn,
                               const char *segment_pointer )
-        : CPCIDSKSegment( file, segment, segment_pointer ),
+        : CPCIDSKSegment( fileIn, segmentIn, segment_pointer ),
         loaded_(false),mbModified(false)
 {
     MAX_DIMENSIONS = 8;
@@ -68,10 +68,10 @@ void CPCIDSK_ARRAY::Load()
     }
 
     PCIDSKBuffer& seg_header = this->GetHeader();
-    seg_data.SetSize(GetContentSize());
+    seg_data.SetSize(static_cast<int>(GetContentSize()));
     ReadFromFile(seg_data.buffer, 0, seg_data.buffer_size);
 
-    if(std::strncmp(seg_header.buffer+160, "64R     ", 8))
+    if(!STARTS_WITH(seg_header.buffer+160, "64R     "))
     {
         seg_header.Put("64R     ",160,8);
         loaded_ = true;
@@ -140,10 +140,10 @@ void CPCIDSK_ARRAY::Write(void)
     }
 
     PCIDSKBuffer& seg_header = this->GetHeader();
-    int nBlocks = (moArray.size()*8 + 511)/512 ;
+    int nBlocks = (static_cast<int>(moArray.size())*8 + 511)/512 ;
     unsigned int nSizeBuffer = (nBlocks)*512 ;
     //64 values can be put into 512 bytes.
-    unsigned int nRest = nBlocks*64 - moArray.size();
+    unsigned int nRest = nBlocks*64 - static_cast<unsigned int>(moArray.size());
 
     seg_data.SetSize(nSizeBuffer);
 
@@ -166,7 +166,7 @@ void CPCIDSK_ARRAY::Write(void)
     //set the end of the buffer to 0.
     for( unsigned int i=0 ; i < nRest ; i++)
     {
-        seg_data.Put(0.0,(moArray.size()+i)*8,8,"%22.14f");
+        seg_data.Put(0.0,(static_cast<int>(moArray.size())+i)*8,8,"%22.14f");
     }
 
     WriteToFile(seg_data.buffer,0,seg_data.buffer_size);

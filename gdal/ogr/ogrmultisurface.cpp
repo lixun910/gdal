@@ -54,6 +54,46 @@ OGRMultiSurface::~OGRMultiSurface()
 }
 
 /************************************************************************/
+/*              OGRMultiSurface( const OGRMultiSurface& )               */
+/************************************************************************/
+
+/**
+ * \brief Copy constructor.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the constructor
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRMultiSurface::OGRMultiSurface( const OGRMultiSurface& other ) :
+    OGRGeometryCollection(other)
+{
+}
+
+/************************************************************************/
+/*                  operator=( const OGRMultiCurve&)                    */
+/************************************************************************/
+
+/**
+ * \brief Assignment operator.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the operator
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRMultiSurface& OGRMultiSurface::operator=( const OGRMultiSurface& other )
+{
+    if( this != &other)
+    {
+        OGRGeometryCollection::operator=( other );
+    }
+    return *this;
+}
+
+/************************************************************************/
 /*                          getGeometryType()                           */
 /************************************************************************/
 
@@ -105,8 +145,9 @@ OGRErr OGRMultiSurface::importFromWkt( char ** ppszInput )
 
 {
     int bHasZ = FALSE, bHasM = FALSE;
-    OGRErr      eErr = importPreambuleFromWkt(ppszInput, &bHasZ, &bHasM);
-    if( eErr >= 0 )
+    bool bIsEmpty = false;
+    OGRErr      eErr = importPreambuleFromWkt(ppszInput, &bHasZ, &bHasM, &bIsEmpty);
+    if( eErr != OGRERR_NONE || bIsEmpty )
         return eErr;
 
     if( bHasZ )
@@ -184,7 +225,7 @@ OGRErr OGRMultiSurface::importFromWkt( char ** ppszInput )
         }
 
 /* -------------------------------------------------------------------- */
-/*      Read the delimeter following the surface.                       */
+/*      Read the delimiter following the surface.                       */
 /* -------------------------------------------------------------------- */
         pszInput = OGRWktReadToken( pszInput, szToken );
 
@@ -244,10 +285,7 @@ OGRBoolean OGRMultiSurface::hasCurveGeometry(int bLookForNonLinear) const
 
 OGRErr OGRMultiSurface::PointOnSurface( OGRPoint * poPoint ) const
 {
-    OGRMultiPolygon* poMPoly = (OGRMultiPolygon*) getLinearGeometry();
-    OGRErr ret = poMPoly->PointOnSurface(poPoint);
-    delete poMPoly;
-    return ret;
+    return PointOnSurfaceInternal(poPoint);
 }
 
 /************************************************************************/

@@ -48,7 +48,7 @@ def aaigrid_1():
     return tst.testOpen()
 
 ###############################################################################
-# Verify some auxilary data. 
+# Verify some auxiliary data.
 
 def aaigrid_2():
 
@@ -62,7 +62,7 @@ def aaigrid_2():
         return 'fail'
 
     prj = ds.GetProjection()
-    if prj != 'PROJCS["unnamed",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9108"]],AUTHORITY["EPSG","4269"]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["standard_parallel_1",61.66666666666666],PARAMETER["standard_parallel_2",68],PARAMETER["latitude_of_center",59],PARAMETER["longitude_of_center",-132.5],PARAMETER["false_easting",500000],PARAMETER["false_northing",500000],UNIT["METERS",1]]':
+    if prj != 'PROJCS["unnamed",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["standard_parallel_1",61.66666666666666],PARAMETER["standard_parallel_2",68],PARAMETER["latitude_of_center",59],PARAMETER["longitude_of_center",-132.5],PARAMETER["false_easting",500000],PARAMETER["false_northing",500000],UNIT["METERS",1]]':
         gdaltest.post_reason( 'Projection does not match expected:\n%s' % prj )
         return 'fail'
 
@@ -358,6 +358,30 @@ def aaigrid_13():
     return 'success'
 
 ###############################################################################
+# Test fix for #6060
+
+def aaigrid_14():
+
+    ds = gdal.Open('data/byte.tif')
+    mem_ds = gdal.GetDriverByName('MEM').Create('', 20, 20, 1, gdal.GDT_Float32)
+    mem_ds.GetRasterBand(1).WriteRaster(0, 0, 20, 20, ds.ReadRaster(0, 0, 20, 20, buf_type = gdal.GDT_Float32))
+    ds = None
+    gdal.GetDriverByName('AAIGRID').CreateCopy('/vsimem/aaigrid_14.asc', mem_ds )
+    
+    f = gdal.VSIFOpenL('/vsimem/aaigrid_14.asc', 'rb')
+    data = gdal.VSIFReadL(1, 10000, f).decode('ascii')
+    gdal.VSIFCloseL(f)
+
+    gdal.GetDriverByName('AAIGRID').Delete('/vsimem/aaigrid_14.asc')
+    
+    if data.find('107.0 123') < 0:
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 
 gdaltest_list = [
     aaigrid_1,
@@ -374,7 +398,8 @@ gdaltest_list = [
     aaigrid_10,
     aaigrid_11,
     aaigrid_12,
-    aaigrid_13 ]
+    aaigrid_13,
+    aaigrid_14 ]
 
 if __name__ == '__main__':
 

@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-#ifndef _GEORASTER_PRIV_H_INCLUDED
-#define _GEORASTER_PRIV_H_INCLUDED
+#ifndef GEORASTER_PRIV_H_INCLUDED
+#define GEORASTER_PRIV_H_INCLUDED
 
 #include "gdal.h"
 #include "gdal_priv.h"
@@ -111,7 +111,7 @@ struct hNoDataItem {
 };
 
 //  ---------------------------------------------------------------------------
-//  GeoRaster wrapper classe definitions
+//  GeoRaster wrapper class definitions
 //  ---------------------------------------------------------------------------
 
 #include "oci_wrapper.h"
@@ -197,7 +197,7 @@ public:
                             GDALProgressFunc pfnProgress,
                             void* pProgresoversData );
     virtual CPLErr      CreateMaskBand( int nFlags );
-    virtual OGRErr      StartTransaction(int bForce=FALSE) {return CE_None;};
+    virtual OGRErr      StartTransaction(int /* bForce */ =FALSE) {return CE_None;};
     virtual OGRErr      CommitTransaction() {return CE_None;};
     virtual OGRErr      RollbackTransaction() {return CE_None;};
     
@@ -294,7 +294,6 @@ private:
     GByte*              pabyBlockBuf;
     GByte*              pabyCompressBuf;
     OWStatement*        poBlockStmt;
-    OWStatement*        poStmtWrite;
 
     int                 nCurrentLevel;
     long                nLevelOffset;
@@ -474,4 +473,4 @@ public:
     GDALRPCInfo*        phRPC;
 };
 
-#endif /* ifndef _GEORASTER_PRIV_H_INCLUDED */
+#endif /* ifndef GEORASTER_PRIV_H_INCLUDED */

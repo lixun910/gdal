@@ -139,7 +139,7 @@ typedef enum
         and OFTIntegerList.*/                           OFSTBoolean = 1,
     /** Signed 16-bit integer. Only valid for OFTInteger and OFTIntegerList. */
                                                         OFSTInt16 = 2,
-    /** Single precision (32 bit) floatint point. Only valid for OFTReal and OFTRealList. */
+    /** Single precision (32 bit) floating point. Only valid for OFTReal and OFTRealList. */
                                                         OFSTFloat32 = 3
 } OGRFieldSubType;
 
@@ -169,8 +169,10 @@ typedef void GDALMajorObjectShadow;
 
 #ifdef DEBUG 
 typedef struct OGRSpatialReferenceHS OSRSpatialReferenceShadow;
+#ifndef SWIGPERL
 typedef struct OGRDriverHS OGRDriverShadow;
 typedef struct OGRDataSourceHS OGRDataSourceShadow;
+#endif
 typedef struct OGRLayerHS OGRLayerShadow;
 typedef struct OGRFeatureHS OGRFeatureShadow;
 typedef struct OGRFeatureDefnHS OGRFeatureDefnShadow;
@@ -180,8 +182,10 @@ typedef struct OGRCoordinateTransformationHS OGRCoordinateTransformationShadow;
 typedef struct OGRFieldDefnHS OGRFieldDefnShadow;
 #else
 typedef void OSRSpatialReferenceShadow;
+#ifndef SWIGPERL
 typedef void OGRDriverShadow;
 typedef void OGRDataSourceShadow;
+#endif
 typedef void OGRLayerShadow;
 typedef void OGRFeatureShadow;
 typedef void OGRFeatureDefnShadow;
@@ -495,6 +499,7 @@ public:
 }
 };
 
+#ifndef SWIGPERL
 /************************************************************************/
 /*                              OGRDriver                               */
 /************************************************************************/
@@ -748,6 +753,7 @@ public:
 }; /* class OGRDataSourceShadow */
 
 #endif /* FROM_GDAL_I */
+#endif /* #ifndef SWIGPERL just before OGRDriver */
 
 /************************************************************************/
 /*                               OGRLayer                               */
@@ -1647,6 +1653,21 @@ public:
     OGR_F_FillUnsetWithDefault(self, bNotNullableOnly, options );
   }
 
+  const char* GetNativeData () {
+    return OGR_F_GetNativeData(self);
+  }
+
+  const char* GetNativeMediaType () {
+    return OGR_F_GetNativeMediaType(self);
+  }
+
+  void SetNativeData ( const char* nativeData ) {
+    OGR_F_SetNativeData(self, nativeData);
+  }
+
+  void SetNativeMediaType ( const char* nativeMediaType ) {
+    OGR_F_SetNativeMediaType(self, nativeMediaType);
+  }
 } /* %extend */
 
 
@@ -2571,6 +2592,15 @@ public:
     return (OGRGeometryShadow*) OGR_G_SimplifyPreserveTopology(self, tolerance);
   }
 
+  /* OGR >= 2.1 */
+  %newobject DelaunayTriangulation;
+#ifndef SWIGJAVA
+  %feature("kwargs") DelaunayTriangulation;
+#endif
+  OGRGeometryShadow* DelaunayTriangulation(double dfTolerance = 0.0, int bOnlyEdges = FALSE) {
+    return (OGRGeometryShadow*) OGR_G_DelaunayTriangulation(self, dfTolerance, bOnlyEdges);
+  }
+  
   %newobject Boundary;
   OGRGeometryShadow* Boundary() {
     return (OGRGeometryShadow*) OGR_G_Boundary(self);
@@ -2816,6 +2846,7 @@ public:
 
 #ifndef FROM_GDAL_I
 
+#ifndef SWIGPERL
 %{
 char const *OGRDriverShadow_get_name( OGRDriverShadow *h ) {
   return OGR_Dr_GetName( h );
@@ -2833,6 +2864,7 @@ char const *OGRDataSourceShadow_name_get( OGRDataSourceShadow *h ) {
   return OGR_DS_GetName( h );
 }
 %}
+#endif
 
 int OGRGetDriverCount();
 
@@ -2897,6 +2929,7 @@ void OGRSetNonLinearGeometriesEnabledFlag( int bFlag );
 %rename (GetNonLinearGeometriesEnabledFlag) OGRGetNonLinearGeometriesEnabledFlag;
 int OGRGetNonLinearGeometriesEnabledFlag(void);
 
+#ifndef SWIGPERL
 %inline %{
   OGRDataSourceShadow* GetOpenDS(int ds_number) {
     OGRDataSourceShadow* layer = (OGRDataSourceShadow*) OGRGetOpenDS(ds_number);
@@ -3015,6 +3048,8 @@ OGRDriverShadow* GetDriver(int driver_number) {
 %clear char **;
 
 #endif /* FROM_GDAL_I */
+
+#endif /* #ifndef SWIGPERL */
 
 #ifdef SWIGJAVA
 class FeatureNative {

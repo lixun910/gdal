@@ -39,8 +39,9 @@
 #include "cpl_string.h"
 #include "gdalwarpkernel_opencl.h"
 #include "cpl_atomic_ops.h"
-#include "cpl_multiproc.h"
+#include "cpl_worker_thread_pool.h"
 #include <limits>
+#include <new>
 
 CPL_CVSID("$Id$");
 
@@ -131,6 +132,7 @@ static CPLErr GWKNearestNoMasksOrDstDensityOnlyByte( GDALWarpKernel *poWK );
 static CPLErr GWKBilinearNoMasksOrDstDensityOnlyByte( GDALWarpKernel *poWK );
 static CPLErr GWKCubicNoMasksOrDstDensityOnlyByte( GDALWarpKernel *poWK );
 static CPLErr GWKCubicNoMasksOrDstDensityOnlyFloat( GDALWarpKernel *poWK );
+// TODO: Spelling INSTANCIATE
 #ifdef INSTANCIATE_FLOAT64_SSE2_IMPL
 static CPLErr GWKCubicNoMasksOrDstDensityOnlyDouble( GDALWarpKernel *poWK );
 #endif
@@ -160,7 +162,6 @@ typedef struct _GWKJobStruct GWKJobStruct;
 
 struct _GWKJobStruct
 {
-    CPLJoinableThread *hThread;
     GDALWarpKernel *poWK;
     int             iYMin;
     int             iYMax;
@@ -170,6 +171,10 @@ struct _GWKJobStruct
     CPLMutex       *hCondMutex;
     int           (*pfnProgress)(GWKJobStruct* psJob);
     void           *pTransformerArg;
+
+    // Just used during thread initialization phase
+    GDALTransformerFunc pfnTransformerInit;
+    void           *pTransformerArgInit;
 } ;
 
 /************************************************************************/
@@ -226,13 +231,175 @@ static CPLErr GWKGenericMonoThread( GDALWarpKernel *poWK,
     sThreadJob.pbStop = &bStop;
     sThreadJob.hCond = NULL;
     sThreadJob.hCondMutex = NULL;
-    sThreadJob.hThread = NULL;
     sThreadJob.pfnProgress = GWKProgressMonoThread;
     sThreadJob.pTransformerArg = poWK->pTransformerArg;
 
     pfnFunc(&sThreadJob);
 
     return !bStop ? CE_None : CE_Failure;
+}
+
+/************************************************************************/
+/*                     GWKThreadInitTransformer()                       */
+/************************************************************************/
+
+static void GWKThreadInitTransformer(void* pData)
+{
+    GWKJobStruct* psJob = (GWKJobStruct*)pData;
+    if( psJob->pTransformerArg == NULL )
+        psJob->pTransformerArg = GDALCloneTransformer(psJob->pTransformerArgInit);
+    if( psJob->pTransformerArg != NULL )
+    {
+        // In case of lazy opening (for example RPCDEM), do a dummy transformation
+        // to be sure that the DEM is really opened with the context of this thread.
+        double dfX = 0.5, dfY = 0.5, dfZ = 0.0;
+        int bSuccess = FALSE;
+        CPLPushErrorHandler(CPLQuietErrorHandler);
+        psJob->pfnTransformerInit(psJob->pTransformerArg, TRUE, 1, 
+                                  &dfX, &dfY, &dfZ, &bSuccess );
+        CPLPopErrorHandler();
+    }
+}
+
+/************************************************************************/
+/*                          GWKThreadsCreate()                          */
+/************************************************************************/
+
+typedef struct
+{
+    CPLWorkerThreadPool* poThreadPool;
+    GWKJobStruct* pasThreadJob;
+    CPLCond* hCond;
+    CPLMutex* hCondMutex;
+} GWKThreadData;
+
+void* GWKThreadsCreate(char** papszWarpOptions,
+                       GDALTransformerFunc pfnTransformer, void* pTransformerArg)
+{
+    int nThreads;
+    const char* pszWarpThreads = CSLFetchNameValue(papszWarpOptions, "NUM_THREADS");
+    if (pszWarpThreads == NULL)
+        pszWarpThreads = CPLGetConfigOption("GDAL_NUM_THREADS", "1");
+    if (EQUAL(pszWarpThreads, "ALL_CPUS"))
+        nThreads = CPLGetNumCPUs();
+    else
+        nThreads = atoi(pszWarpThreads);
+    if( nThreads <= 1 )
+        nThreads = 0;
+    if (nThreads > 128)
+        nThreads = 128;
+    
+    GWKThreadData* psThreadData = (GWKThreadData*)VSI_CALLOC_VERBOSE(1,sizeof(GWKThreadData));
+    if( psThreadData == NULL )
+        return NULL;
+    
+    CPLCond* hCond = NULL;
+    if( nThreads )
+        hCond = CPLCreateCond();
+    if( nThreads && hCond )
+    {
+/* -------------------------------------------------------------------- */
+/*      Duplicate pTransformerArg per thread.                           */
+/* -------------------------------------------------------------------- */
+        int i;
+        int bTransformerCloningSuccess = TRUE;
+
+        psThreadData->hCond = hCond;
+        psThreadData->pasThreadJob =
+                (GWKJobStruct*)VSI_CALLOC_VERBOSE(sizeof(GWKJobStruct), nThreads);
+        if( psThreadData->pasThreadJob == NULL )
+        {
+            GWKThreadsEnd(psThreadData);
+            return NULL;
+        }
+
+        psThreadData->hCondMutex = CPLCreateMutex();
+        if( psThreadData->hCondMutex == NULL )
+        {
+            GWKThreadsEnd(psThreadData);
+            return NULL;
+        }
+        CPLReleaseMutex(psThreadData->hCondMutex);
+
+        std::vector<void*> apInitData;
+        for(i=0;i<nThreads;i++)
+        {
+            psThreadData->pasThreadJob[i].hCond = psThreadData->hCond;
+            psThreadData->pasThreadJob[i].hCondMutex = psThreadData->hCondMutex;
+            psThreadData->pasThreadJob[i].pfnTransformerInit = pfnTransformer;
+            psThreadData->pasThreadJob[i].pTransformerArgInit = pTransformerArg;
+            if( i == 0 )
+                psThreadData->pasThreadJob[i].pTransformerArg = pTransformerArg;
+            else
+                psThreadData->pasThreadJob[i].pTransformerArg = NULL;
+            apInitData.push_back(&(psThreadData->pasThreadJob[i]));
+        }
+
+        psThreadData->poThreadPool = new (std::nothrow) CPLWorkerThreadPool();
+        if( psThreadData->poThreadPool == NULL ||
+            !psThreadData->poThreadPool->Setup(nThreads,
+                                          GWKThreadInitTransformer,
+                                          &apInitData[0]) )
+        {
+            GWKThreadsEnd(psThreadData);
+            return NULL;
+        }
+
+        for(i=1;i<nThreads;i++)
+        {
+            if( psThreadData->pasThreadJob[i].pTransformerArg == NULL )
+            {
+                CPLDebug("WARP", "Cannot deserialize transformer");
+                bTransformerCloningSuccess = FALSE;
+                break;
+            }
+        }
+
+        if (!bTransformerCloningSuccess)
+        {
+            for(i=1;i<nThreads;i++)
+            {
+                if( psThreadData->pasThreadJob[i].pTransformerArg )
+                    GDALDestroyTransformer(psThreadData->pasThreadJob[i].pTransformerArg);
+            }
+            CPLFree(psThreadData->pasThreadJob);
+            psThreadData->pasThreadJob = NULL;
+            delete psThreadData->poThreadPool;
+            psThreadData->poThreadPool = NULL;
+
+            CPLDebug("WARP", "Cannot duplicate transformer function. "
+                     "Falling back to mono-thread computation");
+        }
+    }
+
+    return psThreadData;
+}
+
+/************************************************************************/
+/*                             GWKThreadsEnd()                          */
+/************************************************************************/
+
+void GWKThreadsEnd(void* psThreadDataIn)
+{
+    GWKThreadData* psThreadData = (GWKThreadData*)psThreadDataIn;
+    if( psThreadData == NULL )
+        return;
+    if( psThreadData->poThreadPool )
+    {
+        int nThreads = psThreadData->poThreadPool->GetThreadCount();
+        for(int i=1;i<nThreads;i++)
+        {
+            if( psThreadData->pasThreadJob[i].pTransformerArg )
+                GDALDestroyTransformer(psThreadData->pasThreadJob[i].pTransformerArg);
+        }
+        delete psThreadData->poThreadPool;
+    }
+    CPLFree(psThreadData->pasThreadJob);
+    if( psThreadData->hCond )
+        CPLDestroyCond(psThreadData->hCond);
+    if( psThreadData->hCondMutex )
+        CPLDestroyMutex(psThreadData->hCondMutex);
+    CPLFree(psThreadData);
 }
 
 /************************************************************************/
@@ -259,141 +426,72 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
         CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
         return CE_Failure;
     }
-
-    const char* pszWarpThreads = CSLFetchNameValue(poWK->papszWarpOptions, "NUM_THREADS");
-    int nThreads;
-    if (pszWarpThreads == NULL)
-        pszWarpThreads = CPLGetConfigOption("GDAL_NUM_THREADS", "1");
-    if (EQUAL(pszWarpThreads, "ALL_CPUS"))
-        nThreads = CPLGetNumCPUs();
-    else
-        nThreads = atoi(pszWarpThreads);
-    if (nThreads > 128)
-        nThreads = 128;
-    if (nThreads >= nDstYSize / 2)
-        nThreads = nDstYSize / 2;
-
-    if (nThreads <= 1)
+    
+    GWKThreadData* psThreadData = (GWKThreadData*)poWK->psThreadData;
+    if( psThreadData == NULL || psThreadData->poThreadPool == NULL )
     {
         return GWKGenericMonoThread(poWK, pfnFunc);
     }
-    else
+
+    int nThreads = psThreadData->poThreadPool->GetThreadCount();
+    if (nThreads >= nDstYSize / 2)
+        nThreads = nDstYSize / 2;
+
+    CPLDebug("WARP", "Using %d threads", nThreads);
+
+    volatile int bStop = FALSE;
+    volatile int nCounter = 0;
+
+    CPLAcquireMutex(psThreadData->hCondMutex, 1000);
+    
+/* -------------------------------------------------------------------- */
+/*      Submit jobs                                                     */
+/* -------------------------------------------------------------------- */
+    for(int i=0;i<nThreads;i++)
     {
-        GWKJobStruct* pasThreadJob =
-            (GWKJobStruct*)CPLCalloc(sizeof(GWKJobStruct), nThreads);
-
-/* -------------------------------------------------------------------- */
-/*      Duplicate pTransformerArg per thread.                           */
-/* -------------------------------------------------------------------- */
-        int i;
-        int bTransformerCloningSuccess = TRUE;
-
-        for(i=0;i<nThreads;i++)
-        {
-            pasThreadJob[i].pTransformerArg = GDALCloneTransformer(poWK->pTransformerArg);
-            if( pasThreadJob[i].pTransformerArg == NULL )
-            {
-                CPLDebug("WARP", "Cannot deserialize transformer");
-                bTransformerCloningSuccess = FALSE;
-                break;
-            }
-        }
-
-        if (!bTransformerCloningSuccess)
-        {
-            for(i=0;i<nThreads;i++)
-            {
-                if( pasThreadJob[i].pTransformerArg )
-                    GDALDestroyTransformer(pasThreadJob[i].pTransformerArg);
-            }
-            CPLFree(pasThreadJob);
-
-            CPLDebug("WARP", "Cannot duplicate transformer function. "
-                     "Falling back to mono-thread computation");
-            return GWKGenericMonoThread(poWK, pfnFunc);
-        }
-
-        CPLCond* hCond = CPLCreateCond();
-        if (hCond == NULL)
-        {
-            for(i=0;i<nThreads;i++)
-            {
-                if( pasThreadJob[i].pTransformerArg )
-                    GDALDestroyTransformer(pasThreadJob[i].pTransformerArg);
-            }
-            CPLFree(pasThreadJob);
-
-            CPLDebug("WARP", "Multithreading disabled. "
-                     "Falling back to mono-thread computation");
-            return GWKGenericMonoThread(poWK, pfnFunc);
-        }
-
-        CPLDebug("WARP", "Using %d threads", nThreads);
-
-        CPLMutex* hCondMutex = CPLCreateMutex(); /* and take implicitely the mutex */
-
-        volatile int bStop = FALSE;
-        volatile int nCounter = 0;
-
-/* -------------------------------------------------------------------- */
-/*      Lannch worker threads                                           */
-/* -------------------------------------------------------------------- */
-        for(i=0;i<nThreads;i++)
-        {
-            pasThreadJob[i].poWK = poWK;
-            pasThreadJob[i].pnCounter = &nCounter;
-            pasThreadJob[i].iYMin = (int)(((GIntBig)i) * nDstYSize / nThreads);
-            pasThreadJob[i].iYMax = (int)(((GIntBig)(i + 1)) * nDstYSize / nThreads);
-            pasThreadJob[i].pbStop = &bStop;
-            pasThreadJob[i].hCond = hCond;
-            pasThreadJob[i].hCondMutex = hCondMutex;
-            if( poWK->pfnProgress != GDALDummyProgress )
-                pasThreadJob[i].pfnProgress = GWKProgressThread;
-            else
-                pasThreadJob[i].pfnProgress = NULL;
-            pasThreadJob[i].hThread = CPLCreateJoinableThread( pfnFunc,
-                                                  (void*) &pasThreadJob[i] );
-        }
+        psThreadData->pasThreadJob[i].poWK = poWK;
+        psThreadData->pasThreadJob[i].pnCounter = &nCounter;
+        psThreadData->pasThreadJob[i].iYMin = (int)(((GIntBig)i) * nDstYSize / nThreads);
+        psThreadData->pasThreadJob[i].iYMax = (int)(((GIntBig)(i + 1)) * nDstYSize / nThreads);
+        psThreadData->pasThreadJob[i].pbStop = &bStop;
+        if( poWK->pfnProgress != GDALDummyProgress )
+            psThreadData->pasThreadJob[i].pfnProgress = GWKProgressThread;
+        else
+            psThreadData->pasThreadJob[i].pfnProgress = NULL;
+        psThreadData->poThreadPool->SubmitJob( pfnFunc,
+                                   (void*) &psThreadData->pasThreadJob[i] );
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Report progress.                                                */
 /* -------------------------------------------------------------------- */
-        if( poWK->pfnProgress != GDALDummyProgress )
+    if( poWK->pfnProgress != GDALDummyProgress )
+    {
+        while(nCounter < nDstYSize)
         {
-            while(nCounter < nDstYSize)
-            {
-                CPLCondWait(hCond, hCondMutex);
+            CPLCondWait(psThreadData->hCond, psThreadData->hCondMutex);
 
-                if( !poWK->pfnProgress( poWK->dfProgressBase + poWK->dfProgressScale *
-                                        (nCounter / (double) nDstYSize),
-                                        "", poWK->pProgress ) )
-                {
-                    CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
-                    bStop = TRUE;
-                    break;
-                }
+            if( !poWK->pfnProgress( poWK->dfProgressBase + poWK->dfProgressScale *
+                                    (nCounter / (double) nDstYSize),
+                                    "", poWK->pProgress ) )
+            {
+                CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
+                bStop = TRUE;
+                break;
             }
         }
-
-        /* Release mutex before joining threads, otherwise they will dead-lock */
-        /* forever in GWKProgressThread() */
-        CPLReleaseMutex(hCondMutex);
-
-/* -------------------------------------------------------------------- */
-/*      Wait for all threads to complete and finish.                    */
-/* -------------------------------------------------------------------- */
-        for(i=0;i<nThreads;i++)
-        {
-            CPLJoinThread(pasThreadJob[i].hThread);
-            GDALDestroyTransformer(pasThreadJob[i].pTransformerArg);
-        }
-
-        CPLFree(pasThreadJob);
-        CPLDestroyCond(hCond);
-        CPLDestroyMutex(hCondMutex);
-
-        return !bStop ? CE_None : CE_Failure;
     }
+
+    /* Release mutex before joining threads, otherwise they will dead-lock */
+    /* forever in GWKProgressThread() */
+    CPLReleaseMutex(psThreadData->hCondMutex);
+
+/* -------------------------------------------------------------------- */
+/*      Wait for all jobs to complete.                                  */
+/* -------------------------------------------------------------------- */
+    psThreadData->poThreadPool->WaitCompletion();
+
+    return !bStop ? CE_None : CE_Failure;
 }
 
 /************************************************************************/
@@ -419,10 +517,10 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
  *
  * <h3>Design Issues</h3>
  *
- * My intention is that PerformWarp() would analyse the setup in terms
+ * The intention is that PerformWarp() would analyze the setup in terms
  * of the datatype, resampling type, and validity/density mask usage and
  * pick one of many specific implementations of the warping algorithm over
- * a continuim of optimization vs. generality.  At one end there will be a
+ * a continuum of optimization vs. generality.  At one end there will be a
  * reference general purpose implementation of the algorithm that supports
  * any data type (working internally in double precision complex), all three
  * resampling types, and any or all of the validity/density masks.  At the
@@ -529,7 +627,7 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
 
 /**
  * \var int GDALWarpKernel::papabySrcImage;
- * 
+ *
  * Array of source image band data.
  *
  * This is an array of pointers (of size GDALWarpKernel::nBands) pointers
@@ -537,7 +635,7 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
  * block of image data in left to right, then bottom to top order.  The actual
  * type of the image data is determined by GDALWarpKernel::eWorkingDataType.
  *
- * To access the the pixel value for the (x=3,y=4) pixel (zero based) of
+ * To access the pixel value for the (x=3,y=4) pixel (zero based) of
  * the second band with eWorkingDataType set to GDT_Float32 use code like
  * this:
  *
@@ -652,7 +750,7 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
 
 /**
  * \var GByte **GDALWarpKernel::papabyDstImage;
- * 
+ *
  * Array of destination image band data.
  *
  * This is an array of pointers (of size GDALWarpKernel::nBands) pointers
@@ -660,7 +758,7 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
  * block of image data in left to right, then bottom to top order.  The actual
  * type of the image data is determined by GDALWarpKernel::eWorkingDataType.
  *
- * To access the the pixel value for the (x=3,y=4) pixel (zero based) of
+ * To access the pixel value for the (x=3,y=4) pixel (zero based) of
  * the second band with eWorkingDataType set to GDT_Float32 use code like
  * this:
  *
@@ -761,23 +859,23 @@ static CPLErr GWKRun( GDALWarpKernel *poWK,
  *
  * Source/destination location transformer.
  *
- * The function to call to transform coordinates between source image 
- * pixel/line coordinates and destination image pixel/line coordinates.  
- * See GDALTransformerFunc() for details of the semantics of this function. 
+ * The function to call to transform coordinates between source image
+ * pixel/line coordinates and destination image pixel/line coordinates.
+ * See GDALTransformerFunc() for details of the semantics of this function.
  *
- * The GDALWarpKern algorithm will only ever use this transformer in 
- * "destination to source" mode (bDstToSrc=TRUE), and will always pass 
+ * The GDALWarpKern algorithm will only ever use this transformer in
+ * "destination to source" mode (bDstToSrc=TRUE), and will always pass
  * partial or complete scanlines of points in the destination image as
- * input.  This means, amoung other things, that it is safe to the the
- * approximating transform GDALApproxTransform() as the transformation 
- * function. 
+ * input.  This means, among other things, that it is safe to the the
+ * approximating transform GDALApproxTransform() as the transformation
+ * function.
  *
  * Source and destination images may be subsets of a larger overall image.
  * The transformation algorithms will expect and return pixel/line coordinates
  * in terms of this larger image, so coordinates need to be offset by
  * the offsets specified in nSrcXOff, nSrcYOff, nDstXOff, and nDstYOff before
  * passing to pfnTransformer, and after return from it. 
- * 
+ *
  * The GDALWarpKernel::pfnTransformerArg value will be passed as the callback
  * data to this function when it is called.
  *
@@ -856,6 +954,8 @@ GDALWarpKernel::GDALWarpKernel()
     pfnTransformer = NULL;
     pTransformerArg = NULL;
     papszWarpOptions = NULL;
+    padfDstNoDataReal = NULL;
+    psThreadData = NULL;
 }
 
 /************************************************************************/
@@ -924,9 +1024,9 @@ CPLErr GDALWarpKernel::PerformWarp()
             dfYScale = 1.0 / nYReciprocalScale;
     }
     /*CPLDebug("WARP", "dfXScale = %f, dfYScale = %f", dfXScale, dfYScale);*/
-    
+
     int bUse4SamplesFormula = (dfXScale >= 0.95 && dfYScale >= 0.95);
-    
+
     // Safety check for callers that would use GDALWarpKernel without using
     // GDALWarpOperation.
     if( (eResample == GRA_CubicSpline || eResample == GRA_Lanczos ||
@@ -1153,14 +1253,27 @@ static void GWKOverlayDensity( GDALWarpKernel *poWK, int iDstOffset,
 }
 
 /************************************************************************/
-/*                          GWKRoundValueT()                           */
+/*                          GWKRoundValueT()                            */
 /************************************************************************/
 
-template<class T>
-static CPL_INLINE T GWKRoundValueT(double dfValue)
+template<class T, bool is_signed> struct sGWKRoundValueT
 {
-    return (std::numeric_limits<T>::min() < 0) ? (T)floor(dfValue + 0.5) :
-                                                 (T)(dfValue + 0.5);
+    static T eval(double);
+};
+
+template<class T> struct sGWKRoundValueT<T, true> /* signed */
+{
+    static T eval(double dfValue) { return (T)floor(dfValue + 0.5); }
+};
+
+template<class T> struct sGWKRoundValueT<T, false> /* unsigned */
+{
+    static T eval(double dfValue) { return (T)(dfValue + 0.5); }
+};
+
+template<class T> static T GWKRoundValueT(double dfValue)
+{
+    return sGWKRoundValueT<T, std::numeric_limits<T>::is_signed>::eval(dfValue);
 }
 
 template<> float GWKRoundValueT<float>(double dfValue)
@@ -2189,7 +2302,6 @@ static int GWKCubicResample4Sample( GDALWarpKernel *poWK, int iBand,
             adfImag[0], adfImag[1], adfImag[2], adfImag[3]);
     }
 
-    
 /* -------------------------------------------------------------------- */
 /*      For now, if we have any pixels missing in the kernel area,      */
 /*      we fallback on using bilinear interpolation.  Ideally we        */
@@ -2205,7 +2317,7 @@ static int GWKCubicResample4Sample( GDALWarpKernel *poWK, int iBand,
     *pdfImag = CubicConvolution(dfDeltaY, dfDeltaY2, dfDeltaY3,
                                    adfValueImag[0], adfValueImag[1],
                                    adfValueImag[2], adfValueImag[3]);
-    
+
     return TRUE;
 }
 
@@ -2269,8 +2381,6 @@ static int GWKCubicResampleNoMasks4SampleT( GDALWarpKernel *poWK, int iBand,
  * where sinc(x) = sin(PI * x) / (PI * x).
  */
 
-#define GWK_PI 3.14159265358979323846
-
 static double GWKLanczosSinc( double dfX )
 {
     /*if( fabs(dfX) > 3.0 )
@@ -2281,7 +2391,7 @@ static double GWKLanczosSinc( double dfX )
     if ( dfX == 0.0 )
         return 1.0;
 
-    const double dfPIX = GWK_PI * dfX;
+    const double dfPIX = M_PI * dfX;
     const double dfPIXoverR = dfPIX / 3;
     const double dfPIX2overR = dfPIX * dfPIXoverR;
     return sin(dfPIX) * sin(dfPIXoverR) / dfPIX2overR;
@@ -2295,7 +2405,7 @@ static double GWKLanczosSinc4Values( double* padfValues )
             padfValues[i] = 1.0;
         else
         {
-            const double dfPIX = GWK_PI * padfValues[i];
+            const double dfPIX = M_PI * padfValues[i];
             const double dfPIXoverR = dfPIX / 3;
             const double dfPIX2overR = dfPIX * dfPIXoverR;
             padfValues[i] = sin(dfPIX) * sin(dfPIXoverR) / dfPIX2overR;
@@ -2303,8 +2413,6 @@ static double GWKLanczosSinc4Values( double* padfValues )
     }
     return padfValues[0] + padfValues[1] + padfValues[2] + padfValues[3];
 }
-
-//#undef GWK_PI
 
 /************************************************************************/
 /*                           GWKBilinear()                              */
@@ -2828,20 +2936,20 @@ static int GWKResampleOptimizedLanczos( GDALWarpKernel *poWK, int iBand,
             // Optimisation of GWKLanczosSinc(i - dfDeltaX) based on the following
             // trigonometric formulas.
 
-    //sin(GWK_PI * (dfBase + k)) = sin(GWK_PI * dfBase) * cos(GWK_PI * k) + cos(GWK_PI * dfBase) * sin(GWK_PI * k)
-    //sin(GWK_PI * (dfBase + k)) = dfSinPIBase * cos(GWK_PI * k) + dfCosPIBase * sin(GWK_PI * k)
-    //sin(GWK_PI * (dfBase + k)) = dfSinPIBase * cos(GWK_PI * k)
-    //sin(GWK_PI * (dfBase + k)) = dfSinPIBase * (((k % 2) == 0) ? 1 : -1)
+    //sin(M_PI * (dfBase + k)) = sin(M_PI * dfBase) * cos(M_PI * k) + cos(M_PI * dfBase) * sin(M_PI * k)
+    //sin(M_PI * (dfBase + k)) = dfSinPIBase * cos(M_PI * k) + dfCosPIBase * sin(M_PI * k)
+    //sin(M_PI * (dfBase + k)) = dfSinPIBase * cos(M_PI * k)
+    //sin(M_PI * (dfBase + k)) = dfSinPIBase * (((k % 2) == 0) ? 1 : -1)
 
-    //sin(GWK_PI / dfR * (dfBase + k)) = sin(GWK_PI / dfR * dfBase) * cos(GWK_PI / dfR * k) + cos(GWK_PI / dfR * dfBase) * sin(GWK_PI / dfR * k)
-    //sin(GWK_PI / dfR * (dfBase + k)) = dfSinPIBaseOverR * cos(GWK_PI / dfR * k) + dfCosPIBaseOverR * sin(GWK_PI / dfR * k)
+    //sin(M_PI / dfR * (dfBase + k)) = sin(M_PI / dfR * dfBase) * cos(M_PI / dfR * k) + cos(M_PI / dfR * dfBase) * sin(M_PI / dfR * k)
+    //sin(M_PI / dfR * (dfBase + k)) = dfSinPIBaseOverR * cos(M_PI / dfR * k) + dfCosPIBaseOverR * sin(M_PI / dfR * k)
 
-            double dfSinPIDeltaXOver3 = sin((-GWK_PI / 3) * dfDeltaX);
+            double dfSinPIDeltaXOver3 = sin((-M_PI / 3) * dfDeltaX);
             double dfSin2PIDeltaXOver3 = dfSinPIDeltaXOver3 * dfSinPIDeltaXOver3;
-            /* ok to use sqrt(1-sin^2) since GWK_PI / 3 * dfDeltaX < PI/2 */
+            /* ok to use sqrt(1-sin^2) since M_PI / 3 * dfDeltaX < PI/2 */
             double dfCosPIDeltaXOver3 = sqrt(1 - dfSin2PIDeltaXOver3);
             double dfSinPIDeltaX = (3-4*dfSin2PIDeltaXOver3)*dfSinPIDeltaXOver3;
-            const double dfInvPI2Over3 = 3.0 / (GWK_PI * GWK_PI);
+            const double dfInvPI2Over3 = 3.0 / (M_PI * M_PI);
             double dfInvPI2Over3xSinPIDeltaX = dfInvPI2Over3 * dfSinPIDeltaX;
             double dfInvPI2Over3xSinPIDeltaXxm0d5SinPIDeltaXOver3 =
                 -0.5 * dfInvPI2Over3xSinPIDeltaX * dfSinPIDeltaXOver3;
@@ -2889,12 +2997,12 @@ static int GWKResampleOptimizedLanczos( GDALWarpKernel *poWK, int iBand,
         if( iSrcY != psWrkStruct->iLastSrcY ||
             dfDeltaY != psWrkStruct->dfLastDeltaY )
         {
-            double dfSinPIDeltaYOver3 = sin((-GWK_PI / 3) * dfDeltaY);
+            double dfSinPIDeltaYOver3 = sin((-M_PI / 3) * dfDeltaY);
             double dfSin2PIDeltaYOver3 = dfSinPIDeltaYOver3 * dfSinPIDeltaYOver3;
-            /* ok to use sqrt(1-sin^2) since GWK_PI / 3 * dfDeltaY < PI/2 */
+            /* ok to use sqrt(1-sin^2) since M_PI / 3 * dfDeltaY < PI/2 */
             double dfCosPIDeltaYOver3 = sqrt(1 - dfSin2PIDeltaYOver3);
             double dfSinPIDeltaY = (3-4*dfSin2PIDeltaYOver3)*dfSinPIDeltaYOver3;
-            const double dfInvPI2Over3 = 3.0 / (GWK_PI * GWK_PI);
+            const double dfInvPI2Over3 = 3.0 / (M_PI * M_PI);
             double dfInvPI2Over3xSinPIDeltaY = dfInvPI2Over3 * dfSinPIDeltaY;
             double dfInvPI2Over3xSinPIDeltaYxm0d5SinPIDeltaYOver3 =
                 -0.5 * dfInvPI2Over3xSinPIDeltaY * dfSinPIDeltaYOver3;
@@ -2941,10 +3049,9 @@ static int GWKResampleOptimizedLanczos( GDALWarpKernel *poWK, int iBand,
             dfColAccWeight += padfWeightsY[j-poWK->nFiltInitY];
         }
         dfAccumulatorWeight = dfRowAccWeight * dfColAccWeight;
-
-        if( !GDALDataTypeIsComplex(poWK->eWorkingDataType) )
-            padfRowImag = NULL;
     }
+
+    const bool bIsNonComplex = !GDALDataTypeIsComplex(poWK->eWorkingDataType);
 
     // Loop over pixel rows in the kernel
     for ( int j = jMin; j <= jMax; ++j )
@@ -2985,7 +3092,7 @@ static int GWKResampleOptimizedLanczos( GDALWarpKernel *poWK, int iBand,
                 dfAccumulatorWeight += dfWeight2;
             }
         }
-        else if( padfRowImag == NULL )
+        else if( bIsNonComplex )
         {
             double dfRowAccReal = 0.0;
             for (int i = iMin; i <= iMax; ++i )
@@ -3485,7 +3592,7 @@ static void GWKRoundSourceCoordinates(int nDstXSize,
 /*                                                                      */
 /*      This is identical to GWKGeneralCase(), but functions via        */
 /*      OpenCL. This means we have vector optimization (SSE) and/or     */
-/*      GPU optimization depending on our prefs. The code itsef is      */
+/*      GPU optimization depending on our prefs. The code itself is     */
 /*      general and not optimized, but by defining constants we can     */
 /*      make some pretty darn good code on the fly.                     */
 /************************************************************************/
@@ -3504,7 +3611,7 @@ static CPLErr GWKOpenCLCase( GDALWarpKernel *poWK )
     int useImag = FALSE;
     OCLResampAlg resampAlg;
     cl_int err;
-    
+
     switch ( poWK->eWorkingDataType )
     {
       case GDT_Byte:
@@ -3552,9 +3659,11 @@ static CPLErr GWKOpenCLCase( GDALWarpKernel *poWK )
                   (int) poWK->eResample );
         return CE_Warning;
     }
-    
-    // Using a factor of 2 or 4 seems to have much less rounding error than 3 on the GPU.
-    // Then the rounding error can cause strange artifacting under the right conditions.
+
+    // Using a factor of 2 or 4 seems to have much less rounding error
+    // than 3 on the GPU.
+    // Then the rounding error can cause strange artifacts under the
+    // right conditions.
     warper = GDALWarpKernelOpenCL_createEnv(nSrcXSize, nSrcYSize,
                                             nDstXSize, nDstYSize,
                                             imageFormat, poWK->nBands, 4,
@@ -3990,8 +4099,10 @@ static void GWKGeneralCaseThread( void* pData)
                 if ( poWK->eResample == GRA_NearestNeighbour ||
                      nSrcXSize == 1 || nSrcYSize == 1)
                 {
-                    GWKGetPixelValue( poWK, iBand, iSrcOffset,
-                                      &dfBandDensity, &dfValueReal, &dfValueImag );
+                    // FALSE is returned if dfBandDensity == 0, which is
+                    // checked below
+                    CPL_IGNORE_RET_VAL(GWKGetPixelValue( poWK, iBand, iSrcOffset,
+                                      &dfBandDensity, &dfValueReal, &dfValueImag ));
                 }
                 else if ( poWK->eResample == GRA_Bilinear &&
                           bUse4SamplesFormula )
@@ -4582,7 +4693,7 @@ static void GWKAverageOrModeThread( void* pData)
             {
                 nBins = 65536;
             }
-            panVals = (int*) VSIMalloc(nBins * sizeof(int));
+            panVals = (int*) VSI_MALLOC_VERBOSE(nBins * sizeof(int));
             if( panVals == NULL )
                 return;
         }
@@ -4592,8 +4703,8 @@ static void GWKAverageOrModeThread( void* pData)
 
             if ( nSrcXSize > 0 && nSrcYSize > 0 )
             {
-                pafVals = (float*) VSIMalloc3(nSrcXSize, nSrcYSize, sizeof(float));
-                panSums = (int*) VSIMalloc3(nSrcXSize, nSrcYSize, sizeof(int));
+                pafVals = (float*) VSI_MALLOC3_VERBOSE(nSrcXSize, nSrcYSize, sizeof(float));
+                panSums = (int*) VSI_MALLOC3_VERBOSE(nSrcXSize, nSrcYSize, sizeof(int));
                 if( pafVals == NULL || panSums == NULL )
                 {
                     VSIFree(pafVals);
@@ -4790,39 +4901,39 @@ static void GWKAverageOrModeThread( void* pData)
                             }
                         }
                     }
-                    
+
                     if ( nCount > 0 )
-                    {                
+                    {
                         dfValueReal = dfTotal / nCount;
-                        dfBandDensity = 1;                
+                        dfBandDensity = 1;
                         bHasFoundDensity = TRUE;
                     }
-                                       
+
                 } // GRA_Average
-                
+
                 else if ( nAlgo == GWKAOM_Imode || nAlgo == GWKAOM_Fmode ) // poWK->eResample == GRA_Mode
                 {
                     // this code adapted from GDALDownsampleChunk32R_Mode() in gcore/overview.cpp
 
                     if ( nAlgo == GWKAOM_Fmode ) // int32 or float
                     {
-                        /* I'm not sure how much sense it makes to run a majority
-                           filter on floating point data, but here it is for the sake
-                           of compatability. It won't look right on RGB images by the
-                           nature of the filter. */
-                        int     iMaxInd = 0, iMaxVal = -1, i = 0;
+                        /* I'm not sure how much sense it makes to run a
+                           majority filter on floating point data, but here it
+                           is for the sake of compatibility. It won't look
+                           right on RGB images by the nature of the filter. */
+                        int iMaxInd = 0, iMaxVal = -1, i = 0;
 
                         for( iSrcY = iSrcYMin; iSrcY < iSrcYMax; iSrcY++ )
                         {
                             for( iSrcX = iSrcXMin; iSrcX < iSrcXMax; iSrcX++ )
                             {
                                 iSrcOffset = iSrcX + iSrcY * nSrcXSize;
-                                
+
                                 if( poWK->panUnifiedSrcValid != NULL
                                     && !(poWK->panUnifiedSrcValid[iSrcOffset>>5]
                                          & (0x01 << (iSrcOffset & 0x1f))) )
                                     continue;
-                                
+
                                 nCount2++;
                                 if ( GWKGetPixelValue( poWK, iBand, iSrcOffset,
                                                        &dfBandDensity, &dfValueRealTmp, &dfValueImagTmp ) && dfBandDensity > 0.0000000001 ) 
@@ -4830,7 +4941,7 @@ static void GWKAverageOrModeThread( void* pData)
                                     nCount++;
 
                                     float fVal = (float)dfValueRealTmp;
-                                    
+
                                     //Check array for existing entry
                                     for( i = 0; i < iMaxInd; ++i )
                                         if( pafVals[i] == fVal
@@ -5014,7 +5125,7 @@ static void GWKAverageOrModeThread( void* pData)
                     if ( nCount > 0 )
                     {
                         std::sort(dfValuesTmp.begin(), dfValuesTmp.end());
-                        int quantIdx = std::ceil(quant * dfValuesTmp.size() - 1);
+                        int quantIdx = static_cast<int>(std::ceil(quant * dfValuesTmp.size() - 1));
                         dfValueReal = dfValuesTmp[quantIdx];
 
                         dfBandDensity = 1;

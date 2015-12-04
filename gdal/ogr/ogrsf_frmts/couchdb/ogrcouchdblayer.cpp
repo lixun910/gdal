@@ -104,15 +104,15 @@ OGRFeature *OGRCouchDBLayer::GetNextFeature()
 
     GetLayerDefn();
 
-    while(TRUE)
+    while( true )
     {
         if (nNextInSeq < nOffset ||
-            nNextInSeq >= nOffset + (int)aoFeatures.size())
+            nNextInSeq >= nOffset + static_cast<int>(aoFeatures.size()))
         {
             if (bEOF)
                 return NULL;
 
-            nOffset += aoFeatures.size();
+            nOffset += static_cast<int>(aoFeatures.size());
             if (!FetchNextRows())
                 return NULL;
         }
@@ -192,7 +192,7 @@ OGRFeature* OGRCouchDBLayer::TranslateFeature( json_object* poObj )
     const char* pszId = json_object_get_string(poId);
     if (pszId)
     {
-        poFeature->SetField(_ID_FIELD, pszId);
+        poFeature->SetField(COUCHDB_ID_FIELD, pszId);
 
         int nFID = atoi(pszId);
         const char* pszFID = CPLSPrintf("%09d", nFID);
@@ -203,7 +203,7 @@ OGRFeature* OGRCouchDBLayer::TranslateFeature( json_object* poObj )
     json_object* poRev = json_object_object_get(poObj, "_rev");
     const char* pszRev = json_object_get_string(poRev);
     if (pszRev)
-        poFeature->SetField(_REV_FIELD, pszRev);
+        poFeature->SetField(COUCHDB_REV_FIELD, pszRev);
 
 /* -------------------------------------------------------------------- */
 /*      Translate GeoJSON "properties" object to feature attributes.    */
@@ -526,7 +526,7 @@ int OGRCouchDBLayer::FetchNextRowsAnalyseDocs(json_object* poAnswerObj)
 
         json_object* poId = json_object_object_get(poDoc, "_id");
         const char* pszId = json_object_get_string(poId);
-        if (pszId != NULL && strncmp(pszId, "_design/", 8) != 0)
+        if (pszId != NULL && !STARTS_WITH(pszId, "_design/"))
         {
             aoFeatures.push_back(poDoc);
         }

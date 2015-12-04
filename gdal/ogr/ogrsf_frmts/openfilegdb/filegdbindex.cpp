@@ -50,7 +50,7 @@ static int FileGDBOGRDateToDoubleDate( const OGRField* psField, double *pdfVal )
     brokendowntime.tm_mday = psField->Date.Day;
     brokendowntime.tm_hour = psField->Date.Hour;
     brokendowntime.tm_min = psField->Date.Minute;
-    brokendowntime.tm_sec = psField->Date.Second;
+    brokendowntime.tm_sec = static_cast<int>(psField->Date.Second);
 
     GIntBig nTime = CPLYMDHMSToUnixTime(&brokendowntime);
 
@@ -442,7 +442,7 @@ int FileGDBNotIterator::GetNextRowSortedByFID()
             iNextRowBase = poTable->GetTotalRecordCount();
     }
 
-    while( TRUE )
+    while( true )
     {
         if( iRow < iNextRowBase )
         {
@@ -527,7 +527,7 @@ int FileGDBAndIterator::GetNextRowSortedByFID()
         }
     }
 
-    while( TRUE )
+    while( true )
     {
         if( iNextRow1 < iNextRow2 )
         {
@@ -1046,7 +1046,7 @@ int FileGDBIndexIterator::FindPages(int iLevel, int nPage)
             case FGFT_STRING:
             {
                 GUInt16* pasMax;
-#ifdef CPL_MSB
+#if defined(CPL_MSB) || defined(CPL_CPU_REQUIRES_ALIGNED_ACCESS)
                 GUInt16 asMax[MAX_CAR_COUNT_STR];
                 pasMax = asMax;
                 memcpy(asMax, abyPage[iLevel] + nOffsetFirstValInPage +
@@ -1289,7 +1289,7 @@ int FileGDBIndexIterator::GetNextRow()
     if( bEOF )
         return -1;
 
-    while( TRUE )
+    while( true )
     {
         if( iCurFeatureInPage >= nFeaturesInPage || iCurFeatureInPage < 0 )
         {
@@ -1346,7 +1346,7 @@ int FileGDBIndexIterator::GetNextRow()
 
                 case FGFT_STRING:
                 {
-#ifdef CPL_MSB
+#if defined(CPL_MSB) || defined(CPL_CPU_REQUIRES_ALIGNED_ACCESS)
                     GUInt16 asVal[MAX_CAR_COUNT_STR];
                     memcpy(asVal, abyPageFeature + nOffsetFirstValInPage +
                                     nStrLen * 2 * iCurFeatureInPage, nStrLen * 2);
@@ -1451,7 +1451,7 @@ int FileGDBIndexIterator::SortRows()
     iSorted = 0;
     int nSortedAlloc = 0;
     Reset();
-    while( TRUE )
+    while( true )
     {
         int nRow = GetNextRow();
         if( nRow < 0 )
@@ -1459,7 +1459,7 @@ int FileGDBIndexIterator::SortRows()
         if( nSortedCount == nSortedAlloc )
         {
             int nNewSortedAlloc = 4 * nSortedAlloc / 3 + 16;
-            int* panNewSortedRows = (int*)VSIRealloc(panSortedRows,
+            int* panNewSortedRows = (int*)VSI_REALLOC_VERBOSE(panSortedRows,
                                             sizeof(int) * nNewSortedAlloc);
             if( panNewSortedRows == NULL )
             {
@@ -1726,7 +1726,7 @@ template <class Getter> void FileGDBIndexIterator::GetMinMaxSumCount(
     double dfLocalSum = 0.0;
     double dfVal = 0.0;
 
-    while( TRUE )
+    while( true )
     {
         if( iCurFeatureInPage >= nFeaturesInPage )
         {

@@ -32,22 +32,23 @@
 #include "cpl_error.h"
 #include "cpl_conv.h"
 // std
-#include <cstdio>
 #include <cerrno>
-#include <string>
+#include <cstdio>
 #include <iostream>
+#include <string>
 
-KML::KML()
-{
-	nDepth_ = 0;
-	validity = KML_VALIDITY_UNKNOWN;
-	pKMLFile_ = NULL;
-	sError_ = "";
-	poTrunk_ = NULL;
-	poCurrent_ = NULL;
-	nNumLayers_ = -1;
-        papoLayers_ = NULL;
-}
+KML::KML() :
+    poTrunk_(NULL),
+    nNumLayers_(-1),
+    papoLayers_(NULL),
+    nDepth_(0),
+    validity(KML_VALIDITY_UNKNOWN),
+    pKMLFile_(NULL),
+    poCurrent_(NULL),
+    oCurrentParser(NULL),
+    nDataHandlerCounter(0),
+    nWithoutEventCounter(0)
+{ }
 
 KML::~KML()
 {
@@ -74,8 +75,8 @@ bool KML::open(const char * pszFilename)
 
 void KML::parse()
 {
-    std::size_t nDone = 0;
-    std::size_t nLen = 0;
+    int nDone = 0;
+    int nLen = 0;
     char aBuf[BUFSIZ] = { 0 };
 
     if( NULL == pKMLFile_ )
@@ -134,8 +135,8 @@ void KML::parse()
 
 void KML::checkValidity()
 {
-    std::size_t nDone = 0;
-    std::size_t nLen = 0;
+    int nDone = 0;
+    int nLen = 0;
     char aBuf[BUFSIZ] = { 0 };
 
     if(poTrunk_ != NULL)
@@ -354,7 +355,7 @@ void XMLCALL KML::endElement(void* pUserData, const char* pszName)
             std::size_t nPos = 0;
             std::size_t nLength = sData.length();
             const char* pszData = sData.c_str();
-            while(TRUE)
+            while( true )
             {
                 // Cut off whitespaces
                 while(nPos < nLength &&

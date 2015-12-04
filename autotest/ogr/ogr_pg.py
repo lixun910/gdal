@@ -6,21 +6,21 @@
 # Project:  GDAL/OGR Test Suite
 # Purpose:  Test PostGIS driver functionality.
 # Author:   Frank Warmerdam <warmerdam@pobox.com>
-# 
+#
 ###############################################################################
 # Copyright (c) 2004, Frank Warmerdam <warmerdam@pobox.com>
 # Copyright (c) 2008-2013, Even Rouault <even dot rouault at mines-paris dot org>
-# 
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
 # License as published by the Free Software Foundation; either
 # version 2 of the License, or (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
@@ -379,7 +379,7 @@ def ogr_pg_6():
         return 'fail'
 
     if sql_lyr.GetNextFeature() != None:
-        gdaltest.post_reason( 'GetNextFeature() didn not return None' )
+        gdaltest.post_reason( 'GetNextFeature() did not return None' )
         return 'fail'
 
     gdaltest.pg_ds.ReleaseResultSet( sql_lyr )
@@ -823,9 +823,9 @@ def ogr_pg_17():
         layer = gdaltest.pg_ds.GetLayerByName( 'JunkTableName' )
     except:
         layer = None
-        
+
     if layer is not None:
-        gdaltest.post_reason( 'got layer for non-existant table!' )
+        gdaltest.post_reason( 'got layer for non-existent table!' )
         return 'fail'
 
     if count != gdaltest.pg_ds.GetLayerCount():
@@ -982,7 +982,7 @@ def ogr_pg_20():
     if layer is None:
         gdaltest.post_reason( 'did not get testgeom layer' )
         return 'fail'
- 
+
     for i in range(len(geometries)):
         feat = layer.GetFeature(i)
         geom = feat.GetGeometryRef()
@@ -2696,7 +2696,7 @@ def ogr_pg_52():
     return 'success'
 
 ###############################################################################
-# Test creating a layer with explicitely wkbNone geometry type
+# Test creating a layer with explicitly wkbNone geometry type.
 
 def ogr_pg_53():
 
@@ -2819,7 +2819,7 @@ def ogr_pg_55():
     feat.SetGeometryDirectly(ogr.CreateGeometryFromWkt('POINT (1 2 3)'))
     layer.CreateFeature(feat)
     feat = None
-    
+
     layer.ResetReading() # force above feature to be committed
 
     old_val = gdal.GetConfigOption('PG_USE_BASE64')
@@ -2835,7 +2835,7 @@ def ogr_pg_55():
     return 'success'
 
 ###############################################################################
-# Test insertion of features with first field being a 0-charachter string in a
+# Test insertion of features with first field being a 0-character string in a
 # non-spatial table and without FID in COPY mode (#4040)
 
 def ogr_pg_56():
@@ -3014,7 +3014,10 @@ def ogr_pg_59():
     if test_cli_utilities.get_ogr2ogr_path() is None:
         return 'skip'
 
-    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -append -f PostgreSQL "' + 'PG:' + gdaltest.pg_connection_string + '" data/poly.shp -nln public.tpoly')
+    gdaltest.runexternal(
+        test_cli_utilities.get_ogr2ogr_path()
+        + ' -append -f PostgreSQL "' + 'PG:' + gdaltest.pg_connection_string
+        + '" data/poly.shp -nln public.tpoly')
 
     ds = ogr.Open('PG:' + gdaltest.pg_connection_string)
     lyr = ds.GetLayerByName('tpoly')
@@ -3036,11 +3039,14 @@ def ogr_pg_60():
     if gdaltest.pg_ds is None:
         return 'skip'
 
-    sql_lyr = gdaltest.pg_ds.ExecuteSQL("CREATE TABLE ogr_pg_60(id integer,name varchar(50),primary key (id)) without oids")
+    sql_lyr = gdaltest.pg_ds.ExecuteSQL("CREATE TABLE ogr_pg_60(id integer,"
+                                        "name varchar(50),primary key (id)) "
+                                        "without oids")
     gdaltest.pg_ds.ReleaseResultSet(sql_lyr)
 
     gdaltest.pg_ds = None
-    gdaltest.pg_ds = ogr.Open( 'PG:' + gdaltest.pg_connection_string, update = 1 )
+    gdaltest.pg_ds = ogr.Open( 'PG:' + gdaltest.pg_connection_string,
+                               update = 1 )
     lyr = gdaltest.pg_ds.GetLayerByName('ogr_pg_60')
     if lyr.GetFIDColumn() != 'id':
         gdaltest.post_reason('did not get expected name for FID column')
@@ -3562,7 +3568,7 @@ def ogr_pg_69():
     return 'success'
 
 ###############################################################################
-# Test historical non-differet creation of tables (#5547)
+# Test historical non-differed creation of tables (#5547)
 
 def ogr_pg_70():
 
@@ -3623,7 +3629,7 @@ def ogr_pg_70():
     return 'success'
 
 ###############################################################################
-# Test interoperability of WKT/WKB with PostGIS
+# Test interoperability of WKT/WKB with PostGIS.
 
 def ogr_pg_71():
 
@@ -4703,7 +4709,7 @@ def ogr_pg_77():
 
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:ogr_pg_77_1' )
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:ogr_pg_77_2' )
-    
+
     try:
         shutil.rmtree('tmp/ogr_pg_77')
     except:
@@ -4720,20 +4726,33 @@ def ogr_pg_77():
     f.close()
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -f PostgreSQL "' + 'PG:' + gdaltest.pg_connection_string + '" tmp/ogr_pg_77')
 
-    try:
-        shutil.rmtree('tmp/ogr_pg_77')
-    except:
-        pass
+    ds = ogr.Open('PG:' + gdaltest.pg_connection_string, update = 1)
+    lyr = ds.GetLayerByName('ogr_pg_77_1')
+    feat = lyr.GetNextFeature()
+    if feat.GetField(0) != '1':
+        return 'fail'
+    feat.SetField(0, 10)
+    lyr.SetFeature(feat)
+    lyr = ds.GetLayerByName('ogr_pg_77_2')
+    feat = lyr.GetNextFeature()
+    if feat.GetField(0) != '2':
+        return 'fail'
+    ds = None
+
+    # Test fix for #6018
+    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -f PostgreSQL "' + 'PG:' + gdaltest.pg_connection_string + '" tmp/ogr_pg_77 -overwrite')
 
     ds = ogr.Open('PG:' + gdaltest.pg_connection_string)
     lyr = ds.GetLayerByName('ogr_pg_77_1')
     feat = lyr.GetNextFeature()
     if feat.GetField(0) != '1':
         return 'fail'
-    lyr = ds.GetLayerByName('ogr_pg_77_2')
-    feat = lyr.GetNextFeature()
-    if feat.GetField(0) != '2':
-        return 'fail'
+    ds = None
+
+    try:
+        shutil.rmtree('tmp/ogr_pg_77')
+    except:
+        pass
 
     return 'success'
 
@@ -4834,7 +4853,110 @@ def ogr_pg_78():
     return 'success'
 
 ###############################################################################
-# 
+# Test PRELUDE_STATEMENTS and CLOSING_STATEMENTS open options
+
+def ogr_pg_79():
+
+    if gdaltest.pg_ds is None:
+        return 'skip'
+
+    # PRELUDE_STATEMENTS starting with BEGIN (use case: pg_bouncer in transaction pooling)
+    ds = gdal.OpenEx( 'PG:' + gdaltest.pg_connection_string, \
+        gdal.OF_VECTOR | gdal.OF_UPDATE, \
+        open_options = ['PRELUDE_STATEMENTS=BEGIN; SET LOCAL statement_timeout TO "1h";',
+                        'CLOSING_STATEMENTS=COMMIT;'] )
+    sql_lyr = ds.ExecuteSQL('SHOW statement_timeout')
+    f = sql_lyr.GetNextFeature()
+    if f.GetField(0) != '1h':
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+    ds.ReleaseResultSet(sql_lyr)
+    ret = ds.StartTransaction()
+    if ret != 0:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    ret = ds.CommitTransaction()
+    if ret != 0:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    gdal.ErrorReset()
+    ds = None
+    if gdal.GetLastErrorMsg() != '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # random PRELUDE_STATEMENTS
+    ds = gdal.OpenEx( 'PG:' + gdaltest.pg_connection_string, \
+        gdal.OF_VECTOR | gdal.OF_UPDATE, \
+        open_options = ['PRELUDE_STATEMENTS=SET statement_timeout TO "1h"' ] )
+    sql_lyr = ds.ExecuteSQL('SHOW statement_timeout')
+    f = sql_lyr.GetNextFeature()
+    if f.GetField(0) != '1h':
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+    ds.ReleaseResultSet(sql_lyr)
+    ret = ds.StartTransaction()
+    if ret != 0:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    ret = ds.CommitTransaction()
+    if ret != 0:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    gdal.ErrorReset()
+    ds = None
+    if gdal.GetLastErrorMsg() != '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Test wrong PRELUDE_STATEMENTS
+    with gdaltest.error_handler():
+        ds = gdal.OpenEx( 'PG:' + gdaltest.pg_connection_string, \
+            gdal.OF_VECTOR | gdal.OF_UPDATE, \
+            open_options = ['PRELUDE_STATEMENTS=BEGIN;error SET LOCAL statement_timeout TO "1h";',
+                            'CLOSING_STATEMENTS=COMMIT;'] )
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Test wrong CLOSING_STATEMENTS
+    ds = gdal.OpenEx( 'PG:' + gdaltest.pg_connection_string, \
+        gdal.OF_VECTOR | gdal.OF_UPDATE, \
+        open_options = ['PRELUDE_STATEMENTS=BEGIN; SET LOCAL statement_timeout TO "1h";',
+                        'CLOSING_STATEMENTS=COMMIT;error'] )
+    gdal.ErrorReset()
+    with gdaltest.error_handler():
+        ds = None
+    if gdal.GetLastErrorMsg() == '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test retrieving an error from ExecuteSQL() (#6194)
+
+def ogr_pg_80():
+
+    if gdaltest.pg_ds is None or gdaltest.ogr_pg_second_run:
+        return 'skip'
+
+    gdal.ErrorReset()
+    with gdaltest.error_handler():
+        sql_lyr = gdaltest.pg_ds.ExecuteSQL('SELECT FROM')
+    if gdal.GetLastErrorMsg() == '':
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if sql_lyr is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+#
 
 def ogr_pg_table_cleanup():
 
@@ -4891,7 +5013,7 @@ def ogr_pg_table_cleanup():
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:ogr_pg_77_2' )
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:ogr_pg_78' )
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:ogr_pg_78_2' )
-    
+
     # Drop second 'tpoly' from schema 'AutoTest-schema' (do NOT quote names here)
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:AutoTest-schema.tpoly' )
     gdaltest.pg_ds.ExecuteSQL( 'DELLAYER:AutoTest-schema.test41' )
@@ -5001,11 +5123,14 @@ gdaltest_list_internal = [
     ogr_pg_76,
     ogr_pg_77,
     ogr_pg_78,
-    ogr_pg_cleanup ]
+    ogr_pg_79,
+    ogr_pg_80,
+    ogr_pg_cleanup
+]
 
-DISABLED_gdaltest_list_internal = [ 
+DISABLED_gdaltest_list_internal = [
     ogr_pg_table_cleanup,
-    ogr_pg_76,
+    ogr_pg_79,
     ogr_pg_cleanup ]
 
 ###############################################################################
@@ -5013,6 +5138,7 @@ DISABLED_gdaltest_list_internal = [
 
 def ogr_pg_with_and_without_postgis():
 
+    gdaltest.ogr_pg_second_run = False
     gdaltest.run_tests( [ ogr_pg_1 ] )
     if gdaltest.pg_ds is None:
         return 'skip'
@@ -5023,9 +5149,11 @@ def ogr_pg_with_and_without_postgis():
 
         if gdaltest.pg_has_postgis:
             gdal.SetConfigOption("PG_USE_POSTGIS", "NO")
+            gdaltest.ogr_pg_second_run = True
             gdaltest.run_tests( [ ogr_pg_1 ] )
             gdaltest.run_tests( gdaltest_list_internal )
             gdal.SetConfigOption("PG_USE_POSTGIS", "YES")
+            gdaltest.ogr_pg_second_run = False
 
     return 'success'
 
@@ -5040,4 +5168,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

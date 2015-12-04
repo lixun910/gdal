@@ -149,7 +149,7 @@ enum
 static int BNA_GetLine(char szLineBuffer[LINE_BUFFER_SIZE+1], VSILFILE* f)
 {
     char* ptrCurLine = szLineBuffer;
-    int nRead = VSIFReadL(szLineBuffer, 1, LINE_BUFFER_SIZE, f);
+    int nRead = static_cast<int>(VSIFReadL(szLineBuffer, 1, LINE_BUFFER_SIZE, f));
     szLineBuffer[nRead] = 0;
     if (nRead == 0)
     {
@@ -180,7 +180,7 @@ static int BNA_GetLine(char szLineBuffer[LINE_BUFFER_SIZE+1], VSILFILE* f)
         if (ptrCurLine == szLineBuffer + LINE_BUFFER_SIZE - 1)
         {
             char c;
-            nRead = VSIFReadL(&c, 1, 1, f);
+            nRead = static_cast<int>(VSIFReadL(&c, 1, 1, f));
             if (nRead == 1)
             {
                 if (c == 0x0a)
@@ -189,22 +189,26 @@ static int BNA_GetLine(char szLineBuffer[LINE_BUFFER_SIZE+1], VSILFILE* f)
                 }
                 else
                 {
-                    VSIFSeekL(f, VSIFTellL(f) - 1, SEEK_SET);
+                    if( VSIFSeekL(f, VSIFTellL(f) - 1, SEEK_SET) != 0 )
+                        return BNA_LINE_EOF;
                 }
             }
         }
         else if (ptrCurLine[1] == 0x0a)
         {
-            VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 2 - (szLineBuffer + nRead), SEEK_SET);
+            if( VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 2 - (szLineBuffer + nRead), SEEK_SET) != 0 )
+                return BNA_LINE_EOF;
         }
         else
         {
-            VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 1 - (szLineBuffer + nRead), SEEK_SET);
+            if( VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 1 - (szLineBuffer + nRead), SEEK_SET) != 0 )
+                return BNA_LINE_EOF;
         }
     }
     else /* *ptrCurLine == 0x0a */
     {
-        VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 1 - (szLineBuffer + nRead), SEEK_SET);
+        if( VSIFSeekL(f, VSIFTellL(f) + ptrCurLine + 1 - (szLineBuffer + nRead), SEEK_SET) != 0 )
+            return BNA_LINE_EOF;
     }
     *ptrCurLine = 0;
 
@@ -237,7 +241,7 @@ BNARecord* BNA_GetNextRecord(VSILFILE* f,
     record = (BNARecord*)CPLMalloc(sizeof(BNARecord));
     memset(record, 0, sizeof(BNARecord));
 
-    while (TRUE)
+    while( true )
     {
       numChar = 0;
       (*curLine)++;
@@ -261,7 +265,7 @@ BNARecord* BNA_GetNextRecord(VSILFILE* f,
 
       while(1)
       {
-        numChar = ptrCurLine - ptrBeginLine;
+        numChar = static_cast<int>(ptrCurLine - ptrBeginLine);
         c = *ptrCurLine;
         if (c == 0) c = 10;
         if (inQuotes)
@@ -303,7 +307,7 @@ BNARecord* BNA_GetNextRecord(VSILFILE* f,
             do
             {
               ptrCurLine++;
-              numChar = ptrCurLine - ptrBeginLine;
+              numChar = static_cast<int>(ptrCurLine - ptrBeginLine);
               c = *ptrCurLine;
               if (!(c == ' ' || c == '\t'))
                 break;
@@ -438,7 +442,7 @@ BNARecord* BNA_GetNextRecord(VSILFILE* f,
               }
 
               record->tabCoords =
-                  (double(*)[2])VSIMalloc(record->nCoords * 2 * sizeof(double));
+                  (double(*)[2])VSI_MALLOC_VERBOSE(record->nCoords * 2 * sizeof(double));
               if (record->tabCoords == NULL)
               {
                   detailedErrorMsg = NOT_ENOUGH_MEMORY;

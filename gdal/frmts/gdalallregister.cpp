@@ -32,6 +32,10 @@
 #include "gdal_frmts.h"
 #include "ogrsf_frmts.h"
 
+#ifdef GNM_ENABLED
+   #include "gnm_frmts.h"
+#endif
+
 CPL_CVSID("$Id$");
 
 #ifdef notdef
@@ -187,6 +191,10 @@ void CPL_STDCALL GDALAllRegister()
 
 #ifdef FRMT_rs2
     GDALRegister_RS2();
+#endif
+
+#ifdef FRMT_safe
+    GDALRegister_SAFE();
 #endif
 
 #ifdef FRMT_pcidsk
@@ -387,6 +395,7 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_SNODAS();
     GDALRegister_KRO();
     GDALRegister_ROIPAC();
+    GDALRegister_ISCE();
 #endif
 
 #ifdef FRMT_arg
@@ -521,6 +530,22 @@ void CPL_STDCALL GDALAllRegister()
 
 #ifdef FRMT_plmosaic
     GDALRegister_PLMOSAIC();
+#endif
+
+#ifdef FRMT_cals
+    GDALRegister_CALS();
+#endif
+
+#ifdef FRMT_wmts
+    GDALRegister_WMTS();
+#endif
+
+#ifdef FRMT_sentinel2
+    GDALRegister_SENTINEL2();
+#endif
+
+#ifdef GNM_ENABLED
+    GNMRegisterAllInternal();
 #endif
 
     OGRRegisterAllInternal();

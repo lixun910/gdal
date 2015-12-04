@@ -18,7 +18,7 @@ SCRIPTS			= `ls ./scripts`
 PY_COMMANDS     =       epsg_tr.py gdalchksum.py gdal2xyz.py gcps2wld.py \
                         gdalimport.py gdal_merge.py pct2rgb.py rgb2pct.py \
                         gcps2vec.py
-PY_MODULES      =       ${PACKAGE_DIR}/gdal.py ${PACKAGE_DIR}/ogr.py ${PACKAGE_DIR}/osr.py ${PACKAGE_DIR}/gdalconst.py ${PACKAGE_DIR}/gdal_array.py
+PY_MODULES      =       ${PACKAGE_DIR}/gdal.py ${PACKAGE_DIR}/ogr.py ${PACKAGE_DIR}/osr.py ${PACKAGE_DIR}/gdalconst.py ${PACKAGE_DIR}/gdal_array.py ${PACKAGE_DIR}/gnm.py
 
 clean:
 	-rm -f ${PACKAGE_DIR}/*.pyc
@@ -38,6 +38,7 @@ veryclean: clean
 	-rm -f ${SWIGOUTPUTDIR}/ogr_wrap.cpp
 	-rm -f ${SWIGOUTPUTDIR}/osr_wrap.cpp
 	-rm -f ${SWIGOUTPUTDIR}/gdal_array_wrap.cpp
+	-rm -f ${SWIGOUTPUTDIR}/gnm_wrap.cpp
 
 gdal_wrap.cpp: ../include/python/gdal_python.i
 
@@ -58,21 +59,58 @@ generate: ${WRAPPERS} gdal_array_wrap.cpp
 	-grep "1\.3\.40" extensions/gdal_wrap.cpp >/dev/null && cat python3.2.patch | sed "s/gdal_wrap/osr_wrap/" | patch -p0
 	-grep "1\.3\.40" extensions/gdal_wrap.cpp >/dev/null && cat python3.2.patch | sed "s/gdal_wrap\.cpp/gdalconst_wrap\.c/" | patch -p0
 	-grep "1\.3\.40" extensions/gdal_wrap.cpp >/dev/null && cat python3.2.patch | sed "s/gdal_wrap/gdal_array_wrap/" | patch -p0
-    
+
 build:
 	$(PYTHON) setup.py build
 
 egg:
 	$(PYTHON) setup.py bdist_egg 
-	
-install:
+
+site_package_dir=$(shell $(PYTHON) -c "from __future__ import print_function;from distutils.sysconfig import get_python_lib;print(get_python_lib(prefix=\"$(prefix)\"))")
 
 ifeq ($(PY_HAVE_SETUPTOOLS),1)
-	$(PYTHON) setup.py install 
-else
-	$(PYTHON) setup.py install --prefix=$(DESTDIR)$(prefix)
+    setup_opts=--single-version-externally-managed --record=record.txt
 endif
 
+ifdef DESTDIR
+    setup_opts+=--root=$(DESTDIR)
+endif
+
+ifdef prefix
+    ifeq ($(shell uname),Darwin)
+        STD_UNIX_LAYOUT=$(shell $(PYTHON) -c "from __future__ import print_function;import sys;print(\"FALSE\" if \"framework\" in sys.prefix.lower() else \"TRUE\")")
+        ifeq ($(STD_UNIX_LAYOUT),"TRUE")
+            setup_opts+=--prefix=$(prefix)
+        else
+            ifdef PYTHON_INSTALL_LIB
+                setup_opts+=--install-lib=$(PYTHON_INSTALL_LIB)
+            endif
+        endif
+    else
+        setup_opts+=--prefix=$(prefix)
+    endif
+endif
+
+ifdef INSTALL_LAYOUT
+    setup_opts+=--install-layout=$(INSTALL_LAYOUT)
+else
+    ifneq ($(shell echo $(site_package_dir) | grep dist-packages),)
+        setup_opts+=--install-layout=deb
+    endif
+endif
+
+install:
+	@if [ ! -d $(site_package_dir) ]; then \
+		mkdir -p $(DESTDIR)$(site_package_dir); \
+		echo "----------------------------------------------------------------------";\
+		echo ""; \
+		echo "The GDAL python package has been installed in $(site_package_dir)"; \
+		echo "Please ensure to add $(site_package_dir) to your PYTHONPATH"; \
+		echo ""; \
+		echo "----------------------------------------------------------------------";\
+	fi
+	env PYTHONPATH=$(site_package_dir)$${PYTHONPATH:+:$$PYTHONPATH} \
+		$(PYTHON) setup.py install ${setup_opts}
 	for f in $(SCRIPTS) ; do $(INSTALL) ./scripts/$$f $(DESTDIR)$(INST_BIN) ; done
 
 docs:

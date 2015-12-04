@@ -199,7 +199,7 @@ static int ReadVarUInt(GByte*& pabyIter, GByte* pabyEnd, OutType& nOutVal)
     GByte* pabyLocalIter = pabyIter + 1;
     int nShift = 7;
     OutType nVal = ( b & 0x7F );
-    while(TRUE)
+    while( true )
     {
         if( !(ControleType::check_bounds) )
         {
@@ -306,7 +306,7 @@ int FileGDBTable::IsLikelyFeatureAtOffset(vsi_l_offset nOffset,
 
     if( nRowBlobLength > nBufferMaxSize )
     {
-        GByte* pabyNewBuffer = (GByte*) VSIRealloc( pabyBuffer,
+        GByte* pabyNewBuffer = (GByte*) VSI_REALLOC_VERBOSE( pabyBuffer,
                                 nRowBlobLength + ZEROES_AFTER_END_OF_BUFFER );
         if( pabyNewBuffer == NULL )
             return FALSE;
@@ -392,7 +392,7 @@ int FileGDBTable::IsLikelyFeatureAtOffset(vsi_l_offset nOffset,
                     if( !ReadVarUInt32Silent(pabyIter, pabyBuffer + nRowBlobLength, nLength) ||
                         pabyIter - (pabyBuffer + nRequiredLength) > 5 )
                         return FALSE;
-                    nRequiredLength = pabyIter - pabyBuffer;
+                    nRequiredLength = static_cast<GUInt32>(pabyIter - pabyBuffer);
                     if( nLength > nRowBlobLength - nRequiredLength )
                         return FALSE;
                     for( GUInt32 j=0;j<nLength;j++ )
@@ -414,7 +414,7 @@ int FileGDBTable::IsLikelyFeatureAtOffset(vsi_l_offset nOffset,
                     if( !ReadVarUInt32Silent(pabyIter, pabyBuffer + nRowBlobLength, nLength) ||
                         pabyIter - (pabyBuffer + nRequiredLength) > 5 )
                         return FALSE;
-                    nRequiredLength = pabyIter - pabyBuffer;
+                    nRequiredLength = static_cast<GUInt32>(pabyIter - pabyBuffer);
                     if( nLength > nRowBlobLength - nRequiredLength )
                         return FALSE;
                     nRequiredLength += nLength;
@@ -449,9 +449,9 @@ int FileGDBTable::IsLikelyFeatureAtOffset(vsi_l_offset nOffset,
 /*                      GuessFeatureLocations()                         */
 /************************************************************************/
 
-#define MARK_DELETED(x)  ((x) | (((GIntBig)1) << 63))
-#define IS_DELETED(x)    (((x) & (((GIntBig)1) << 63)) != 0)
-#define GET_OFFSET(x)    ((x) & ~(((GIntBig)1) << 63))
+#define MARK_DELETED(x)  ((x) | (((GUIntBig)1) << 63))
+#define IS_DELETED(x)    (((x) & (((GUIntBig)1) << 63)) != 0)
+#define GET_OFFSET(x)    ((x) & ~(((GUIntBig)1) << 63))
 
 int FileGDBTable::GuessFeatureLocations()
 {
@@ -586,12 +586,12 @@ int FileGDBTable::ReadTableXHeader()
 
             // Allocate a bit mask array for blocks of 1024 features.
             int nSizeInBytes = BIT_ARRAY_SIZE_IN_BYTES(nBitsForBlockMap);
-            pabyTablXBlockMap = (GByte*) VSIMalloc( nSizeInBytes );
+            pabyTablXBlockMap = (GByte*) VSI_MALLOC_VERBOSE( nSizeInBytes );
             returnErrorIf(pabyTablXBlockMap == NULL );
             returnErrorIf(VSIFReadL( pabyTablXBlockMap, nSizeInBytes, 1, fpTableX ) != 1 );
             /* returnErrorIf(nMagic2 == 0 ); */
 
-            // Check that the map is consistant with n1024Blocks
+            // Check that the map is consistent with n1024Blocks
             GUInt32 nCountBlocks = 0;
             for(GUInt32 i=0;i<nBitsForBlockMap;i++)
                 nCountBlocks += TEST_BIT(pabyTablXBlockMap, i) != 0;
@@ -727,7 +727,7 @@ int FileGDBTable::Open(const char* pszFilename,
 
     GUInt32 nRemaining = nFieldDescLength - 10;
     nBufferMaxSize = nRemaining;
-    pabyBuffer = (GByte*)VSIMalloc(nBufferMaxSize + ZEROES_AFTER_END_OF_BUFFER);
+    pabyBuffer = (GByte*)VSI_MALLOC_VERBOSE(nBufferMaxSize + ZEROES_AFTER_END_OF_BUFFER);
     returnErrorIf(pabyBuffer == NULL );
     returnErrorIf(VSIFReadL(pabyBuffer, nRemaining, 1, fpTable) != 1 );
 
@@ -787,7 +787,7 @@ int FileGDBTable::Open(const char* pszFilename,
                     nRemaining -= 5;
                     GByte* pabyIterBefore = pabyIter;
                     returnErrorIf(!ReadVarUInt32(pabyIter, pabyIter + nRemaining, defaultValueLength));
-                    nRemaining -= (pabyIter - pabyIterBefore);
+                    nRemaining -= static_cast<GUInt32>(pabyIter - pabyIterBefore);
                     break;
                 }
 
@@ -991,7 +991,7 @@ int FileGDBTable::Open(const char* pszFilename,
                 /* here. When there are 3, the first one is zmin and the second */
                 /* one is zmax */
                 int nCountDoubles = 0;
-                while( TRUE )
+                while( true )
                 {
                     returnErrorIf(nRemaining < 5 );
 
@@ -1050,7 +1050,7 @@ static int SkipVarUInt(GByte*& pabyIter, GByte* pabyEnd, int nIter = 1)
     returnErrorIf(pabyLocalIter /*+ nIter - 1*/ >= pabyEnd);
     while( nIter -- > 0 )
     {
-        while(TRUE)
+        while( true )
         {
             GByte b = *pabyLocalIter;
             pabyLocalIter ++;
@@ -1084,7 +1084,7 @@ static void ReadVarIntAndAddNoCheck(GByte*& pabyIter, GIntBig& nOutVal)
 
     GByte* pabyLocalIter = pabyIter + 1;
     int nShift = 6;
-    while(TRUE)
+    while( true )
     {
         GUIntBig b = *pabyLocalIter;
         pabyLocalIter ++;
@@ -1260,7 +1260,7 @@ int FileGDBTable::SelectRow(int iRow)
                     returnErrorAndCleanupIf( nOffsetTable + 4 + nRowBlobLength > nFileSize, nCurRow = -1 );
                 }
 
-                GByte* pabyNewBuffer = (GByte*) VSIRealloc( pabyBuffer,
+                GByte* pabyNewBuffer = (GByte*) VSI_REALLOC_VERBOSE( pabyBuffer,
                                 nRowBlobLength + ZEROES_AFTER_END_OF_BUFFER );
                 returnErrorAndCleanupIf(pabyNewBuffer == NULL, nCurRow = -1 );
 
@@ -1270,7 +1270,7 @@ int FileGDBTable::SelectRow(int iRow)
             returnErrorAndCleanupIf(
                 VSIFReadL(pabyBuffer, nRowBlobLength, 1, fpTable) != 1, nCurRow = -1 );
             /* Protection for 4 ReadVarUInt64NoCheck */
-            CPLAssert(ZEROES_AFTER_END_OF_BUFFER == 4);
+            CPL_STATIC_ASSERT(ZEROES_AFTER_END_OF_BUFFER == 4);
             pabyBuffer[nRowBlobLength] = 0;
             pabyBuffer[nRowBlobLength+1] = 0;
             pabyBuffer[nRowBlobLength+2] = 0;
@@ -1640,7 +1640,7 @@ int FileGDBTable::GetIndexCount()
     vsi_l_offset nFileSize = VSIFTellL(fpIndexes);
     returnErrorAndCleanupIf(nFileSize > 1024 * 1024, VSIFCloseL(fpIndexes) );
 
-    GByte* pabyIdx = (GByte*)VSIMalloc((size_t)nFileSize);
+    GByte* pabyIdx = (GByte*)VSI_MALLOC_VERBOSE((size_t)nFileSize);
     returnErrorAndCleanupIf(pabyIdx == NULL, VSIFCloseL(fpIndexes) );
 
     VSIFSeekL(fpIndexes, 0, SEEK_SET);
@@ -2125,7 +2125,7 @@ int FileGDBOGRGeometryConverterImpl::ReadPartDefs( GByte*& pabyCur,
     if( nParts > nPointCountMax )
     {
         GUInt32* panPointCountNew =
-            (GUInt32*) VSIRealloc( panPointCount, nParts * sizeof(GUInt32) );
+            (GUInt32*) VSI_REALLOC_VERBOSE( panPointCount, nParts * sizeof(GUInt32) );
         returnErrorIf(panPointCountNew == NULL );
         panPointCount = panPointCountNew;
         nPointCountMax = nParts;
@@ -2630,8 +2630,8 @@ OGRGeometry* FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField* psFi
                     poPoly->setCoordinateDimension(3);
                 return poPoly;
             }
-            int* panPartType = (int*) VSIMalloc(sizeof(int) * nParts);
-            double* padfXYZ =  (double*) VSIMalloc(3 * sizeof(double) * nPoints);
+            int* panPartType = (int*) VSI_MALLOC_VERBOSE(sizeof(int) * nParts);
+            double* padfXYZ =  (double*) VSI_MALLOC_VERBOSE(3 * sizeof(double) * nPoints);
             double* padfX = padfXYZ;
             double* padfY = padfXYZ + nPoints;
             double* padfZ = padfXYZ + 2 * nPoints;

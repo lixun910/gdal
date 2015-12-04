@@ -36,8 +36,8 @@ CPL_CVSID("$Id$");
 /*                          OGRMSSQLSpatialDataSource()                 */
 /************************************************************************/
 
-OGRMSSQLSpatialDataSource::OGRMSSQLSpatialDataSource()
-
+OGRMSSQLSpatialDataSource::OGRMSSQLSpatialDataSource() :
+    bDSUpdate(FALSE)
 {
     pszName = NULL;
     pszCatalog = NULL;
@@ -61,17 +61,15 @@ OGRMSSQLSpatialDataSource::OGRMSSQLSpatialDataSource()
 OGRMSSQLSpatialDataSource::~OGRMSSQLSpatialDataSource()
 
 {
-    int         i;
-
-    for( i = 0; i < nLayers; i++ )
+    for( int i = 0; i < nLayers; i++ )
         delete papoLayers[i];
-    
+
     CPLFree( papoLayers );
 
     CPLFree( pszName );
     CPLFree( pszCatalog );
 
-    for( i = 0; i < nKnownSRID; i++ )
+    for( int i = 0; i < nKnownSRID; i++ )
     {
         if( papoSRS[i] != NULL )
             papoSRS[i]->Release();
@@ -126,7 +124,7 @@ OGRLayer *OGRMSSQLSpatialDataSource::GetLayerByName( const char* pszLayerName )
     const char* pszDotPos = strstr(pszLayerName,".");
     if ( pszDotPos != NULL )
     {
-      int length = pszDotPos - pszLayerName;
+      int length = static_cast<int>(pszDotPos - pszLayerName);
       pszSchemaName = (char*)CPLMalloc(length+1);
       strncpy(pszSchemaName, pszLayerName, length);
       pszSchemaName[length] = '\0';
@@ -159,7 +157,7 @@ OGRLayer *OGRMSSQLSpatialDataSource::GetLayerByName( const char* pszLayerName )
 /*                            DeleteLayer()                             */
 /************************************************************************/
 
-int OGRMSSQLSpatialDataSource::DeleteLayer( int iLayer )
+OGRErr OGRMSSQLSpatialDataSource::DeleteLayer( int iLayer )
 
 {
     if( iLayer < 0 || iLayer >= nLayers )
@@ -247,7 +245,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ICreateLayer( const char * pszLayerName,
     const char* pszDotPos = strstr(pszLayerName,".");
     if ( pszDotPos != NULL )
     {
-      int length = pszDotPos - pszLayerName;
+      int length = static_cast<int>(pszDotPos - pszLayerName);
       pszSchemaName = (char*)CPLMalloc(length+1);
       strncpy(pszSchemaName, pszLayerName, length);
       pszSchemaName[length] = '\0';
@@ -454,9 +452,9 @@ OGRLayer * OGRMSSQLSpatialDataSource::ICreateLayer( const char * pszLayerName,
     const char *pszUploadGeometryFormat = CSLFetchNameValue( papszOptions, "UPLOAD_GEOM_FORMAT" );
     if (pszUploadGeometryFormat)
     {
-        if (EQUALN(pszUploadGeometryFormat,"wkb",5))
+        if (STARTS_WITH_CI(pszUploadGeometryFormat,"wkb"))
             poLayer->SetUploadGeometryFormat(MSSQLGEOMETRY_WKB);
-        else if (EQUALN(pszUploadGeometryFormat, "wkt",3))
+        else if (STARTS_WITH_CI(pszUploadGeometryFormat, "wkt"))
             poLayer->SetUploadGeometryFormat(MSSQLGEOMETRY_WKT);
     }
 
@@ -470,7 +468,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ICreateLayer( const char * pszLayerName,
     if( bFID64 )
         poLayer->SetMetadataItem(OLMD_FID64, "YES");
     
-    if (poLayer->Initialize(pszSchemaName, pszTableName, pszGeomColumn, nCoordDimension, nSRSId, pszWKT, eType) == OGRERR_FAILURE)
+    if (poLayer->Initialize(pszSchemaName, pszTableName, pszGeomColumn, nCoordDimension, nSRSId, pszWKT, eType) == CE_Failure)
     {
         CPLFree( pszSchemaName );
         CPLFree( pszTableName );
@@ -540,7 +538,7 @@ int OGRMSSQLSpatialDataSource::GetLayerCount()
 
 int OGRMSSQLSpatialDataSource::ParseValue(char** pszValue, char* pszSource, const char* pszKey, int nStart, int nNext, int nTerm, int bRemove)
 {
-    int nLen = strlen(pszKey);
+    int nLen = static_cast<int>(strlen(pszKey));
     if ((*pszValue) == NULL && nStart + nLen < nNext && 
             EQUALN(pszSource + nStart, pszKey, nLen))
     {
@@ -573,7 +571,7 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
 {
     CPLAssert( nLayers == 0 );
 
-    if( !EQUALN(pszNewName,"MSSQL:",6) )
+    if( !STARTS_WITH_CI(pszNewName, "MSSQL:") )
     {
         if( !bTestOpen )
             CPLError( CE_Failure, CPLE_AppDefined,
@@ -588,7 +586,7 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
     char* pszConnectionName = CPLStrdup(pszNewName + 6);
     char* pszDriver = NULL;
     int nCurrent, nNext, nTerm;
-    nCurrent = nNext = nTerm = strlen(pszConnectionName);
+    nCurrent = nNext = nTerm = static_cast<int>(strlen(pszConnectionName));
 
     while (nCurrent > 0)
     {
@@ -614,13 +612,13 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
         if (ParseValue(&pszGeometryFormat, pszConnectionName, 
             "geometryformat=", nCurrent, nNext, nTerm, TRUE))
         {
-            if (EQUALN(pszGeometryFormat,"wkbzm",5))
+            if (STARTS_WITH_CI(pszGeometryFormat, "wkbzm"))
                 nGeometryFormat = MSSQLGEOMETRY_WKBZM;
-            else if (EQUALN(pszGeometryFormat, "wkb",3))
+            else if (STARTS_WITH_CI(pszGeometryFormat, "wkb"))
                 nGeometryFormat = MSSQLGEOMETRY_WKB;
-            else if (EQUALN(pszGeometryFormat,"wkt",3))
+            else if (STARTS_WITH_CI(pszGeometryFormat, "wkt"))
                 nGeometryFormat = MSSQLGEOMETRY_WKT;
-            else if (EQUALN(pszGeometryFormat,"native",6))
+            else if (STARTS_WITH_CI(pszGeometryFormat, "native"))
                 nGeometryFormat = MSSQLGEOMETRY_NATIVE;
             else
             {
@@ -688,7 +686,7 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
                 {
                     *pos = '\0';
                     pszGeomColumnName = pos+1;
-                    int len = strlen(pszGeomColumnName);
+                    int len = static_cast<int>(strlen(pszGeomColumnName));
                     if (len > 0)
                         pszGeomColumnName[len - 1] = '\0';
                 }
@@ -728,7 +726,7 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
     }
     else
     {
-        /* no driver has been specified, defautls to SQL Server */
+        /* No driver has been specified, defaults to SQL Server. */
         CPLDebug( "OGR_MSSQLSpatial", "EstablishSession(Connection:\"%s\")", pszConnectionName);
         nResult = oSession.EstablishSession( CPLSPrintf("DRIVER=SQL Server;%s", pszConnectionName), "", "" );
     }
@@ -740,7 +738,7 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "Unable to initialize connection to the server for %s,\n"
                   "%s", pszNewName, oSession.GetLastError() );
-        
+
         CSLDestroy( papszTableNames );
         CSLDestroy( papszSchemaNames );
         CSLDestroy( papszGeomColumnNames );
@@ -760,9 +758,9 @@ int OGRMSSQLSpatialDataSource::Open( const char * pszNewName, int bUpdate,
         for( int iTable = 0; 
             papszTableNames != NULL && papszTableNames[iTable] != NULL; 
             iTable++ )
-        {        
+        {
             CPLODBCStatement oStmt( &oSession );
-            
+
             /* Use join to make sure the existence of the referred column/table */
             oStmt.Appendf( "SELECT f_geometry_column, coord_dimension, g.srid, srtext, geometry_type FROM dbo.geometry_columns g JOIN INFORMATION_SCHEMA.COLUMNS ON f_table_schema = TABLE_SCHEMA and f_table_name = TABLE_NAME and f_geometry_column = COLUMN_NAME left outer join dbo.spatial_ref_sys s on g.srid = s.srid WHERE f_table_schema = '%s' AND f_table_name = '%s'", papszSchemaNames[iTable], papszTableNames[iTable]);
 
@@ -939,7 +937,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Special case DELLAYER: command.                                 */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand,"DELLAYER:",9) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DELLAYER:") )
     {
         const char *pszLayerName = pszSQLCommand + 9;
 
@@ -961,7 +959,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ExecuteSQL( const char *pszSQLCommand,
 
     CPLDebug( "MSSQLSpatial", "ExecuteSQL(%s) called.", pszSQLCommand );
 
-    if( EQUALN(pszSQLCommand, "DROP SPATIAL INDEX ON ", 22) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DROP SPATIAL INDEX ON ") )
     {
         /* Handle command to drop a spatial index. */
         OGRMSSQLSpatialTableLayer  *poLayer = new OGRMSSQLSpatialTableLayer( this );
@@ -978,7 +976,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ExecuteSQL( const char *pszSQLCommand,
         }
         return NULL;
     }
-    else if( EQUALN(pszSQLCommand, "CREATE SPATIAL INDEX ON ", 24) )
+    else if( STARTS_WITH_CI(pszSQLCommand, "CREATE SPATIAL INDEX ON ") )
     {
         /* Handle command to create a spatial index. */
         OGRMSSQLSpatialTableLayer  *poLayer = new OGRMSSQLSpatialTableLayer( this );

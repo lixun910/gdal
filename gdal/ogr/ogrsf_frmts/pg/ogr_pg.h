@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_PG_H_INCLUDED
-#define _OGR_PG_H_INCLUDED
+#ifndef OGR_PG_H_INCLUDED
+#define OGR_PG_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "libpq-fe.h"
@@ -167,7 +167,7 @@ class OGRPGLayer : public OGRLayer
     GIntBig             iNextShapeId;
 
     static char        *GByteArrayToBYTEA( const GByte* pabyData, int nLen);
-    static char        *GeometryToBYTEA( OGRGeometry *, int bIsPostGIS1 );
+    static char        *GeometryToBYTEA( OGRGeometry *, int nPostGISMajor, int nPostGISMinor );
     static GByte       *BYTEAToGByteArray( const char *pszBytea, int* pnLength );
     static OGRGeometry *BYTEAToGeometry( const char *, int bIsPostGIS1 );
     Oid                 GeometryToOID( OGRGeometry * );
@@ -448,7 +448,7 @@ class OGRPGDataSource : public OGRDataSource
 
     PGconn              *hPGConn;
 
-    int                 DeleteLayer( int iLayer );
+    OGRErr              DeleteLayer( int iLayer );
 
     Oid                 nGeometryOID;
     Oid                 nGeographyOID;
@@ -546,5 +546,5 @@ class OGRPGDataSource : public OGRDataSource
     OGRErr              EndCopy( );
 };
 
-#endif /* ndef _OGR_PG_H_INCLUDED */
+#endif /* ndef OGR_PG_H_INCLUDED */
 

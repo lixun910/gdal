@@ -2,9 +2,6 @@
 #include <math.h>
 #include "grib2.h"
 
-int enc_jpeg2000(unsigned char *,g2int ,g2int ,g2int ,
-                 g2int , g2int, g2int , char *, g2int );
-
 void jpcpack(g2float *fld,g2int width,g2int height,g2int *idrstmpl,
              unsigned char *cpack,g2int *lcpack)
 //$$$  SUBPROGRAM DOCUMENTATION BLOCK
@@ -109,7 +106,7 @@ void jpcpack(g2float *fld,g2int width,g2int height,g2int *idrstmpl,
         //
         if (idrstmpl[1] == 0) {
            //
-           //  No binary scaling and calculate minumum number of 
+           //  No binary scaling and calculate minimum number of
            //  bits in which the data will fit.
            //
            imin=(g2int)RINT(rmin*dscale);
@@ -124,7 +121,7 @@ void jpcpack(g2float *fld,g2int width,g2int height,g2int *idrstmpl,
         }
         else {
            //
-           //  Use binary scaling factor and calculate minumum number of 
+           //  Use binary scaling factor and calculate minimum number of 
            //  bits in which the data will fit.
            //
            rmin=rmin*dscale;

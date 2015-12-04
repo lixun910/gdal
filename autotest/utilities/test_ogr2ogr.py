@@ -36,8 +36,7 @@ import shutil
 sys.path.append( '../pymod' )
 sys.path.append( '../ogr' )
 
-from osgeo import ogr
-from osgeo import osr
+from osgeo import gdal, ogr, osr
 import gdaltest
 import ogrtest
 import test_cli_utilities
@@ -534,7 +533,7 @@ def test_ogr2ogr_18():
     if test_cli_utilities.get_ogr2ogr_path() is None:
         return 'skip'
         
-    if ogrtest.have_geos() is 0:
+    if not ogrtest.have_geos():
         return 'skip'
 
     try:
@@ -654,7 +653,7 @@ def test_ogr2ogr_20():
                       '15' ]
 
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' tmp data/Fields.csv')
-    
+
     ds = ogr.Open('tmp/Fields.dbf')
 
     if ds is None:
@@ -666,20 +665,20 @@ def test_ogr2ogr_20():
         ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/Fields.dbf')
         return 'fail'
 
-    error_occured = False
-    feat = ds.GetLayer(0).GetNextFeature()    
+    error_occurred = False
+    feat = ds.GetLayer(0).GetNextFeature()
     for i in range( layer_defn.GetFieldCount() ):
         if layer_defn.GetFieldDefn( i ).GetNameRef() != expected_fields[i]:
             print('Expected ', expected_fields[i],',but got',layer_defn.GetFieldDefn( i ).GetNameRef())
-            error_occured = True
+            error_occurred = True
         if feat.GetFieldAsString(i) != expected_data[i]:
             print('Expected the value ', expected_data[i],',but got',feat.GetFieldAsString(i))
-            error_occured = True
+            error_occurred = True
 
     ds.Destroy()
     ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/Fields.dbf')
 
-    if error_occured:
+    if error_occurred:
         return 'fail'
 
     return 'success'
@@ -985,7 +984,7 @@ def test_ogr2ogr_29():
     if test_cli_utilities.get_ogr2ogr_path() is None:
         return 'skip'
 
-    if ogrtest.have_geos() is 0:
+    if not ogrtest.have_geos():
         return 'skip'
 
     for i in range(2):
@@ -1811,24 +1810,24 @@ def test_ogr2ogr_48():
         ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/Fields.dbf')
         return 'fail'
 
-    error_occured = False
+    error_occurred = False
     lyr = ds.GetLayer(0)
     lyr.GetNextFeature()
-    feat = lyr.GetNextFeature()    
+    feat = lyr.GetNextFeature()
     for i in range( layer_defn.GetFieldCount() ):
         if feat.GetFieldAsString(i) != str(i + 1):
             print('Expected the value ', str(i + 1),',but got',feat.GetFieldAsString(i))
-            error_occured = True
+            error_occurred = True
     feat = lyr.GetNextFeature()    
     for i in range( layer_defn.GetFieldCount() ):
         if feat.GetFieldAsString(i) != str(layer_defn.GetFieldCount() - i):
             print('Expected the value ', str(layer_defn.GetFieldCount() - i),',but got',feat.GetFieldAsString(i))
-            error_occured = True
+            error_occurred = True
 
     ds.Destroy()
     ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/Fields.dbf')
 
-    if error_occured:
+    if error_occurred:
         return 'fail'
 
     return 'success'
@@ -2265,7 +2264,7 @@ def test_ogr2ogr_55():
     return 'success'
 
 ###############################################################################
-# Test behaviour when creatin a field with same name as FID column
+# Test behaviour when creating a field with same name as FID column.
 
 def test_ogr2ogr_56():
     if test_cli_utilities.get_ogr2ogr_path() is None:
@@ -2275,7 +2274,7 @@ def test_ogr2ogr_56():
     f.write('str,myid,WKT\n')
     f.write('aaa,10,"POINT(0 0)"\n')
     f.close()
-    
+
     f = open('tmp/test_ogr2ogr_56.csvt', 'wt')
     f.write('String,Integer,String\n')
     f.close()
@@ -2349,7 +2348,7 @@ def test_ogr2ogr_57():
     content = f.read()
     f.close()
 
-    if content.find("""CREATE TABLE "public"."test_ogr2ogr_57" ( OGC_FID SERIAL, CONSTRAINT "test_ogr2ogr_57_pk" PRIMARY KEY (OGC_FID) )""") < 0 or \
+    if content.find("""CREATE TABLE "public"."test_ogr2ogr_57" ( "ogc_fid" SERIAL, CONSTRAINT "test_ogr2ogr_57_pk" PRIMARY KEY ("ogc_fid") )""") < 0 or \
        content.find("""INSERT INTO "public"."test_ogr2ogr_57" ("wkb_geometry" , "str") VALUES ('010100000000000000000000000000000000000000', 'a')""") < 0:
         gdaltest.post_reason('fail')
         print(content)
@@ -2501,6 +2500,51 @@ def test_ogr2ogr_61():
 
     return 'success'
 
+###############################################################################
+# Test -noNativeData
+
+def test_ogr2ogr_62():
+    if test_cli_utilities.get_ogr2ogr_path() is None:
+        return 'skip'
+
+    # Default behaviour
+
+    fp = open('tmp/test_ogr2ogr_62_in.json', 'wt')
+    fp.write('{"type": "FeatureCollection", "foo": "bar", "features":[ { "type": "Feature", "bar": "baz", "properties": { "myprop": "myvalue" }, "geometry": null } ]}')
+    fp.close()
+
+    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + """ -f GeoJSON tmp/test_ogr2ogr_62.json tmp/test_ogr2ogr_62_in.json""")
+    fp = gdal.VSIFOpenL('tmp/test_ogr2ogr_62.json', 'rb')
+    if fp is None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    data = gdal.VSIFReadL(1, 10000, fp).decode('ascii')
+    gdal.VSIFCloseL(fp)
+    os.unlink('tmp/test_ogr2ogr_62.json')
+
+    if data.find('bar') < 0 or data.find('baz') < 0:
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    # Test -noNativeData
+    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + """ -f GeoJSON tmp/test_ogr2ogr_62.json tmp/test_ogr2ogr_62_in.json -noNativeData""")
+    fp = gdal.VSIFOpenL('tmp/test_ogr2ogr_62.json', 'rb')
+    if fp is None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    data = gdal.VSIFReadL(1, 10000, fp).decode('ascii')
+    gdal.VSIFCloseL(fp)
+    os.unlink('tmp/test_ogr2ogr_62.json')
+    os.unlink('tmp/test_ogr2ogr_62_in.json')
+
+    if data.find('bar') >= 0 or data.find('baz') >= 0:
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    return 'success'
+
 gdaltest_list = [
     test_ogr2ogr_1,
     test_ogr2ogr_2,
@@ -2563,7 +2607,8 @@ gdaltest_list = [
     test_ogr2ogr_58,
     test_ogr2ogr_59,
     test_ogr2ogr_60,
-    test_ogr2ogr_61
+    test_ogr2ogr_61,
+    test_ogr2ogr_62
     ]
 
 if __name__ == '__main__':
@@ -2573,4 +2618,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

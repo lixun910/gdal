@@ -109,6 +109,7 @@ TABMAPIndexBlock::TABMAPIndexBlock(TABAccess eAccessMode /*= TABRead*/):
     m_nCurChildIndex = -1;
     m_poParentRef = NULL;
     m_poBlockManagerRef = NULL;
+    memset(m_asEntries, 0, sizeof(m_asEntries));
 }
 
 /**********************************************************************
@@ -143,7 +144,7 @@ void TABMAPIndexBlock::UnsetCurChild()
  * Perform some initialization on the block after its binary data has
  * been set or changed (or loaded from a file).
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPIndexBlock::InitBlockFromData(GByte *pabyBuf, 
@@ -199,7 +200,7 @@ int     TABMAPIndexBlock::InitBlockFromData(GByte *pabyBuf,
  * block header and then calls TABRawBinBlock::CommitToFile() to do
  * the actual writing to disk.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPIndexBlock::CommitToFile()
@@ -277,7 +278,7 @@ int     TABMAPIndexBlock::CommitToFile()
  * that puts the block in a stable state without loading any initial
  * data in it.
  *
- * Returns 0 if succesful or -1 if an error happened, in which case 
+ * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
 int     TABMAPIndexBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize, 
@@ -319,9 +320,9 @@ int     TABMAPIndexBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize,
  *                   TABMAPIndexBlock::ReadNextEntry()
  *
  * Read the next index entry from the block and fill the sEntry
- * structure. 
+ * structure.
  *
- * Returns 0 if succesful or -1 if we reached the end of the block.
+ * Returns 0 if successful or -1 if we reached the end of the block.
  **********************************************************************/
 int     TABMAPIndexBlock::ReadNextEntry(TABMAPIndexEntry *psEntry)
 {
@@ -351,7 +352,7 @@ int     TABMAPIndexBlock::ReadNextEntry(TABMAPIndexEntry *psEntry)
  *
  * Init the block by reading all entries from the data block.
  *
- * Returns 0 if succesful or -1 on error.
+ * Returns 0 if successful or -1 on error.
  **********************************************************************/
 int     TABMAPIndexBlock::ReadAllEntries()
 {
@@ -376,7 +377,7 @@ int     TABMAPIndexBlock::ReadAllEntries()
  *
  * Write the sEntry index entry at current position in the block.
  *
- * Returns 0 if succesful or -1 if we reached the end of the block.
+ * Returns 0 if successful or -1 if we reached the end of the block.
  **********************************************************************/
 int     TABMAPIndexBlock::WriteNextEntry(TABMAPIndexEntry *psEntry)
 {
@@ -515,10 +516,10 @@ int     TABMAPIndexBlock::InsertEntry(GInt32 nXMin, GInt32 nYMin,
 /**********************************************************************
  *                   TABMAPIndexBlock::ChooseSubEntryForInsert()
  *
- * Select the entry in this index block in which the new entry should 
+ * Select the entry in this index block in which the new entry should
  * be inserted. The criteria used is to select the node whose MBR needs
  * the least enlargement to include the new entry. We resolve ties by
- * chosing the entry with the rectangle of smallest area.
+ * choosing the entry with the rectangle of smallest area.
  * (This is the ChooseSubtree part of Guttman's "ChooseLeaf" algorithm.)
  *
  * Returns the index of the best candidate or -1 of node is empty.

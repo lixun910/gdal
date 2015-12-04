@@ -302,7 +302,7 @@ int TigerCompleteChain::SetModule( const char * pszModule )
         VSIFSeekL( fpPrimary, 0, SEEK_SET );
         VSIFReadL( achHeader, sizeof(achHeader), 1, fpPrimary );
         
-        if( EQUALN(achHeader,"Copyright",8) )
+        if( STARTS_WITH_CI(achHeader,"Copyright") )
         {
             nRT1RecOffset = 1;
             nFeatures--;
@@ -503,7 +503,7 @@ int TigerCompleteChain::AddShapePoints( int nTLID, int nRecordId,
     char        achShapeRec[OGR_TIGER_RECBUF_LEN];
     int         nShapeRecLen = psRT2Info->nRecordLength + nRecordLength - psRT1Info->nRecordLength;
 
-    for( ; TRUE; nShapeRecId++ )
+    for( ; true; nShapeRecId++ )
     {
         int  nBytesRead = 0;
 
@@ -516,8 +516,8 @@ int TigerCompleteChain::AddShapePoints( int nTLID, int nRecordId,
             return FALSE;
         }
 
-        nBytesRead = VSIFReadL( achShapeRec, 1, psRT2Info->nRecordLength, 
-                                fpShape );
+        nBytesRead = static_cast<int>(VSIFReadL( achShapeRec, 1, psRT2Info->nRecordLength, 
+                                fpShape ));
 
         /* 
         ** Handle case where the last record in the file is full.  We will

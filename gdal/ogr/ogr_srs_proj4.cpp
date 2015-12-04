@@ -39,8 +39,8 @@ extern int EPSGGetWGS84Transform( int nGeogCS, std::vector<CPLString>& asTransfo
 CPL_CVSID("$Id$");
 
 /* -------------------------------------------------------------------- */
-/*      The following list comes from osrs/proj/src/pj_ellps.c          */
-/*      ... please update from time to time.                            */
+/*      The following list comes from osrs/proj/src/pj_ellps.c.         */
+/*      Please update from time to time.                                */
 /* -------------------------------------------------------------------- */
 static const char *ogr_pj_ellps[] = {
 "MERIT",        "a=6378137.0", "rf=298.257", "MERIT 1983",
@@ -136,8 +136,7 @@ static const OGRProj4PM ogr_pj_pms [] = {
 static const char* OGRGetProj4Datum(const char* pszDatum,
                                     int nEPSGDatum)
 {
-    unsigned int i;
-    for(i=0;i<sizeof(ogr_pj_datums)/sizeof(ogr_pj_datums[0]);i++)
+    for(size_t i=0;i<sizeof(ogr_pj_datums)/sizeof(ogr_pj_datums[0]);i++)
     {
         if (nEPSGDatum == ogr_pj_datums[i].nGCS ||
             EQUAL(pszDatum, ogr_pj_datums[i].pszOGR))
@@ -150,8 +149,7 @@ static const char* OGRGetProj4Datum(const char* pszDatum,
 
 static const OGRProj4PM* OGRGetProj4PMFromProj4Name(const char* pszProj4PMName)
 {
-    unsigned int i;
-    for(i=0;i<sizeof(ogr_pj_pms)/sizeof(ogr_pj_pms[0]);i++)
+    for(size_t i=0;i<sizeof(ogr_pj_pms)/sizeof(ogr_pj_pms[0]);i++)
     {
         if (EQUAL(pszProj4PMName, ogr_pj_pms[i].pszProj4PMName))
         {
@@ -163,8 +161,7 @@ static const OGRProj4PM* OGRGetProj4PMFromProj4Name(const char* pszProj4PMName)
 
 static const OGRProj4PM* OGRGetProj4PMFromCode(int nPMCode)
 {
-    unsigned int i;
-    for(i=0;i<sizeof(ogr_pj_pms)/sizeof(ogr_pj_pms[0]);i++)
+    for(size_t i=0;i<sizeof(ogr_pj_pms)/sizeof(ogr_pj_pms[0]);i++)
     {
         if (nPMCode == ogr_pj_pms[i].nPMCode)
         {
@@ -195,20 +192,17 @@ static const OGRProj4PM* OGRGetProj4PMFromVal(double dfVal)
 /*      strings with a + sign in the exponents of parameter values.     */
 /************************************************************************/
 
-char **OSRProj4Tokenize( const char *pszFull )
+static char **OSRProj4Tokenize( const char *pszFull )
 
 {
-    char *pszStart = NULL;
-    char *pszFullWrk;
-    char **papszTokens = NULL;
-    int  i;
-
     if( pszFull == NULL )
         return NULL;
 
-    pszFullWrk = CPLStrdup( pszFull );
+    char *pszFullWrk = CPLStrdup( pszFull );
+    char *pszStart = NULL;
+    char **papszTokens = NULL;
 
-    for( i=0; pszFullWrk[i] != '\0'; i++ )
+    for( int i=0; pszFullWrk[i] != '\0'; i++ )
     {
         switch( pszFullWrk[i] )
         {
@@ -253,7 +247,7 @@ char **OSRProj4Tokenize( const char *pszFull )
 /************************************************************************/
 /*                         OSRImportFromProj4()                         */
 /************************************************************************/
-/** 
+/**
  * \brief Import PROJ.4 coordinate string.
  *
  * This function is the same as OGRSpatialReference::importFromProj4().
@@ -261,7 +255,7 @@ char **OSRProj4Tokenize( const char *pszFull )
 OGRErr OSRImportFromProj4( OGRSpatialReferenceH hSRS, const char *pszProj4 )
 
 {
-    VALIDATE_POINTER1( hSRS, "OSRImportFromProj4", CE_Failure );
+    VALIDATE_POINTER1( hSRS, "OSRImportFromProj4", OGRERR_FAILURE );
 
     return ((OGRSpatialReference *) hSRS)->importFromProj4( pszProj4 );
 }
@@ -274,13 +268,11 @@ OGRErr OSRImportFromProj4( OGRSpatialReferenceH hSRS, const char *pszProj4 )
 /*      helper function for importFromProj4().                          */
 /************************************************************************/
 
-static double OSR_GDV( char **papszNV, const char * pszField, 
+static double OSR_GDV( char **papszNV, const char * pszField,
                        double dfDefaultValue )
 
 {
-    const char * pszValue;
-
-    pszValue = CSLFetchNameValue( papszNV, pszField );
+    const char *pszValue = CSLFetchNameValue( papszNV, pszField );
 
     // special hack to use k_0 if available.
     if( pszValue == NULL && EQUAL(pszField,"k") )
@@ -301,19 +293,19 @@ static double OSR_GDV( char **papszNV, const char * pszField,
  *
  * The OGRSpatialReference is initialized from the passed PROJ.4 style
  * coordinate system string.  In addition to many +proj formulations which
- * have OGC equivelents, it is also possible to import "+init=epsg:n" style
+ * have OGC equivalents, it is also possible to import "+init=epsg:n" style
  * definitions.  These are passed to importFromEPSG().  Other init strings
- * (such as the state plane zones) are not currently supported.   
+ * (such as the state plane zones) are not currently supported.
  *
  * Example:
- *   pszProj4 = "+proj=utm +zone=11 +datum=WGS84" 
+ *   pszProj4 = "+proj=utm +zone=11 +datum=WGS84"
  *
- * Some parameters, such as grids, recognised by PROJ.4 may not be well
+ * Some parameters, such as grids, recognized by PROJ.4 may not be well
  * understood and translated into the OGRSpatialReference model. It is possible
- * to add the +wktext parameter which is a special keyword that OGR recognises
+ * to add the +wktext parameter which is a special keyword that OGR recognized
  * as meaning "embed the entire PROJ.4 string in the WKT and use it literally
  * when converting back to PROJ.4 format".
- * 
+ *
  * For example:
  * "+proj=nzmg +lat_0=-41 +lon_0=173 +x_0=2510000 +y_0=6023150 +ellps=intl
  *  +units=m +nadgrids=nzgd2kgrid0005.gsb +wktext"
@@ -378,12 +370,6 @@ static double OSR_GDV( char **papszNV, const char * pszField,
 OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 
 {
-    char **papszNV = NULL;
-    char **papszTokens;
-    int  i;
-    char *pszCleanCopy;
-    int   bAddProj4Extension = FALSE;
-
 /* -------------------------------------------------------------------- */
 /*      Clear any existing definition.                                  */
 /* -------------------------------------------------------------------- */
@@ -393,11 +379,11 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /*      Strip any newlines or other "funny" stuff that might occur      */
 /*      if this string just came from reading a file.                   */
 /* -------------------------------------------------------------------- */
-    pszCleanCopy = CPLStrdup( pszProj4 );
-    for( i = 0; pszCleanCopy[i] != '\0'; i++ )
+    char *pszCleanCopy = CPLStrdup( pszProj4 );
+    for( int i = 0; pszCleanCopy[i] != '\0'; i++ )
     {
-        if( pszCleanCopy[i] == 10 
-            || pszCleanCopy[i] == 13 
+        if( pszCleanCopy[i] == 10
+            || pszCleanCopy[i] == 13
             || pszCleanCopy[i] == 9 )
             pszCleanCopy[i] = ' ';
     }
@@ -406,9 +392,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /*      Try to normalize the definition.  This should expand +init=     */
 /*      clauses and so forth.                                           */
 /* -------------------------------------------------------------------- */
-    char *pszNormalized;
-
-    pszNormalized = OCTProj4Normalize( pszCleanCopy );
+    char *pszNormalized = OCTProj4Normalize( pszCleanCopy );
 
     /* Workaround proj.4 bug (#239) by manually re-adding no_off/no_uoff */
     if( strstr(pszCleanCopy, "+no_off") != NULL && 
@@ -427,18 +411,17 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     }
 
     CPLFree( pszCleanCopy );
-    
+
 /* -------------------------------------------------------------------- */
 /*      If we have an EPSG based init string, and no existing +proj     */
 /*      portion then try to normalize into into a PROJ.4 string.        */
 /* -------------------------------------------------------------------- */
-    if( strstr(pszNormalized,"init=epsg:") != NULL 
+    if( strstr(pszNormalized,"init=epsg:") != NULL
         && strstr(pszNormalized,"proj=") == NULL )
     {
-        OGRErr eErr;
         const char *pszNumber = strstr(pszNormalized,"init=epsg:") + 10;
 
-        eErr = importFromEPSG( atoi(pszNumber) );
+        OGRErr eErr = importFromEPSG( atoi(pszNumber) );
         if( eErr == OGRERR_NONE )
         {
             CPLFree( pszNormalized );
@@ -450,10 +433,11 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /*      Parse the PROJ.4 string into a cpl_string.h style name/value    */
 /*      list.                                                           */
 /* -------------------------------------------------------------------- */
-    papszTokens = OSRProj4Tokenize( pszNormalized );
+    char **papszTokens = OSRProj4Tokenize( pszNormalized );
     CPLFree( pszNormalized );
-    
-    for( i = 0; papszTokens != NULL && papszTokens[i] != NULL; i++ )
+    char **papszNV = NULL;
+
+    for( int i = 0; papszTokens != NULL && papszTokens[i] != NULL; i++ )
     {
         char *pszEqual = strstr(papszTokens[i],"=");
 
@@ -472,7 +456,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /*      Extract the prime meridian, if there is one set.                */
 /* -------------------------------------------------------------------- */
     const char *pszPM = CSLFetchNameValue( papszNV, "pm" );
-    double dfFromGreenwich = 0.0;
+    double l_dfFromGreenwich = 0.0;
     /* int    nPMCode = -1; */
 
     if( pszPM != NULL )
@@ -480,13 +464,13 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
         const OGRProj4PM* psProj4PM = OGRGetProj4PMFromProj4Name(pszPM);
         if (psProj4PM)
         {
-            dfFromGreenwich = CPLDMSToDec(psProj4PM->pszFromGreenwich);
+            l_dfFromGreenwich = CPLDMSToDec(psProj4PM->pszFromGreenwich);
             pszPM = psProj4PM->pszWKTPMName;
             /* nPMCode = psProj4PM->nPMCode; */
         }
         else
         {
-            dfFromGreenwich = CPLDMSToDec( pszPM );
+            l_dfFromGreenwich = CPLDMSToDec( pszPM );
             pszPM = "unnamed";
         }
     }
@@ -497,6 +481,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /*      Operate on the basis of the projection name.                    */
 /* -------------------------------------------------------------------- */
     const char *pszProj = CSLFetchNameValue(papszNV,"proj");
+    bool bAddProj4Extension = false;
 
     if( pszProj == NULL )
     {
@@ -508,12 +493,12 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     else if( EQUAL(pszProj,"longlat") || EQUAL(pszProj,"latlong") )
     {
     }
-    
+
     else if( EQUAL(pszProj,"geocent") )
     {
         SetGeocCS( "Geocentric" );
     }
-    
+
     else if( EQUAL(pszProj,"bonne") )
     {
         SetBonne( OSR_GDV( papszNV, "lat_1", 0.0 ), 
@@ -570,7 +555,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     else if( EQUAL(pszProj,"etmerc") && 
              CSLFetchNameValue( papszNV, "axis" ) == NULL )
     {
-        bAddProj4Extension = TRUE;
+        bAddProj4Extension = true;
 
         SetTM( OSR_GDV( papszNV, "lat_0", 0.0 ), 
                 OSR_GDV( papszNV, "lon_0", 0.0 ), 
@@ -829,7 +814,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
             || CSLFetchNameValue(papszNV,"no_off") != NULL )
         {
             /* From PJ_omerc, when alpha is defined but not gamma */
-            /* the default gama value is alpha */
+            /* the default gamma value is alpha */
             /*  if (alp || gam) {
                     if (alp) {
                         gamma0 = asin(sin(alpha_c) / D);
@@ -969,32 +954,30 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 /* -------------------------------------------------------------------- */
 /*      Try to translate the datum.                                     */
 /* -------------------------------------------------------------------- */
-    const char *pszValue;
-    int  bFullyDefined = FALSE;
+    bool bFullyDefined = false;
 
-    pszValue = CSLFetchNameValue(papszNV, "datum");
+    const char *pszValue = CSLFetchNameValue(papszNV, "datum");
     if( pszValue == NULL )
     {
         /* do nothing */
     }
     else if( (EQUAL(pszValue,"NAD27") || EQUAL(pszValue,"NAD83")
               || EQUAL(pszValue,"WGS84") || EQUAL(pszValue,"WGS72"))
-             && dfFromGreenwich == 0.0 )
+             && l_dfFromGreenwich == 0.0 )
     {
         SetWellKnownGeogCS( pszValue );
-        bFullyDefined = TRUE;
+        bFullyDefined = true;
     }
     else
     {
-        unsigned int i;
-        for(i=0;i<sizeof(ogr_pj_datums)/sizeof(ogr_pj_datums[0]);i++)
+        for(size_t i=0;i<sizeof(ogr_pj_datums)/sizeof(ogr_pj_datums[0]);i++)
         {
             if ( EQUAL(pszValue, ogr_pj_datums[i].pszPJ) )
             {
                 OGRSpatialReference oGCS;
                 oGCS.importFromEPSG( ogr_pj_datums[i].nEPSG );
                 CopyGeogCSFrom( &oGCS );
-                bFullyDefined = TRUE;
+                bFullyDefined = true;
                 break;
             }
         }
@@ -1010,28 +993,28 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     pszValue = CSLFetchNameValue(papszNV, "ellps");
     if( pszValue != NULL && !bFullyDefined )
     {
-        for( i = 0; ogr_pj_ellps[i] != NULL; i += 4 )
+        for( int i = 0; ogr_pj_ellps[i] != NULL; i += 4 )
         {
             if( !EQUAL(ogr_pj_ellps[i],pszValue) )
                 continue;
 
-            CPLAssert( EQUALN(ogr_pj_ellps[i+1],"a=",2) );
-            
+            CPLAssert( STARTS_WITH_CI(ogr_pj_ellps[i+1], "a=") );
+
             dfSemiMajor = CPLAtof(ogr_pj_ellps[i+1]+2);
-            if( EQUALN(ogr_pj_ellps[i+2],"rf=",3) )
+            if( STARTS_WITH_CI(ogr_pj_ellps[i+2], "rf=") )
                 dfInvFlattening = CPLAtof(ogr_pj_ellps[i+2]+3);
             else
             {
-                CPLAssert( EQUALN(ogr_pj_ellps[i+2],"b=",2) );
+                CPLAssert( STARTS_WITH_CI(ogr_pj_ellps[i+2], "b=") );
                 dfSemiMinor = CPLAtof(ogr_pj_ellps[i+2]+2);
                 dfInvFlattening = OSRCalcInvFlattening(dfSemiMajor, dfSemiMinor);
             }
-            
-            SetGeogCS( ogr_pj_ellps[i+3], "unknown", ogr_pj_ellps[i], 
-                       dfSemiMajor, dfInvFlattening,
-                       pszPM, dfFromGreenwich );
 
-            bFullyDefined = TRUE;
+            SetGeogCS( ogr_pj_ellps[i+3], "unknown", ogr_pj_ellps[i],
+                       dfSemiMajor, dfInvFlattening,
+                       pszPM, l_dfFromGreenwich );
+
+            bFullyDefined = true;
             break;
         }
     }
@@ -1051,7 +1034,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
             {
                 CPLDebug( "OGR_PROJ4", "Can't find ellipse definition, default to WGS84:\n%s", 
                           pszProj4 );
-                
+
                 dfSemiMajor = SRS_WGS84_SEMIMAJOR;
                 dfSemiMinor = -1.0;
                 dfInvFlattening = SRS_WGS84_INVFLATTENING;
@@ -1070,10 +1053,10 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
                     dfInvFlattening = 1.0 / dfFlattening;
             }
         }
-        
+
         if( dfSemiMinor == -1.0 && dfInvFlattening == -1.0 )
         {
-            CPLDebug( "OGR_PROJ4", "Can't find ellipse definition in:\n%s", 
+            CPLDebug( "OGR_PROJ4", "Can't find ellipse definition in:\n%s",
                       pszProj4 );
             CSLDestroy( papszNV );
             return OGRERR_UNSUPPORTED_SRS;
@@ -1083,21 +1066,26 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
         {
             dfInvFlattening = OSRCalcInvFlattening(dfSemiMajor, dfSemiMinor);
         }
-        
+
         SetGeogCS( "unnamed ellipse", "unknown", "unnamed",
                    dfSemiMajor, dfInvFlattening,
-                   pszPM, dfFromGreenwich );
-        
-        bFullyDefined = TRUE;
+                   pszPM, l_dfFromGreenwich );
+
+        bFullyDefined = true;
     }
 
 /* -------------------------------------------------------------------- */
 /*      Handle TOWGS84 conversion.                                      */
 /* -------------------------------------------------------------------- */
     pszValue = CSLFetchNameValue(papszNV, "towgs84");
-    if(pszValue!=NULL)
+    // Make sure that we do not include a useless TOWGS84 node if the datum
+    // is WGS84.  Depending on the proj.4 version +datum=WGS84 might be
+    // expanded with a +towgs84=0,0,0 or not
+    if(pszValue!=NULL &&
+        !( EQUAL(CSLFetchNameValueDef(papszNV, "datum", ""), "WGS84")
+           && EQUAL(pszValue, "0,0,0")) )
     {
-        char **papszToWGS84 = CSLTokenizeStringComplex( pszValue, ",", 
+        char **papszToWGS84 = CSLTokenizeStringComplex( pszValue, ",",
                                                         FALSE, TRUE );
 
         if( CSLCount(papszToWGS84) >= 7 )
@@ -1116,7 +1104,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
             CPLError( CE_Warning, CPLE_AppDefined, 
                       "Seemingly corrupt +towgs84 option (%s), ignoring.", 
                       pszValue );
-                        
+
         CSLDestroy(papszToWGS84);
     }
 
@@ -1139,7 +1127,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 
         if( pszValue != NULL && CPLAtofM(pszValue) > 0.0 )
         {
-            double dfValue = CPLAtofM(pszValue);
+            const double dfValue = CPLAtofM(pszValue);
 
             if( fabs(dfValue - CPLAtof(SRS_UL_US_FOOT_CONV)) < 0.00000001 )
                 SetLinearUnits( SRS_UL_US_FOOT, CPLAtof(SRS_UL_US_FOOT_CONV) );
@@ -1181,7 +1169,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
                 SetLinearUnits( SRS_UL_US_YARD,
                                 CPLAtof( SRS_UL_US_YARD_CONV ) );
             else if( EQUAL( pszValue,"dm" ) )
-                SetLinearUnits( SRS_UL_DECIMETER, 
+                SetLinearUnits( SRS_UL_DECIMETER,
                                 CPLAtof( SRS_UL_DECIMETER_CONV ) );
             else if( EQUAL( pszValue,"cm" ) )
                 SetLinearUnits( SRS_UL_CENTIMETER,
@@ -1237,12 +1225,11 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     if( GetLinearUnits() != 1.0 && IsProjected() )
     {
         OGR_SRSNode *poPROJCS = GetAttrNode( "PROJCS" );
-        int  i;
 
-        for( i = 0; i < poPROJCS->GetChildCount(); i++ )
+        for( int i = 0; i < poPROJCS->GetChildCount(); i++ )
         {
             OGR_SRSNode *poParm = poPROJCS->GetChild(i);
-            if( !EQUAL(poParm->GetValue(),"PARAMETER") 
+            if( !EQUAL(poParm->GetValue(),"PARAMETER")
                 || poParm->GetChildCount() != 2 )
                 continue;
 
@@ -1250,7 +1237,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 
             if( IsLinearParameter(pszParmName) )
                 SetNormProjParm(pszParmName,GetProjParm(pszParmName));
-        }        
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -1261,9 +1248,9 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
     if( pszValue != NULL )
     {
         OGR_SRSNode *poHorizSRS = GetRoot()->Clone();
-        
+
         Clear();
-        
+
         CPLString osName = poHorizSRS->GetChild(0)->GetValue();
         osName += " + ";
         osName += "Unnamed Vertical Datum";
@@ -1296,7 +1283,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 
         if( pszValue != NULL && CPLAtofM(pszValue) > 0.0 )
         {
-            double dfValue = CPLAtofM(pszValue);
+            const double dfValue = CPLAtofM(pszValue);
 
             if( fabs(dfValue - CPLAtof(SRS_UL_US_FOOT_CONV)) < 0.00000001 )
             {
@@ -1350,9 +1337,7 @@ OGRErr OGRSpatialReference::importFromProj4( const char * pszProj4 )
 
         if( pszUnitName != NULL )
         {
-            OGR_SRSNode *poUnits; 
-
-            poUnits = new OGR_SRSNode( "UNIT" );
+            OGR_SRSNode *poUnits = new OGR_SRSNode( "UNIT" );
             poUnits->AddChild( new OGR_SRSNode( pszUnitName ) );
             poUnits->AddChild( new OGR_SRSNode( pszUnitConv ) );
 
@@ -1412,10 +1397,10 @@ static const char *LinearToProj4( double dfLinearConv,
 
     else if( dfLinearConv == 1000.0 )
         return "km";
-    
+
     else if( dfLinearConv == 0.0254 )
         return "in";
-    
+
     else if( EQUAL(pszLinearUnits,SRS_UL_FOOT) 
              || fabs(dfLinearConv - CPLAtof(SRS_UL_FOOT_CONV)) < 0.000000001 )
         return "ft";
@@ -1459,7 +1444,7 @@ OGRErr CPL_STDCALL OSRExportToProj4( OGRSpatialReferenceH hSRS,
                                      char ** ppszReturn )
 
 {
-    VALIDATE_POINTER1( hSRS, "OSRExportToProj4", CE_Failure );
+    VALIDATE_POINTER1( hSRS, "OSRExportToProj4", OGRERR_FAILURE );
 
     *ppszReturn = NULL;
 
@@ -1494,7 +1479,7 @@ OGRErr CPL_STDCALL OSRExportToProj4( OGRSpatialReferenceH hSRS,
  * expense of computational speed) when reprojection occurs near the edges
  * of the validity area for the projection.
  *
- * This method is the equivelent of the C function OSRExportToProj4().
+ * This method is the equivalent of the C function OSRExportToProj4().
  *
  * @param ppszProj4 pointer to which dynamically allocated PROJ.4 definition 
  * will be assigned. 
@@ -1505,11 +1490,6 @@ OGRErr CPL_STDCALL OSRExportToProj4( OGRSpatialReferenceH hSRS,
 OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 
 {
-    char        szProj4[512];
-    const char *pszProjection = GetAttrValue("PROJECTION");
-
-    szProj4[0] = '\0';
-
     if( GetRoot() == NULL )
     {
         *ppszProj4 = CPLStrdup("");
@@ -1521,7 +1501,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /* -------------------------------------------------------------------- */
 /*      Do we have a PROJ.4 override definition?                        */
 /* -------------------------------------------------------------------- */
-    const char *pszPredefProj4 = GetExtension( GetRoot()->GetValue(), 
+    const char *pszPredefProj4 = GetExtension( GetRoot()->GetValue(),
                                                "PROJ4", NULL );
     if( pszPredefProj4 != NULL )
     {
@@ -1533,17 +1513,22 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /*      Get the prime meridian info.                                    */
 /* -------------------------------------------------------------------- */
     const OGR_SRSNode *poPRIMEM = GetAttrNode( "PRIMEM" );
-    double dfFromGreenwich = 0.0;
+    double l_dfFromGreenwich = 0.0;
 
-    if( poPRIMEM != NULL && poPRIMEM->GetChildCount() >= 2 
+    if( poPRIMEM != NULL && poPRIMEM->GetChildCount() >= 2
         && CPLAtof(poPRIMEM->GetChild(1)->GetValue()) != 0.0 )
     {
-        dfFromGreenwich = CPLAtof(poPRIMEM->GetChild(1)->GetValue());
+        l_dfFromGreenwich = CPLAtof(poPRIMEM->GetChild(1)->GetValue());
     }
 
 /* ==================================================================== */
 /*      Handle the projection definition.                               */
 /* ==================================================================== */
+
+    const char *pszProjection = GetAttrValue("PROJECTION");
+
+    char szProj4[512];
+    szProj4[0] = '\0';
 
     if( pszProjection == NULL && IsGeographic() )
     {
@@ -1608,7 +1593,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
              EQUAL(pszProjection,SRS_PT_TRANSVERSE_MERCATOR_MI_25) )
     {
         int bNorth;
-        int nZone = GetUTMZone( &bNorth );
+        const int nZone = GetUTMZone( &bNorth );
 
         if( CSLTestBoolean(CPLGetConfigOption("OSR_USE_ETMERC", "FALSE")) )
         {
@@ -1628,7 +1613,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
             else
                 CPLsprintf( szProj4+strlen(szProj4),"+proj=utm +zone=%d +south ", 
                          nZone );
-        }            
+        }
         else
             CPLsprintf( szProj4+strlen(szProj4),
                      "+proj=tmerc +lat_0=%.16g +lon_0=%.16g +k=%.16g +x_0=%.16g +y_0=%.16g ",
@@ -2228,7 +2213,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
                  GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
                  GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0) );
     }
- 
+
     else if( EQUAL(pszProjection,SRS_PT_WINKEL_I) )
     {
         CPLsprintf( szProj4+strlen(szProj4),
@@ -2311,8 +2296,8 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /*      Handle earth model.  For now we just always emit the user       */
 /*      defined ellipsoid parameters.                                   */
 /* -------------------------------------------------------------------- */
-    double      dfSemiMajor = GetSemiMajor();
-    double      dfInvFlattening = GetInvFlattening();
+    const double      dfSemiMajor = GetSemiMajor();
+    const double      dfInvFlattening = GetInvFlattening();
     const char  *pszPROJ4Ellipse = NULL;
     const char  *pszDatum = GetAttrValue("DATUM");
 
@@ -2389,17 +2374,17 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
     else if( ABS(dfSemiMajor-6378165.0) < 0.01
              && ABS(dfInvFlattening-298.3) < 0.0001 )
     {
-        pszPROJ4Ellipse = "WGS60";      
+        pszPROJ4Ellipse = "WGS60";
     }
     else if( ABS(dfSemiMajor-6378145.0) < 0.01
              && ABS(dfInvFlattening-298.25) < 0.0001 )
     {
-        pszPROJ4Ellipse = "WGS66";      
+        pszPROJ4Ellipse = "WGS66";
     }
     else if( ABS(dfSemiMajor-6378135.0) < 0.01
              && ABS(dfInvFlattening-298.26) < 0.0001 )
     {
-        pszPROJ4Ellipse = "WGS72";      
+        pszPROJ4Ellipse = "WGS72";
     }
     else if( ABS(dfSemiMajor-6378137.0) < 0.01
              && ABS(dfInvFlattening-298.257223563) < 0.000001 )
@@ -2420,10 +2405,10 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
     char szEllipseDef[128];
 
     if( pszPROJ4Ellipse == NULL )
-        CPLsprintf( szEllipseDef, "+a=%.16g +b=%.16g ",
+      CPLsnprintf( szEllipseDef, sizeof(szEllipseDef), "+a=%.16g +b=%.16g ",
                  GetSemiMajor(), GetSemiMinor() );
     else
-        CPLsprintf( szEllipseDef, "+ellps=%s ",
+        CPLsnprintf( szEllipseDef, sizeof(szEllipseDef), "+ellps=%s ",
                  pszPROJ4Ellipse );
 
 /* -------------------------------------------------------------------- */
@@ -2431,19 +2416,16 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /* -------------------------------------------------------------------- */
     const char *pszPROJ4Datum = NULL;
     const OGR_SRSNode *poTOWGS84 = GetAttrNode( "TOWGS84" );
-    char  szTOWGS84[256];
     int nEPSGDatum = -1;
-    const char *pszAuthority;
     int nEPSGGeogCS = -1;
-    const char *pszGeogCSAuthority;
     const char *pszProj4Grids = GetExtension( "DATUM", "PROJ4_GRIDS" );
 
-    pszAuthority = GetAuthorityName( "DATUM" );
+    const char *pszAuthority = GetAuthorityName( "DATUM" );
 
     if( pszAuthority != NULL && EQUAL(pszAuthority,"EPSG") )
         nEPSGDatum = atoi(GetAuthorityCode( "DATUM" ));
 
-    pszGeogCSAuthority = GetAuthorityName( "GEOGCS" );
+    const char *pszGeogCSAuthority = GetAuthorityName( "GEOGCS" );
 
     if( pszGeogCSAuthority != NULL && EQUAL(pszGeogCSAuthority,"EPSG") )
         nEPSGGeogCS = atoi(GetAuthorityCode( "GEOGCS" ));
@@ -2513,7 +2495,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
                 pszPROJ4Datum = NULL;
             }
         }
-        
+
         // If we don't know the datum, trying looking up TOWGS84 parameters
         // based on the EPSG GCS code.
         else if( nEPSGGeogCS != -1 && pszPROJ4Datum == NULL )
@@ -2521,14 +2503,16 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
             std::vector<CPLString> asBursaTransform;
             if( EPSGGetWGS84Transform( nEPSGGeogCS, asBursaTransform ) )
             {
-                CPLsprintf( szTOWGS84, "+towgs84=%s,%s,%s,%s,%s,%s,%s",
-                         asBursaTransform[0].c_str(),
-                         asBursaTransform[1].c_str(),
-                         asBursaTransform[2].c_str(),
-                         asBursaTransform[3].c_str(),
-                         asBursaTransform[4].c_str(),
-                         asBursaTransform[5].c_str(),
-                         asBursaTransform[6].c_str() );
+                char szTOWGS84[256];
+                CPLsnprintf( szTOWGS84, sizeof(szTOWGS84),
+                             "+towgs84=%s,%s,%s,%s,%s,%s,%s",
+                             asBursaTransform[0].c_str(),
+                             asBursaTransform[1].c_str(),
+                             asBursaTransform[2].c_str(),
+                             asBursaTransform[3].c_str(),
+                             asBursaTransform[4].c_str(),
+                             asBursaTransform[5].c_str(),
+                             asBursaTransform[6].c_str() );
                 SAFE_PROJ4_STRCAT( szEllipseDef );
                 szEllipseDef[0] = '\0';
 
@@ -2538,7 +2522,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
             }
         }
     }
-    
+
     if( pszPROJ4Datum != NULL )
     {
         SAFE_PROJ4_STRCAT( "+datum=" );
@@ -2546,7 +2530,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
         SAFE_PROJ4_STRCAT( " " );
     }
     else // The ellipsedef may already have been appended and will now
-        // be empty, otherwise append now.
+         // be empty, otherwise append now.
     {
         SAFE_PROJ4_STRCAT( szEllipseDef );
         szEllipseDef[0] = '\0';
@@ -2555,11 +2539,10 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /* -------------------------------------------------------------------- */
 /*      Is there prime meridian info to apply?                          */
 /* -------------------------------------------------------------------- */
-    if( poPRIMEM != NULL && poPRIMEM->GetChildCount() >= 2 
+    if( poPRIMEM != NULL && poPRIMEM->GetChildCount() >= 2
         && CPLAtof(poPRIMEM->GetChild(1)->GetValue()) != 0.0 )
     {
-        const char *pszAuthority = GetAuthorityName( "PRIMEM" );
-        char szPMValue[128];
+        pszAuthority = GetAuthorityName( "PRIMEM" );
         int  nCode = -1;
 
         if( pszAuthority != NULL && EQUAL(pszAuthority,"EPSG") )
@@ -2569,34 +2552,33 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
         if (nCode > 0)
             psProj4PM = OGRGetProj4PMFromCode(nCode);
         if (psProj4PM == NULL)
-            psProj4PM = OGRGetProj4PMFromVal(dfFromGreenwich);
+            psProj4PM = OGRGetProj4PMFromVal(l_dfFromGreenwich);
 
+        char szPMValue[128];
         if (psProj4PM != NULL)
         {
             strcpy( szPMValue, psProj4PM->pszProj4PMName );
         }
         else
         {
-            CPLsprintf( szPMValue, "%.16g", dfFromGreenwich );
+            CPLsnprintf( szPMValue, sizeof(szPMValue), "%.16g", l_dfFromGreenwich );
         }
 
         SAFE_PROJ4_STRCAT( "+pm=" );
         SAFE_PROJ4_STRCAT( szPMValue );
         SAFE_PROJ4_STRCAT( " " );
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Handle linear units.                                            */
 /* -------------------------------------------------------------------- */
     const char  *pszPROJ4Units=NULL;
     char        *pszLinearUnits = NULL;
-    double      dfLinearConv;
+    double      dfLinearConv = GetLinearUnits( &pszLinearUnits );
 
-    dfLinearConv = GetLinearUnits( &pszLinearUnits );
-        
     if( strstr(szProj4,"longlat") != NULL )
         pszPROJ4Units = NULL;
-    else 
+    else
     {
         pszPROJ4Units = LinearToProj4( dfLinearConv, pszLinearUnits );
 
@@ -2621,13 +2603,13 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /*      If we have vertical datum grids, attach them to the proj.4 string.*/
 /* -------------------------------------------------------------------- */
     const char *pszProj4Geoids = GetExtension( "VERT_DATUM", "PROJ4_GRIDS" );
-    
+
     if( pszProj4Geoids != NULL )
     {
         SAFE_PROJ4_STRCAT( "+geoidgrids=" );
         SAFE_PROJ4_STRCAT( pszProj4Geoids );
         SAFE_PROJ4_STRCAT(  " " );
-    }    
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Handle vertical units, but only if we have them.                */
@@ -2643,10 +2625,10 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
         pszPROJ4Units = NULL;
 
         dfLinearConv = CPLAtof( poVUNITS->GetChild(1)->GetValue() );
-        
+
         pszPROJ4Units = LinearToProj4( dfLinearConv,
                                        poVUNITS->GetChild(0)->GetValue() );
-            
+
         if( pszPROJ4Units == NULL )
         {
             char szLinearConv[128];
@@ -2668,7 +2650,7 @@ OGRErr OGRSpatialReference::exportToProj4( char ** ppszProj4 ) const
 /*      proj_def.dat are implicitly used with our definitions.          */
 /* -------------------------------------------------------------------- */
     SAFE_PROJ4_STRCAT( "+no_defs " );
-    
+
     *ppszProj4 = CPLStrdup( szProj4 );
 
     return OGRERR_NONE;

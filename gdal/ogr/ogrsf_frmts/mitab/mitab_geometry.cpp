@@ -49,7 +49,7 @@
  *
  **********************************************************************/
 
-#include "ogr_geometry.h"
+#include "mitab_geometry.h"
 
 #define OGR_NUM_RINGS(poly)   (poly->getNumInteriorRings()+1)
 #define OGR_GET_RING(poly, i) (i==0?poly->getExteriorRing():poly->getInteriorRing(i-1))
@@ -220,7 +220,10 @@ int OGRPolygonLabelPoint(OGRPolygon *poPoly, OGRPoint *poLabelPoint)
         }
 
         if(lo_y == hi_y) 
+        {
+            free(xintersect);
             return OGRERR_FAILURE;
+        }
         else  
             y = (hi_y + lo_y)/2.0;    
     
@@ -266,7 +269,7 @@ int OGRPolygonLabelPoint(OGRPolygon *poPoly, OGRPoint *poLabelPoint)
         } while(wrong_order);
     
         /* Great, now find longest span */
-        point1.y = point2.y = y;
+        //point1.y = point2.y = y;
         for(i=0; i < nfound; i += 2) 
         {
             point1.x = xintersect[i];
@@ -310,7 +313,7 @@ int OGRPolygonLabelPoint(OGRPolygon *poPoly, OGRPoint *poLabelPoint)
         return OGRERR_FAILURE;
 }
 
-
+#ifdef unused
 /**********************************************************************
  *                   OGRGetCentroid()
  *
@@ -357,7 +360,7 @@ int OGRGetCentroid(OGRPolygon *poPoly, OGRPoint *poCentroid)
   
     return OGRERR_NONE;
 }
-
+#endif
 
 
 /**********************************************************************

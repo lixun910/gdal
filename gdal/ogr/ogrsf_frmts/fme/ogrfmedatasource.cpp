@@ -14,16 +14,16 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
@@ -138,7 +138,7 @@ static char *BuildTmpNam( const char *pszLayerName )
 /* -------------------------------------------------------------------- */
 /*      Look for an unused name.                                        */
 /* -------------------------------------------------------------------- */
-    for( i = -1; TRUE; i++ )
+    for( i = -1; true; i++ )
     {
         if( i == -1 )
             sprintf( szFilename, "%s%c%s_%s", 
@@ -451,14 +451,14 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
     }
          
     if( (i < 2 || pszCompositeName[i] != ':' 
-         || EQUALN(pszCompositeName,"OCI:",4)
-         || EQUALN(pszCompositeName,"gltp:",5)
-         || EQUALN(pszCompositeName,"http",4)
-         || EQUALN(pszCompositeName,"DODS:",5)
-         || EQUALN(pszCompositeName,"ODBC:",5)
-         || EQUALN(pszCompositeName,"MYSQL:",5))
+         || STARTS_WITH_CI(pszCompositeName, "OCI:")
+         || STARTS_WITH_CI(pszCompositeName, "gltp:")
+         || STARTS_WITH_CI(pszCompositeName, "http")
+         || STARTS_WITH_CI(pszCompositeName, "DODS:")
+         || STARTS_WITH_CI(pszCompositeName, "ODBC:")
+         || STARTS_WITH_CI(pszCompositeName, "MYSQL:"))
         && !EQUAL(CPLGetExtension( pszCompositeName ), "fdd")
-        && !EQUALN(pszCompositeName,"PROMPT",6) )
+        && !STARTS_WITH_CI(pszCompositeName, "PROMPT") )
     {
         CPLDebug( kPROVIDERNAME, 
                   "OGRFMEDataSource::Open(%s) don't try to open via FME.", 
@@ -495,7 +495,7 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
 /* -------------------------------------------------------------------- */
 /*      Prompt for a source, if none is provided.                       */
 /* -------------------------------------------------------------------- */
-    if( EQUAL(pszCompositeName,"") || EQUALN(pszCompositeName,"PROMPT",6) )
+    if( EQUAL(pszCompositeName,"") || STARTS_WITH_CI(pszCompositeName, "PROMPT") )
     {
         pszName = PromptForSource();
         if( pszName == NULL )
@@ -520,7 +520,7 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Extract the reader name and password compontents.  The          */
+/*      Extract the reader name and password components.  The          */
 /*      reader name will be followed by a single colon and then the     */
 /*      FME DATASET name.                                               */
 /* -------------------------------------------------------------------- */
@@ -543,10 +543,10 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
     CPLDebug( kPROVIDERNAME, "%s:parsed out dataset", pszDataset );
 
 /* -------------------------------------------------------------------- */
-/*      If we prompted for a defintion that includes a file to save     */
+/*      If we prompted for a definition that includes a file to save    */
 /*      it to, do the save now.                                         */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszCompositeName,"PROMPT:",7) 
+    if( STARTS_WITH_CI(pszCompositeName, "PROMPT:") 
         && strlen(pszCompositeName) > 7 )
     {
         SaveDefinitionFile( pszCompositeName+7, 
@@ -574,8 +574,8 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
 /*      Are we going to use the direct access DB mechanism, or the      */
 /*      spatiallly cached (dumb reader) mechanism.                      */
 /* -------------------------------------------------------------------- */
-    bUseCaching = !EQUALN(pszReaderName,"SDE",3) 
-               && !EQUALN(pszReaderName,"ORACLE",6);
+    bUseCaching = !STARTS_WITH_CI(pszReaderName, "SDE") 
+               && !STARTS_WITH_CI(pszReaderName, "ORACLE");
 
 /* -------------------------------------------------------------------- */
 /*      Is there already a cache for this dataset?  If so, we will      */
@@ -675,7 +675,7 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
 /* -------------------------------------------------------------------- */
     FME_Boolean         eEndOfSchema;
 
-    while( TRUE )
+    while( true )
     {
         err = poReader->readSchema( *poFMEFeature, eEndOfSchema );
         if( err )
@@ -1329,8 +1329,8 @@ void OGRFMEDataSource::OfferForConnectionCaching(IFMEUniversalReader *poReader,
 /* -------------------------------------------------------------------- */
 /*      For now we only cache SDE readers.                              */
 /* -------------------------------------------------------------------- */
-    if( !EQUALN(pszReaderType,"SDE",3) 
-        && !EQUALN(pszReaderType,"ORACLE",6) )
+    if( !STARTS_WITH_CI(pszReaderType, "SDE") 
+        && !STARTS_WITH_CI(pszReaderType, "ORACLE") )
         return;
 
 /* -------------------------------------------------------------------- */
@@ -1346,7 +1346,7 @@ void OGRFMEDataSource::OfferForConnectionCaching(IFMEUniversalReader *poReader,
 
     for( i = 0; i < (int) poUserDirectives->entries()-1; i += 2 )
     {
-        if( EQUALN((const char *) (*poUserDirectives)(i),"RUNTIME_MACROS",14) )
+        if( STARTS_WITH_CI((const char *) (*poUserDirectives)(i), "RUNTIME_MACROS") )
             pszRuntimeMacros = (*poUserDirectives)(i+1);
     }
     

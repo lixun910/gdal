@@ -6,11 +6,11 @@
 # Project:  GDAL/OGR Test Suite
 # Purpose:  Test OGR S-57 driver functionality.
 # Author:   Frank Warmerdam <warmerdam@pobox.com>
-# 
+#
 ###############################################################################
 # Copyright (c) 2007, Frank Warmerdam <warmerdam@pobox.com>
 # Copyright (c) 2011-2013, Even Rouault <even dot rouault at mines-paris dot org>
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
 # to deal in the Software without restriction, including without limitation
@@ -20,7 +20,7 @@
 #
 # The above copyright notice and this permission notice shall be included
 # in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -51,8 +51,8 @@ def ogr_s57_1():
     # Clear S57 options if set or our results will be messed up.
     if gdal.GetConfigOption( 'OGR_S57_OPTIONS', '' ) != '':
         gdal.SetConfigOption( 'OGR_S57_OPTIONS', '' )
-        
-    gdaltest.s57_ds = ogr.Open( 'data/1B5X02NE.000' )    
+
+    gdaltest.s57_ds = ogr.Open( 'data/1B5X02NE.000' )
     if gdaltest.s57_ds is None:
         gdaltest.post_reason( 'failed to open test file.' )
         return 'fail'
@@ -131,8 +131,6 @@ def ogr_s57_3():
     if ogrtest.check_feature_geometry( feat, wkt ):
         return 'fail'
 
-    feat.Destroy()
-
     return 'success'
 
 ###############################################################################
@@ -158,8 +156,6 @@ def ogr_s57_4():
 
     if ogrtest.check_feature_geometry( feat, wkt ):
         return 'fail'
-
-    feat.Destroy()
 
     return 'success'
 
@@ -187,7 +183,7 @@ def ogr_s57_5():
     if ogrtest.check_feature_geometry( feat, wkt ):
         return 'fail'
 
-    feat.Destroy()
+    gdaltest.s57_ds = None
 
     return 'success'
 
@@ -195,24 +191,19 @@ def ogr_s57_5():
 # Test reading features from dataset with some double byte attributes. (#1526)
 
 def ogr_s57_6():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     ds = ogr.Open( 'data/bug1526.000' )
-    
+
     feat = ds.GetLayerByName('FOGSIG').GetNextFeature()
 
     if feat is None:
         gdaltest.post_reason( 'Did not get expected FOGSIG feature at all.' )
         return 'fail'
-    
+
     if feat.GetField( 'INFORM' ) != 'During South winds nautophone is not always heard in S direction from lighthouse' \
        or len(feat.GetField( 'NINFOM' )) < 1:
         gdaltest.post_reason( 'FOGSIG: did not get expected attributes' )
         return 'fail'
-
-    feat.Destroy()
-    ds = None
 
     return 'success'
 
@@ -220,11 +211,9 @@ def ogr_s57_6():
 # Test handling of a dataset with a multilinestring feature (#2147).
 
 def ogr_s57_7():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     ds = ogr.Open( 'data/bug2147_3R7D0889.000' )
-    
+
     feat = ds.GetLayerByName('ROADWY').GetNextFeature()
 
     if feat is None:
@@ -235,9 +224,6 @@ def ogr_s57_7():
 
     if ogrtest.check_feature_geometry( feat, exp_wkt ):
         return 'fail'
-    
-    feat.Destroy()
-    ds = None
 
     return 'success'
 
@@ -245,8 +231,6 @@ def ogr_s57_7():
 # Run test_ogrsf
 
 def ogr_s57_8():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     import test_cli_utilities
     if test_cli_utilities.get_test_ogrsf_path() is None:
@@ -264,8 +248,6 @@ def ogr_s57_8():
 # Test S57 to S57 conversion
 
 def ogr_s57_9():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     try:
         os.unlink('tmp/ogr_s57_9.000')
@@ -284,7 +266,6 @@ def ogr_s57_9():
             feat = ogr.Feature(lyr.GetLayerDefn())
             feat.SetFrom(src_feat)
             lyr.CreateFeature(feat)
-            feat = None
     src_ds = None
     ds = None
 
@@ -302,6 +283,8 @@ def ogr_s57_9():
     if ogr_s57_5() != 'success':
         return 'fail'
 
+    gdaltest.s57_ds = None
+
     try:
         os.unlink('tmp/ogr_s57_9.000')
     except:
@@ -313,8 +296,6 @@ def ogr_s57_9():
 # Test decoding of Dutch inland ENCs (#3881).
 
 def ogr_s57_online_1():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     if not gdaltest.download_file('ftp://sdg.ivs90.nl/ENC/1R5MK050.000', '1R5MK050.000'):
         return 'skip'
@@ -345,8 +326,6 @@ def ogr_s57_online_1():
 # Test with ENC 3.0 TDS - tile without updates.
 
 def ogr_s57_online_2():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     if not gdaltest.download_file('http://download.osgeo.org/gdal/data/s57/enctds/GB5X01SW.000', 'GB5X01SW.000'):
         return 'skip'
@@ -384,8 +363,6 @@ def ogr_s57_online_2():
 # Test with ENC 3.0 TDS - tile with updates.
 
 def ogr_s57_online_3():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     if not gdaltest.download_file('http://download.osgeo.org/gdal/data/s57/enctds/GB5X01SW.001', 'GB5X01SW.001'):
         return 'skip'
@@ -409,7 +386,8 @@ def ogr_s57_online_3():
     lyr = ds.GetLayerByName('BOYCAR')
     feat = lyr.GetFeature(975)
     if feat is None:
-        gdaltest.post_reason( 'unexpected dit not get feature id 975 after update!' )
+        gdaltest.post_reason( 'unexpected did not get feature id 975 '
+                              'after update!' )
         return 'fail'
 
     feat = None
@@ -424,8 +402,6 @@ def ogr_s57_online_3():
 # Test ENC LL2 (#5048)
 
 def ogr_s57_online_4():
-    if gdaltest.s57_ds is None:
-        return 'skip'
 
     if not gdaltest.download_file('http://www1.kaiho.mlit.go.jp/KOKAI/ENC/images/sample/sample.zip', 'sample.zip'):
         return 'skip'
@@ -485,4 +461,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

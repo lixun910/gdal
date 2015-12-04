@@ -41,7 +41,7 @@
 /*                              utility methods                         */
 /************************************************************************/
 
-int epsg2sosi (int nEPSG) {
+static int epsg2sosi (int nEPSG) {
     int nSOSI = 23;
     switch (nEPSG) {
         case 27391: /* NGO 1984 Axis I-VIII */
@@ -78,14 +78,15 @@ int epsg2sosi (int nEPSG) {
             break;
         }
         default: {
-            CPLError( CE_Warning, CPLE_AppDefined, 
-                      "(Yet) unsupported coodinate system writing to SOSI file: %i. Defaulting to EPSG:4326/SOSI 84.", nEPSG);
+            CPLError( CE_Warning, CPLE_AppDefined,
+                      "(Yet) unsupported coordinate system writing to SOSI "
+                      "file: %i. Defaulting to EPSG:4326/SOSI 84.", nEPSG);
             }
     }
     return nSOSI;
 }
 
-int sosi2epsg (int nSOSI) {
+static int sosi2epsg (int nSOSI) {
     int nEPSG = 4326;
     switch (nSOSI) {
         case 1: /* NGO 1984 Axis I-VIII */
@@ -122,8 +123,9 @@ int sosi2epsg (int nSOSI) {
             break;
         }
         default: {
-            CPLError( CE_Warning, CPLE_AppDefined, 
-                      "(Yet) unsupported coodinate system in SOSI-file: %i. Defaulting to EPSG:4326.", nSOSI);
+            CPLError( CE_Warning, CPLE_AppDefined,
+                      "(Yet) unsupported coordinate system in SOSI-file: %i. "
+                      "Defaulting to EPSG:4326.", nSOSI);
         }
     }
     return nEPSG;
@@ -135,19 +137,19 @@ int sosi2epsg (int nSOSI) {
 
 OGRSOSIDataSource::OGRSOSIDataSource() {
     nLayers = 0;
-    
+
     poFileadm = NULL;
     poBaseadm = NULL;
     papoBuiltGeometries = NULL;
     papoLayers = NULL;
     pszName = NULL;
     poSRS = NULL;
-    
+
     poPolyHeaders = NULL;
     poTextHeaders = NULL;
     poPointHeaders = NULL;
     poCurveHeaders = NULL;
-    
+
     pszEncoding = CPL_ENC_UTF8;
     nMode = MODE_READING;
 }
@@ -266,11 +268,9 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
      * --------------------------------------------------------------------*/
 
     /* allocate room for one pointer per feature */
-    nNumFeatures = poFileadm->lAntGr;
-    void* mem = VSIMalloc2(nNumFeatures, sizeof(void*));
+    nNumFeatures = static_cast<unsigned int>(poFileadm->lAntGr);
+    void* mem = VSI_MALLOC2_VERBOSE(nNumFeatures, sizeof(void*));
     if (mem == NULL) {
-        CPLError( CE_Failure, CPLE_OpenFailed,
-                  "Memory allocation for SOSI features failed." );
         return FALSE;
     } else {
         papoBuiltGeometries = (OGRGeometry**)mem;
@@ -325,28 +325,28 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
                 switch (nName) {             /* Add to header list for the corresponding layer, if it is not */
                 case L_FLATE: {            /* in there already */
                     if (poPolyHeaders->find(osKey) == poPolyHeaders->end()) {
-                        iH = poPolyHeaders->size();
+                        iH = static_cast<int>(poPolyHeaders->size());
                         (*poPolyHeaders)[osKey] = iH;
                     }
                     break;
                 }
                 case L_KURVE: {
                     if (poCurveHeaders->find(osKey) == poCurveHeaders->end()) {
-                        iH = poCurveHeaders->size();
+                        iH = static_cast<int>(poCurveHeaders->size());
                         (*poCurveHeaders)[osKey] = iH;
                     }
                     break;
                 }
                 case L_PUNKT: {
                     if (poPointHeaders->find(osKey) == poPointHeaders->end()) {
-                        iH = poPointHeaders->size();
+                        iH = static_cast<int>(poPointHeaders->size());
                         (*poPointHeaders)[osKey] = iH;
                     }
                     break;
                 }
                 case L_TEKST: {
                     if (poTextHeaders->find(osKey) == poTextHeaders->end()) {
-                        iH = poTextHeaders->size();
+                        iH = static_cast<int>(poTextHeaders->size());
                         (*poTextHeaders)[osKey] = iH;
                     }
                     break;
@@ -373,14 +373,14 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
         case L_KURVE: {
             /* Pre-build a line feature. Activate line/curve layer. */
             bCurveLayer = TRUE;
-            buildOGRLineString(nNumCoo, oNextSerial.lNr);
+            buildOGRLineString(static_cast<int>(nNumCoo), oNextSerial.lNr);
             break;
         }
         case L_TEKST: {
             /* Pre-build a text line contour feature. Activate text layer. */
             /* Todo: observe only points 2ff if more than one point is given for follow mode */
             bTextLayer = TRUE;
-            buildOGRMultiPoint(nNumCoo, oNextSerial.lNr);
+            buildOGRMultiPoint(static_cast<int>(nNumCoo), oNextSerial.lNr);
             break;
         }
         case L_HODE: {
@@ -390,7 +390,7 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
             if (LC_GetTransEx(&nMask,&oTrans) == UT_FALSE) {
                 CPLError( CE_Failure, CPLE_OpenFailed, 
                           "TRANSPAR section not found - No reference system information available.");
-                return NULL;
+                return FALSE;
             }
             poSRS = new OGRSpatialReference();
 
@@ -399,7 +399,7 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
             if (poSRS->importFromEPSG(nEPSG) != OGRERR_NONE) {
 				CPLError( CE_Failure, CPLE_OpenFailed, 
                           "OGR could not load coordinate system definition EPSG:%i.", nEPSG);
-                return NULL;
+                return FALSE;
             }
 
             /* Get character encoding from SOSI header. */
@@ -433,7 +433,12 @@ int  OGRSOSIDataSource::Open( const char *pszFilename, int bUpdate ) {
     if (bTextLayer) nLayers++;
     this->nLayers = nLayers;
     /* allocate some memory for up to three layers */
-    papoLayers = (OGRSOSILayer **) VSIMalloc2(sizeof(void*), nLayers);
+    papoLayers = (OGRSOSILayer **) VSI_MALLOC2_VERBOSE(sizeof(void*), nLayers);
+    if( papoLayers == NULL )
+    {
+        this->nLayers = 0;
+        return FALSE;
+    }
 
     /* Define each layer, using a proper feature definition, geometry type,
      * and adding every SOSI header encountered in the file as field. */
@@ -591,7 +596,7 @@ void OGRSOSIDataSource::buildOGRLineString(int nNumCoo, long iSerial) {
     OGRLineString *poLS = new OGRLineString();
     poLS->setNumPoints(nNumCoo);
 
-    long i;
+    int i;
     double dfEast = 0, dfNorth = 0;
     for (i=1; i<=nNumCoo; i++) {
         LC_GetTK(i, &dfEast, &dfNorth);

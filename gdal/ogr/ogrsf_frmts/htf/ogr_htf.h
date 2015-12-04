@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_HTF_H_INCLUDED
-#define _OGR_HTF_H_INCLUDED
+#ifndef OGR_HTF_H_INCLUDED
+#define OGR_HTF_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 
@@ -70,6 +70,8 @@ protected:
     virtual int                 TestCapability( const char * );
 
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
     void    SetExtent(double dfMinX, double dfMinY, double dfMaxX, double dfMaxY);
 
 };
@@ -169,4 +171,4 @@ class OGRHTFDataSource : public OGRDataSource
     virtual int                 TestCapability( const char * );
 };
 
-#endif /* ndef _OGR_HTF_H_INCLUDED */
+#endif /* ndef OGR_HTF_H_INCLUDED */

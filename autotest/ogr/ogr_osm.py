@@ -298,11 +298,9 @@ def ogr_osm_3(options = None):
     if test_cli_utilities.get_ogr2ogr_path() is None:
         return 'skip'
 
-    try:
-        os.stat('tmp/ogr_osm_3')
-        ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/ogr_osm_3')
-    except:
-        pass
+    filepath = 'tmp/ogr_osm_3'
+    if os.path.exists(filepath):
+        ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource(filepath)
 
     if options is not None:
         options = ' ' + options
@@ -310,9 +308,9 @@ def ogr_osm_3(options = None):
         options = ''
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' tmp/ogr_osm_3 data/test.pbf points lines multipolygons multilinestrings -progress' + options)
 
-    ret = ogr_osm_1('tmp/ogr_osm_3')
+    ret = ogr_osm_1(filepath)
 
-    ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('tmp/ogr_osm_3')
+    ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource(filepath)
 
     return ret
 
@@ -358,21 +356,20 @@ def ogr_osm_4():
     lyr.SetSpatialFilterRect(0,0,0,0)
     lyr.ResetReading()
     feat = lyr.GetNextFeature()
-    is_none = feat is None
-
-    if not is_none:
-        gdaltest.post_reason('fail')
+    if feat is not None:
+        gdaltest.post_reason('Zero filter ')
         return 'fail'
 
-    lyr.SetSpatialFilter(None)
+    with gdaltest.error_handler():
+      lyr.SetSpatialFilter(None)
 
-    # Change layer
-    sql_lyr = ds.ExecuteSQL('SELECT * FROM lines')
+      # Change layer
+      sql_lyr = ds.ExecuteSQL('SELECT * FROM lines')
 
-    feat = sql_lyr.GetNextFeature()
-    is_none = feat is None
+      feat = sql_lyr.GetNextFeature()
+      is_none = feat is None
 
-    ds.ReleaseResultSet(sql_lyr)
+      ds.ReleaseResultSet(sql_lyr)
 
     if is_none:
         gdaltest.post_reason('fail')
@@ -544,7 +541,7 @@ def ogr_osm_9():
     gdal.SetConfigOption('OSM_USE_CUSTOM_INDEXING', 'NO')
     ret = ogr_osm_8()
     gdal.SetConfigOption('OSM_USE_CUSTOM_INDEXING', old_val)
-    
+
     return ret
 
 ###############################################################################
@@ -555,8 +552,8 @@ def ogr_osm_10():
     if ogrtest.osm_drv is None:
         return 'skip'
 
-    # Non existing file
-    ds = ogr.Open('/nonexisting/foo.osm')
+    # A file that does not exist.
+    ds = ogr.Open('/nonexistent/foo.osm')
     if ds is not None:
         gdaltest.post_reason('fail')
         return 'fail'

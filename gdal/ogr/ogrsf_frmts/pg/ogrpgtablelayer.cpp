@@ -199,7 +199,7 @@ OGRPGTableLayer::OGRPGTableLayer( OGRPGDataSource *poDSIn,
     poFeatureDefn->Reference();
     
     bAutoFIDOnCreateViaCopy = FALSE;
-    
+
     bDifferedCreation = FALSE;
     iFIDAsRegularColumnIndex = -1;
 }
@@ -228,7 +228,7 @@ OGRPGTableLayer::~OGRPGTableLayer()
 void  OGRPGTableLayer::SetGeometryInformation(PGGeomColumnDesc* pasDesc,
                                               int nGeomFieldCount)
 {
-    /* flag must be set before instanciating geometry fields */
+    // Flag must be set before instantiating geometry fields.
     bGeometryInformationSet = TRUE;
 
     for(int i=0; i<nGeomFieldCount; i++)
@@ -553,9 +553,12 @@ int OGRPGTableLayer::ReadTableDefinition()
         else
         {
             /* Fetch the name of the parent table */
-            osCommand.Printf("SELECT pg_class.relname FROM pg_class WHERE oid = "
-                            "(SELECT pg_inherits.inhparent FROM pg_inherits WHERE inhrelid = "
-                            "(SELECT c.oid FROM pg_class c, pg_namespace n WHERE c.relname = %s AND c.relnamespace=n.oid AND n.nspname = %s))",
+            osCommand.Printf(
+                "SELECT pg_class.relname FROM pg_class WHERE oid = "
+                "(SELECT pg_inherits.inhparent FROM pg_inherits WHERE inhrelid = "
+                "(SELECT c.oid FROM pg_class c, pg_namespace n "
+                "WHERE c.relname = %s AND c.relnamespace=n.oid AND "
+                "n.nspname = %s))",
                             pszEscapedTableNameSingleQuote,
                             OGRPGEscapeString(hPGConn, pszSchemaName).c_str() );
 
@@ -594,14 +597,7 @@ void OGRPGTableLayer::SetTableDefinition(const char* pszFIDColumnName,
 {
     bTableDefinitionValid = TRUE;
     bGeometryInformationSet = TRUE;
-    if( pszFIDColumnName[0] == '"' &&
-             pszFIDColumnName[strlen(pszFIDColumnName)-1] == '"')
-    {
-        pszFIDColumn = CPLStrdup(pszFIDColumnName + 1);
-        pszFIDColumn[strlen(pszFIDColumn)-1] = '\0';
-    }
-    else
-        pszFIDColumn = CPLStrdup(pszFIDColumnName);
+    pszFIDColumn = CPLStrdup(pszFIDColumnName);
     poFeatureDefn->SetGeomType(wkbNone);
     if( eType != wkbNone )
     {
@@ -780,7 +776,7 @@ OGRFeature *OGRPGTableLayer::GetNextFeature()
         poGeomFieldDefn = poFeatureDefn->myGetGeomFieldDefn(m_iGeomFieldFilter);
     poFeatureDefn->GetFieldCount();
 
-    for( ; TRUE; )
+    while( true )
     {
         OGRFeature      *poFeature;
 
@@ -1105,8 +1101,8 @@ OGRErr OGRPGTableLayer::ISetFeature( OGRFeature *poFeature )
             poFeature->GetFieldAsInteger64(iFIDAsRegularColumnIndex) != poFeature->GetFID() )
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                        "Inconsistant values of FID and field of same name");
-            return CE_Failure;
+                        "Inconsistent values of FID and field of same name");
+            return OGRERR_FAILURE;
         }
     }
 
@@ -1134,7 +1130,9 @@ OGRErr OGRPGTableLayer::ISetFeature( OGRFeature *poFeature )
             {
                 if( !bWkbAsOid  )
                 {
-                    char    *pszBytea = GeometryToBYTEA( poGeom, poDS->sPostGISVersion.nMajor < 2 );
+                    char    *pszBytea = GeometryToBYTEA( poGeom,
+                                                         poDS->sPostGISVersion.nMajor,
+                                                         poDS->sPostGISVersion.nMinor );
 
                     if( pszBytea != NULL )
                     {
@@ -1182,7 +1180,8 @@ OGRErr OGRPGTableLayer::ISetFeature( OGRFeature *poFeature )
                 if ( poGeom != NULL )
                 {
                     char* pszHexEWKB = OGRGeometryToHexEWKB( poGeom, poGeomFieldDefn->nSRSId,
-                                                             poDS->sPostGISVersion.nMajor < 2 );
+                                                             poDS->sPostGISVersion.nMajor,
+                                                             poDS->sPostGISVersion.nMinor);
                     if ( poGeomFieldDefn->ePostgisType == GEOM_TYPE_GEOGRAPHY )
                         osCommand += CPLString().Printf("'%s'::GEOGRAPHY", pszHexEWKB);
                     else
@@ -1303,9 +1302,10 @@ OGRErr OGRPGTableLayer::ICreateFeature( OGRFeature *poFeature )
         return OGRERR_FAILURE;
 
     /* In case the FID column has also been created as a regular field */
+    GIntBig nFID = poFeature->GetFID();
     if( iFIDAsRegularColumnIndex >= 0 )
     {
-        if( poFeature->GetFID() == OGRNullFID )
+        if( nFID == OGRNullFID )
         {
             if( poFeature->IsFieldSet( iFIDAsRegularColumnIndex ) )
             {
@@ -1316,18 +1316,18 @@ OGRErr OGRPGTableLayer::ICreateFeature( OGRFeature *poFeature )
         else
         {
             if( !poFeature->IsFieldSet( iFIDAsRegularColumnIndex ) ||
-                poFeature->GetFieldAsInteger64(iFIDAsRegularColumnIndex) != poFeature->GetFID() )
+                poFeature->GetFieldAsInteger64(iFIDAsRegularColumnIndex) != nFID )
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
-                            "Inconsistant values of FID and field of same name");
-                return CE_Failure;
+                            "Inconsistent values of FID and field of same name");
+                return OGRERR_FAILURE;
             }
         }
     }
 
     /* Auto-promote FID column to 64bit if necessary */
     if( pszFIDColumn != NULL &&
-        (GIntBig)(int)poFeature->GetFID() != poFeature->GetFID() &&
+        !CPL_INT64_FITS_ON_INT32(nFID) &&
         GetMetadataItem(OLMD_FID64) == NULL )
     {
         poDS->EndCopy();
@@ -1424,7 +1424,7 @@ OGRErr OGRPGTableLayer::ICreateFeature( OGRFeature *poFeature )
                 eErr = CreateFeatureViaCopy( poFeature );
                 if( bFIDSet )
                     bAutoFIDOnCreateViaCopy = FALSE;
-                if( eErr == CE_None && bAutoFIDOnCreateViaCopy )
+                if( eErr == OGRERR_NONE && bAutoFIDOnCreateViaCopy )
                 {
                     poFeature->SetFID( ++iNextShapeId );
                 }
@@ -1432,7 +1432,7 @@ OGRErr OGRPGTableLayer::ICreateFeature( OGRFeature *poFeature )
         }
     }
 
-    if( eErr == CE_None && iFIDAsRegularColumnIndex >= 0 )
+    if( eErr == OGRERR_NONE && iFIDAsRegularColumnIndex >= 0 )
     {
         poFeature->SetField(iFIDAsRegularColumnIndex, poFeature->GetFID());
     }
@@ -1478,7 +1478,7 @@ CPLString OGRPGEscapeString(PGconn *hPGConn,
     osCommand += "'";
 
 
-    int nSrcLen = strlen(pszStrValue);
+    int nSrcLen = static_cast<int>(strlen(pszStrValue));
     int nSrcLenUTF = CPLStrlenUTF8(pszStrValue);
 
     if (nMaxLength > 0 && nSrcLenUTF > nMaxLength)
@@ -1628,7 +1628,8 @@ OGRErr OGRPGTableLayer::CreateFeatureViaInsert( OGRFeature *poFeature )
             if ( !CSLTestBoolean(CPLGetConfigOption("PG_USE_TEXT", "NO")) )
             {
                 char    *pszHexEWKB = OGRGeometryToHexEWKB( poGeom, nSRSId,
-                                                            poDS->sPostGISVersion.nMajor < 2 );
+                                                            poDS->sPostGISVersion.nMajor,
+                                                            poDS->sPostGISVersion.nMinor );
                 if ( poGeomFieldDefn->ePostgisType == GEOM_TYPE_GEOGRAPHY )
                     osCommand += CPLString().Printf("'%s'::GEOGRAPHY", pszHexEWKB);
                 else
@@ -1663,7 +1664,9 @@ OGRErr OGRPGTableLayer::CreateFeatureViaInsert( OGRFeature *poFeature )
         }
         else if( !bWkbAsOid )
         {
-            char    *pszBytea = GeometryToBYTEA( poGeom, poDS->sPostGISVersion.nMajor < 2 );
+            char    *pszBytea = GeometryToBYTEA( poGeom,
+                                                 poDS->sPostGISVersion.nMajor,
+                                                 poDS->sPostGISVersion.nMinor );
 
             if( pszBytea != NULL )
             {
@@ -1798,10 +1801,13 @@ OGRErr OGRPGTableLayer::CreateFeatureViaCopy( OGRFeature *poFeature )
             poGeom->setCoordinateDimension( poGeomFieldDefn->nCoordDimension );
 
             if( poGeomFieldDefn->ePostgisType == GEOM_TYPE_WKB )
-                pszGeom = GeometryToBYTEA( poGeom, poDS->sPostGISVersion.nMajor < 2 );
+                pszGeom = GeometryToBYTEA( poGeom,
+                                           poDS->sPostGISVersion.nMajor,
+                                           poDS->sPostGISVersion.nMinor );
             else
                 pszGeom = OGRGeometryToHexEWKB( poGeom, poGeomFieldDefn->nSRSId,
-                                                poDS->sPostGISVersion.nMajor < 2 );
+                                                poDS->sPostGISVersion.nMajor,
+                                                poDS->sPostGISVersion.nMinor );
         }
 
         if (osCommand.size() > 0)
@@ -1837,7 +1843,8 @@ OGRErr OGRPGTableLayer::CreateFeatureViaCopy( OGRFeature *poFeature )
 
     /* This is for postgresql  7.4 and higher */
 #if !defined(PG_PRE74)
-    int copyResult = PQputCopyData(hPGConn, osCommand.c_str(), strlen(osCommand.c_str()));
+    int copyResult = PQputCopyData(hPGConn, osCommand.c_str(),
+                                   static_cast<int>(strlen(osCommand.c_str())));
 #ifdef DEBUG_VERBOSE
     CPLDebug("PG", "PQputCopyData(%s)", osCommand.c_str());
 #endif
@@ -1975,7 +1982,7 @@ OGRErr OGRPGTableLayer::CreateField( OGRFieldDefn *poFieldIn, int bApproxOK )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Wrong field type for %s",
                  oField.GetNameRef());
-        return CE_Failure;
+        return OGRERR_FAILURE;
     }
     
 /* -------------------------------------------------------------------- */
@@ -2710,7 +2717,7 @@ OGRErr OGRPGTableLayer::StartCopy()
 
     CPLString osFields = BuildCopyFields();
 
-    int size = strlen(osFields) +  strlen(pszSqlTableName) + 100;
+    size_t size = strlen(osFields) +  strlen(pszSqlTableName) + 100;
     char *pszCommand = (char *) CPLMalloc(size);
 
     sprintf( pszCommand,
@@ -2981,7 +2988,9 @@ OGRErr OGRPGTableLayer::GetExtent( int iGeomField, OGREnvelope *psExtent, int bF
         if( RunGetExtentRequest(psExtent, bForce, osCommand, TRUE) == OGRERR_NONE )
             return OGRERR_NONE;
 
-        CPLDebug("PG","Unable to get extimated extent by PostGIS. Trying real extent.");
+        CPLDebug(
+            "PG",
+            "Unable to get estimated extent by PostGIS. Trying real extent." );
     }
 
     return OGRPGLayer::GetExtent( iGeomField, psExtent, bForce );

@@ -493,7 +493,7 @@ static OGRFeature *TranslateBoundarylineCollection( NTFFileReader *poReader,
         || papoGroup[0]->GetType() != NRT_COLLECT
         || papoGroup[1]->GetType() != NRT_ATTREC )
         return NULL;
-        
+
     OGRFeature  *poFeature = new OGRFeature( poLayer->GetLayerDefn() );
 
     // COLL_ID
@@ -501,14 +501,14 @@ static OGRFeature *TranslateBoundarylineCollection( NTFFileReader *poReader,
 
     // NUM_PARTS
     int         nNumLinks = atoi(papoGroup[0]->GetField( 9, 12 ));
-    
+
     if( nNumLinks > MAX_LINK )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "MAX_LINK exceeded in ntf_estlayers.cpp." );
         return poFeature;
     }
-    
+
     poFeature->SetField( 1, nNumLinks );
 
     // POLY_ID
@@ -545,7 +545,7 @@ static OGRFeature *TranslateBoundarylinePoly( NTFFileReader *poReader,
         && papoGroup[2]->GetType() == NRT_CHAIN 
         && papoGroup[3]->GetType() == NRT_GEOMETRY )
     {
-        
+
         OGRFeature      *poFeature = new OGRFeature( poLayer->GetLayerDefn() );
 
         // POLY_ID
@@ -553,14 +553,14 @@ static OGRFeature *TranslateBoundarylinePoly( NTFFileReader *poReader,
 
         // NUM_PARTS
         int             nNumLinks = atoi(papoGroup[2]->GetField( 9, 12 ));
-    
+
         if( nNumLinks > MAX_LINK )
         {
             CPLError( CE_Failure, CPLE_AppDefined, 
                       "MAX_LINK exceeded in ntf_estlayers.cpp." );
             return poFeature;
         }
-    
+
         poFeature->SetField( 4, nNumLinks );
 
         // DIR
@@ -604,7 +604,7 @@ static OGRFeature *TranslateBoundarylinePoly( NTFFileReader *poReader,
 /*      First we do validation of the grouping.                         */
 /* -------------------------------------------------------------------- */
     int         iRec;
-    
+
     for( iRec = 0;
          papoGroup[iRec] != NULL && papoGroup[iRec+1] != NULL
              && papoGroup[iRec]->GetType() == NRT_POLYGON
@@ -622,7 +622,7 @@ static OGRFeature *TranslateBoundarylinePoly( NTFFileReader *poReader,
 /* -------------------------------------------------------------------- */
 /*      Collect the chains for each of the rings, and just aggregate    */
 /*      these into the master list without any concept of where the     */
-/*      boundaries are.  The boundary information will be emmitted      */
+/*      boundaries are.  The boundary information will be emitted      */
 /*      in the RingStart field.                                         */
 /* -------------------------------------------------------------------- */
     OGRFeature  *poFeature = new OGRFeature( poLayer->GetLayerDefn() );
@@ -641,7 +641,7 @@ static OGRFeature *TranslateBoundarylinePoly( NTFFileReader *poReader,
         nLineCount = atoi(papoGroup[iRec+1]->GetField(9,12));
 
         anRingStart[nRings++] = nNumLink;
-        
+
         for( i = 0; i < nLineCount && nNumLink < MAX_LINK*2; i++ )
         {
             anDirList[nNumLink] =
@@ -801,7 +801,7 @@ static OGRFeature *TranslateBL2000Poly( NTFFileReader *poReader,
 /*      First we do validation of the grouping.                         */
 /* -------------------------------------------------------------------- */
     int         iRec;
-    
+
     for( iRec = 0;
          papoGroup[iRec] != NULL && papoGroup[iRec+1] != NULL
              && papoGroup[iRec]->GetType() == NRT_POLYGON
@@ -818,7 +818,7 @@ static OGRFeature *TranslateBL2000Poly( NTFFileReader *poReader,
 /* -------------------------------------------------------------------- */
 /*      Collect the chains for each of the rings, and just aggregate    */
 /*      these into the master list without any concept of where the     */
-/*      boundaries are.  The boundary information will be emmitted      */
+/*      boundaries are.  The boundary information will be emitted      */
 /*      in the RingStart field.                                         */
 /* -------------------------------------------------------------------- */
     OGRFeature  *poFeature = new OGRFeature( poLayer->GetLayerDefn() );
@@ -837,7 +837,7 @@ static OGRFeature *TranslateBL2000Poly( NTFFileReader *poReader,
         nLineCount = atoi(papoGroup[iRec+1]->GetField(9,12));
 
         anRingStart[nRings++] = nNumLink;
-        
+
         for( i = 0; i < nLineCount && nNumLink < MAX_LINK*2; i++ )
         {
             anDirList[nNumLink] =
@@ -957,25 +957,27 @@ static OGRFeature *TranslateBL2000Collection( NTFFileReader *poReader,
     poFeature->SetField( 1, nNumLinks );
 
     // POLY_ID / COLL_ID_REFS
-    int         i, anList[MAX_LINK], anCollList[MAX_LINK];
+    int         anList[MAX_LINK], anCollList[MAX_LINK];
     int         nPolys=0, nCollections=0;
 
-    for( i = 0; i < nNumLinks; i++ )
+    for( int i = 0; i < nNumLinks; i++ )
     {
         if( atoi(papoGroup[0]->GetField( 13+i*8, 14+i*8 )) == 34 )
-            anCollList[nCollections++] = 
+            anCollList[nCollections++] =
                 atoi(papoGroup[0]->GetField( 15+i*8, 20+i*8 ));
         else
-            anList[nPolys++] = 
+            anList[nPolys++] =
                 atoi(papoGroup[0]->GetField( 15+i*8, 20+i*8 ));
     }
 
+    // coverity[uninit_use_in_call]
     poFeature->SetField( 2, nPolys, anList );
+    // coverity[uninit_use_in_call]
     poFeature->SetField( 10, nCollections, anCollList );
 
     // Attributes
     // Node that _CODE_DESC values are automatically applied if
-    // the target fields exist. 
+    // the target fields exist.
     poReader->ApplyAttributeValues( poFeature, papoGroup,
                                     "AI", 3, "OP", 4, "NM", 5, "TY", 6, 
                                     "AC", 7, "NB", 8, "NA", 9,
@@ -1683,7 +1685,7 @@ void NTFFileReader::EstablishLayer( const char * pszLayerName,
     poLayer = poDS->GetNamedLayer(pszLayerName);
 
 /* ==================================================================== */
-/*      Create a new layer matching the request if we don't aleady      */
+/*      Create a new layer matching the request if we don't already      */
 /*      have one.                                                       */
 /* ==================================================================== */
     if( poLayer == NULL )
@@ -1700,19 +1702,19 @@ void NTFFileReader::EstablishLayer( const char * pszLayerName,
 /*      Fetch definitions of each field in turn.                        */
 /* -------------------------------------------------------------------- */
         va_start(hVaArgs, poClass);
-        while( TRUE )
+        while( true )
         {
             const char  *pszFieldName = va_arg(hVaArgs, const char *);
             OGRFieldType     eType;
             int          nWidth, nPrecision;
-            
+
             if( pszFieldName == NULL )
                 break;
-            
+
             eType = (OGRFieldType) va_arg(hVaArgs, int);
             nWidth = va_arg(hVaArgs, int);
             nPrecision = va_arg(hVaArgs, int);
-            
+
             OGRFieldDefn         oFieldDefn( pszFieldName, eType );
             oFieldDefn.SetWidth( nWidth );
             oFieldDefn.SetPrecision( nPrecision );
@@ -1733,18 +1735,18 @@ void NTFFileReader::EstablishLayer( const char * pszLayerName,
                 OGRFieldDefn    oFieldDefn( poClass->papszAttrNames[iGAtt],
                                             OFTInteger );
 
-                if( EQUALN(pszFormat,"I",1) )
+                if( STARTS_WITH_CI(pszFormat, "I") )
                 {
                     oFieldDefn.SetType( OFTInteger );
                     oFieldDefn.SetWidth( poClass->panAttrMaxWidth[iGAtt] );
                 }
-                else if( EQUALN(pszFormat,"D",1)
-                         || EQUALN(pszFormat,"A",1) )
+                else if( STARTS_WITH_CI(pszFormat, "D")
+                         || STARTS_WITH_CI(pszFormat, "A") )
                 {
                     oFieldDefn.SetType( OFTString );
                     oFieldDefn.SetWidth( poClass->panAttrMaxWidth[iGAtt] );
                 }
-                else if( EQUALN(pszFormat,"R",1) )
+                else if( STARTS_WITH_CI(pszFormat, "R") )
                 {
                     oFieldDefn.SetType( OFTReal );
                     oFieldDefn.SetWidth( poClass->panAttrMaxWidth[iGAtt]+1 );

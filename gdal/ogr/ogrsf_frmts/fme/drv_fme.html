@@ -9,11 +9,11 @@
 
 Feature sources supported by FMEObjects are supported for reading by OGR
 if the FMEObjects gateway is configured, and if a licensed copy of 
-FMEObjects is installed and accessable.<p>
+FMEObjects is installed and accessible.<p>
 
 To using the FMEObjects based readers the data source name passed should
 be the name of the FME reader to use, a colon and then the actual data
-source name (ie. the filename).  For instance, "NTF:F:\DATA\NTF\2144.NTF"
+source name (i.e. the filename).  For instance, "NTF:F:\DATA\NTF\2144.NTF"
 would indicate the NTF reader should be used to read the file
 
 There are a number of special cases:<p>
@@ -49,7 +49,7 @@ index for fast spatial searches.  These cached files are kept in the
 directory indicated by the OGRFME_TMPDIR environment variable (or 
 TMPDIR or /tmp or C:\ if that is not available). <p>
 
-The cached featur files will have the prefix FME_OLEDB_ and a master index
+The cached feature files will have the prefix FME_OLEDB_ and a master index
 is kept in the file ogrfmeds.ind.  To clear away the index delete all these
 files.  Do not just delete some.<p>
 
@@ -65,11 +65,11 @@ treated specially in a number of other ways as well.<p>
 <ol>
 
 <li> Establishing an FME session is quite an expensive operation, on a 
-350Mhz Linux system this can be in exceess of 10s.<p>
+350Mhz Linux system this can be in excess of 10s.<p>
 
 <li> Old files in the feature cache are cleaned up, but only on subsequent
 visits to the FMEObjects gateway code in OGR.  This means that if unused
-the FMEObjects gateway will leave old cached features around indefinately.<p>
+the FMEObjects gateway will leave old cached features around indefinitely.<p>
 
 </ol>
 

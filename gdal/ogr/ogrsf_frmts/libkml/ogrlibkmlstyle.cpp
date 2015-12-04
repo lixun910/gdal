@@ -31,9 +31,7 @@
 
 #include <set>
 
-#include <kml/dom.h>
-#include <kml/engine.h>
-#include <kml/base/color32.h>
+#include "libkml_headers.h"
 
 using kmldom::KmlFactory;;
 using kmldom::ElementPtr;
@@ -84,7 +82,7 @@ StylePtr addstylestring2kml (
     PolyStylePtr poKmlPolyStyle = NULL;
     IconStylePtr poKmlIconStyle = NULL;
     LabelStylePtr poKmlLabelStyle = NULL;
-    
+
     /***** just bail now if stylestring is empty *****/
 
     if ( !pszStyleString || !*pszStyleString ) {
@@ -107,7 +105,7 @@ StylePtr addstylestring2kml (
         if ( !poOgrST ) {
             continue;
         }
-        
+
         switch ( poOgrST->GetType (  ) ) {
         case OGRSTCPen:
             {
@@ -128,7 +126,10 @@ StylePtr addstylestring2kml (
 
                 if ( !nullcheck
                      && poStylePen->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
-                    poKmlLineStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+                    poKmlLineStyle->set_color ( Color32 ( static_cast<GByte>(nA),
+                                                          static_cast<GByte>(nB),
+                                                          static_cast<GByte>(nG),
+                                                          static_cast<GByte>(nR) ) );
                 }
                 poStylePen->SetUnit(OGRSTUPixel);
                 double dfWidth = poStylePen->Width ( nullcheck );
@@ -158,7 +159,10 @@ StylePtr addstylestring2kml (
                 if ( !nullcheck
                      && poStyleBrush->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
                     poKmlPolyStyle = poKmlFactory->CreatePolyStyle (  );
-                    poKmlPolyStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+                    poKmlPolyStyle->set_color ( Color32 ( static_cast<GByte>(nA),
+                                                          static_cast<GByte>(nB),
+                                                          static_cast<GByte>(nG),
+                                                          static_cast<GByte>(nR) ) );
                 }
                 
 
@@ -236,7 +240,10 @@ StylePtr addstylestring2kml (
                 const char *pszcolor = poStyleSymbol->Color ( nullcheck );
 
                 if ( !nullcheck && poOgrST->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
-                    poKmlIconStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+                    poKmlIconStyle->set_color ( Color32 ( static_cast<GByte>(nA),
+                                                          static_cast<GByte>(nB),
+                                                          static_cast<GByte>(nG),
+                                                          static_cast<GByte>(nR) ) );
                 }
 
                 /***** hotspot *****/
@@ -278,7 +285,10 @@ StylePtr addstylestring2kml (
                      && poStyleLabel->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
                     if( poKmlLabelStyle == NULL )
                         poKmlLabelStyle = poKmlFactory->CreateLabelStyle (  );
-                    poKmlLabelStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+                    poKmlLabelStyle->set_color ( Color32 ( static_cast<GByte>(nA),
+                                                           static_cast<GByte>(nB),
+                                                           static_cast<GByte>(nG),
+                                                           static_cast<GByte>(nR) ) );
                 }
 
                 /***** scale *****/
@@ -725,7 +735,7 @@ OGRStyleLabel *kml2label (
  function to add a kml style to a style table
 ******************************************************************************/
 
-void kml2styletable (
+static void kml2styletable (
     OGRStyleTable * poOgrStyleTable,
     StylePtr poKmlStyle )
 {
@@ -834,7 +844,7 @@ static ContainerPtr MyGetContainerFromRoot (
 
 
 
-StyleSelectorPtr StyleFromStyleURL(
+static StyleSelectorPtr StyleFromStyleURL(
     const StyleMapPtr& stylemap,
     const string styleurl,
     OGRStyleTable * poStyleTable) 
@@ -843,9 +853,8 @@ StyleSelectorPtr StyleFromStyleURL(
 
     char *pszUrl = CPLStrdup ( styleurl.c_str (  ) );
     char *pszStyleMapId = CPLStrdup ( stylemap->get_id().c_str (  ) );
-    
 
-    /***** is it an interenal style ref that starts with a # *****/
+    /***** Is it an internal style ref that starts with a #? *****/
 
     if ( *pszUrl == '#' && poStyleTable ) {
 
@@ -861,7 +870,7 @@ StyleSelectorPtr StyleFromStyleURL(
 
     /***** We have a real URL and need to go out and fetch it *****/
     /***** FIXME this could be a relative path in a kmz *****/
-    
+
     else if ( strchr(pszUrl, '#') ) {
 
         const char *pszFetch = CPLGetConfigOption ( "LIBKML_EXTERNAL_STYLE", "no" );
@@ -870,10 +879,10 @@ StyleSelectorPtr StyleFromStyleURL(
             /***** Lets go out and fetch the style from the external URL *****/
 
             char *pszUrlTmp = CPLStrdup(pszUrl);
-            char *pszPound;
+            char *pszPound = strchr(pszUrlTmp, '#');
             char *pszRemoteStyleName = NULL;
             // Chop off the stuff (style id) after the URL
-            if ((pszPound = strchr(pszUrlTmp, '#'))) {
+            if (pszPound != NULL) {
                 *pszPound = '\0';
                 pszRemoteStyleName = pszPound + 1;
             }
@@ -883,8 +892,8 @@ StyleSelectorPtr StyleFromStyleURL(
             VSILFILE *fp = NULL;
             if ( (fp = VSIFOpenL( CPLFormFilename( "/vsicurl/",
                                                    pszUrlTmp,
-                                                  NULL), "r" ))
-                 ||  (fp = VSIFOpenL( pszUrlTmp, "r" )) )
+                                                  NULL), "r" )) != NULL
+                 ||  (fp = VSIFOpenL( pszUrlTmp, "r" )) != NULL )
             {
                 char szbuf[1025];
                 std::string oStyle = "";
@@ -922,7 +931,7 @@ StyleSelectorPtr StyleFromStyleURL(
                 }
 
                 /***** get the root container *****/
-                
+
                 ContainerPtr poKmlContainer;
                 kmldom::KmlFactory* poKmlFactory = kmldom::KmlFactory::GetFactory();
                 if ( !( poKmlContainer = MyGetContainerFromRoot ( poKmlFactory, poKmlRoot ) ) ) {
@@ -934,10 +943,10 @@ StyleSelectorPtr StyleFromStyleURL(
                 }
 
                 /**** parse the styles into the table *****/
-                
+
                 ParseStyles ( AsDocument ( poKmlContainer ), &poStyleTable );
-                    
-                /***** look for the style we leed to map to in the table *****/
+
+                /***** look for the style we need to map to in the table *****/
 
                 const char *pszTest = NULL;
                 pszTest = poStyleTable->Find(pszRemoteStyleName);
@@ -952,7 +961,7 @@ StyleSelectorPtr StyleFromStyleURL(
     }
 
     /***** FIXME add suport here for relative links inside kml *****/
-    
+
     CPLFree ( pszUrl );
     CPLFree ( pszStyleMapId );
 
@@ -1133,7 +1142,7 @@ void styletable2kml (
 
     poOgrStyleTable->ResetStyleStringReading (  );
     
-    while ( ( pszStyleString = poOgrStyleTable->GetNextStyle (  ) ) ) {
+    while ( ( pszStyleString = poOgrStyleTable->GetNextStyle (  ) ) != NULL ) {
         const char *pszStyleName = poOgrStyleTable->GetLastStyleName (  );
 
         if( aoSetNormalStyles.find(pszStyleName) != aoSetNormalStyles.end() &&
@@ -1164,7 +1173,10 @@ void styletable2kml (
             BalloonStylePtr poKmlBalloonStyle = poKmlFactory->CreateBalloonStyle();
             if( pszBalloonStyleBgColor != NULL &&
                 oStyleTool.GetRGBFromString ( pszBalloonStyleBgColor, nR, nG, nB, nA ) )
-                poKmlBalloonStyle->set_bgcolor ( Color32 ( nA, nB, nG, nR ) );
+                poKmlBalloonStyle->set_bgcolor ( Color32 ( static_cast<GByte>(nA),
+                                                           static_cast<GByte>(nB),
+                                                           static_cast<GByte>(nG),
+                                                           static_cast<GByte>(nR) ) );
             if( pszBalloonStyleText != NULL )
                 poKmlBalloonStyle->set_text(pszBalloonStyleText);
             poKmlStyle->set_balloonstyle ( poKmlBalloonStyle );

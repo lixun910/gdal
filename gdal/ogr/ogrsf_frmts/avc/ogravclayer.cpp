@@ -94,6 +94,7 @@ OGRSpatialReference *OGRAVCLayer::GetSpatialRef()
 int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
 
 {
+    int bRet = FALSE;
     switch( eSectionType )
     {
       case AVCFileARC:
@@ -113,8 +114,10 @@ int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
             poFeatureDefn->AddFieldDefn( &oTNode );
             poFeatureDefn->AddFieldDefn( &oLPoly );
             poFeatureDefn->AddFieldDefn( &oRPoly );
+
+            bRet = TRUE;
+            break;
         }
-        return TRUE;
 
       case AVCFilePAL:
       case AVCFileRPL:
@@ -125,8 +128,10 @@ int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
 
             OGRFieldDefn	oArcIds( "ArcIds", OFTIntegerList );
             poFeatureDefn->AddFieldDefn( &oArcIds );
+
+            bRet = TRUE;
+            break;
         }
-        return TRUE;
 
       case AVCFileCNT:
         {
@@ -136,8 +141,10 @@ int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
 
             OGRFieldDefn	oLabelIds( "LabelIds", OFTIntegerList );
             poFeatureDefn->AddFieldDefn( &oLabelIds );
+
+            bRet = TRUE;
+            break;
         }
-        return TRUE;
 
       case AVCFileLAB:
         {
@@ -150,8 +157,10 @@ int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
 
             OGRFieldDefn	oPolyId( "PolyId", OFTInteger );
             poFeatureDefn->AddFieldDefn( &oPolyId );
+
+            bRet = TRUE;
+            break;
         }
-        return TRUE;
 
       case AVCFileTXT:
       case AVCFileTX6:
@@ -171,21 +180,24 @@ int OGRAVCLayer::SetupFeatureDefinition( const char *pszName )
 
             OGRFieldDefn	oLevel( "Level", OFTInteger );
             poFeatureDefn->AddFieldDefn( &oLevel );
+
+            bRet = TRUE;
+            break;
         }
-        return TRUE;
 
       default:
         poFeatureDefn = NULL;
-        return FALSE;
+        break;
     }
 
     SetDescription( pszName );
+    return bRet;
 }
 
 /************************************************************************/
 /*                          TranslateFeature()                          */
 /*                                                                      */
-/*      Translate the AVC structure for a feature to the the            */
+/*      Translate the AVC structure for a feature to the                */
 /*      corresponding OGR definition.  It is assumed that the passed    */
 /*      in feature is of a type matching the section type               */
 /*      established by SetupFeatureDefinition().                        */
@@ -559,7 +571,7 @@ int OGRAVCLayer::TranslateTableFields( OGRFeature *poFeature,
             if (nType == AVC_FT_CHAR)
             {
                 /* Remove trailing spaces in char fields */
-                int nLen = strlen((const char*)pasFields[iField].pszStr);
+                int nLen = (int)strlen((const char*)pasFields[iField].pszStr);
                 while (nLen > 0 && pasFields[iField].pszStr[nLen-1] == ' ')
                     nLen--;
                 pasFields[iField].pszStr[nLen] = '\0';

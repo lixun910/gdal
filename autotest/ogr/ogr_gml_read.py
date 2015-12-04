@@ -129,12 +129,12 @@ def ogr_gml_3():
     if not gdaltest.have_gml_reader:
         return 'skip'
 
-    gml_ds = ogr.Open( 'data/rnf_eg.gml' )    
+    gml_ds = ogr.Open( 'data/rnf_eg.gml' )
 
     if gml_ds.GetLayerCount() != 1:
         gdaltest.post_reason( 'wrong number of layers' )
         return 'fail'
-    
+
     lyr = gml_ds.GetLayerByName('RoadSegment')
     feat = lyr.GetNextFeature()
 
@@ -228,14 +228,14 @@ def ogr_gml_5():
     return 'success'
 
 ###############################################################################
-# Test of various FIDs (various prefixes and lengths) (Ticket#1017) 
+# Test of various FIDs (various prefixes and lengths) (Ticket#1017)
 def ogr_gml_6():
 
     if not gdaltest.have_gml_reader: 
         return 'skip' 
 
     files = ['test_point1', 'test_point2', 'test_point3', 'test_point4'] 
-    fids = [] 
+    fids = []
 
     for filename in files: 
         fids[:] = [] 
@@ -244,11 +244,13 @@ def ogr_gml_6():
         feat = lyr.GetNextFeature() 
         while feat is not None: 
             if ( feat.GetFID() < 0 ) or ( feat.GetFID() in fids ): 
+                gml_ds = None
                 os.remove( 'data' + os.sep + filename + '.gfs' ) 
                 gdaltest.post_reason( 'Wrong FID value' ) 
                 return 'fail' 
             fids.append(feat.GetFID()) 
             feat = lyr.GetNextFeature() 
+        gml_ds = None
         os.remove( 'data' + os.sep + filename + '.gfs' ) 
 
     return 'success'
@@ -309,8 +311,6 @@ def ogr_gml_8():
             print(feat.GetFieldAsString('name'))
             return 'fail'
 
-    gml_ds.Destroy()
-
     return 'success'
 
 ###############################################################################
@@ -338,8 +338,7 @@ def ogr_gml_9():
         gdaltest.post_reason('CreateFeature failed.')
         return 'fail'
 
-    dst_feat.Destroy()
-    ds.Destroy()
+    ds = None
 
     ds = ogr.Open('tmp/broken_utf8.gml')
     lyr = ds.GetLayerByName('test')
@@ -348,9 +347,7 @@ def ogr_gml_9():
         gdaltest.post_reason('Unexpected content.')
         print(feat.GetField('test'))
         return 'fail'
-
-    feat.Destroy()
-    ds.Destroy()
+    ds = None
 
     os.remove('tmp/broken_utf8.gml')
     os.remove('tmp/broken_utf8.xsd')
@@ -395,8 +392,7 @@ def ogr_gml_10():
         gdaltest.post_reason('CreateFeature failed.')
         return 'fail'
 
-    dst_feat.Destroy()
-    ds.Destroy()
+    ds = None
 
     ds = ogr.Open('tmp/fields.gml')
     lyr = ds.GetLayerByName('test')
@@ -446,9 +442,7 @@ def ogr_gml_10():
     if lyr.GetLayerDefn().GetFieldDefn(lyr.GetLayerDefn().GetFieldIndex('integer')).GetWidth() != 5:
         gdaltest.post_reason('Unexpected width of integer field.')
         return 'fail'
-
-    feat.Destroy();
-    ds.Destroy()
+    ds = None
 
     os.remove('tmp/fields.gml')
     os.remove('tmp/fields.xsd')
@@ -580,7 +574,8 @@ def ogr_gml_14():
 
     gdal.SetConfigOption( 'GML_SKIP_RESOLVE_ELEMS', 'NONE' )
     gdal.SetConfigOption( 'GML_SAVE_RESOLVED_TO', 'tmp/cache/xlink1resolved.gml' )
-    gml_ds = ogr.Open( 'tmp/cache/xlink1.gml' )
+    with gdaltest.error_handler():
+        gml_ds = ogr.Open( 'tmp/cache/xlink1.gml' )
     gml_ds = None
     gdal.SetConfigOption( 'GML_SKIP_RESOLVE_ELEMS', 'gml:directedNode' )
     gdal.SetConfigOption( 'GML_SAVE_RESOLVED_TO', 'tmp/cache/xlink2resolved.gml' )
@@ -1676,7 +1671,7 @@ def ogr_gml_42():
 # Test automated downloading of WFS schema
 
 def ogr_gml_43():
-    
+
     # The service times out
     return 'skip'
 
@@ -1693,7 +1688,6 @@ def ogr_gml_43():
         gfs_found = True
     except:
         gfs_found = False
-        pass
 
     if gfs_found:
         if gdaltest.gdalurlopen('http://testing.deegree.org:80/deegree-wfs/services?SERVICE=WFS&VERSION=1.1.0&REQUEST=DescribeFeatureType&TYPENAME=app:Springs&NAMESPACE=xmlns(app=http://www.deegree.org/app)') is None:
@@ -1977,6 +1971,11 @@ def ogr_gml_48():
     if not gdaltest.have_gml_reader:
         return 'skip'
 
+    try:
+        os.unlink('data/schema_with_geom_in_complextype.gfs')
+    except:
+        pass
+
     ds = ogr.Open('data/schema_with_geom_in_complextype.xml')
     lyr = ds.GetLayer(0)
 
@@ -2018,7 +2017,15 @@ def ogr_gml_49():
     if feat.GetGeometryRef().GetGeometryType() != ogr.wkbPolygon:
         gdaltest.post_reason('failure')
         return 'fail'
+    ds = None
 
+    # Now with .gfs file present (#6247)
+    ds = ogr.Open('/vsimem/ogr_gml_49.gml')
+    lyr = ds.GetLayer(0)
+    feat = lyr.GetNextFeature()
+    if feat.GetGeometryRef().GetGeometryType() != ogr.wkbPolygon:
+        gdaltest.post_reason('failure')
+        return 'fail'
     ds = None
 
     gdal.Unlink('/vsimem/ogr_gml_49.gml')
@@ -2276,6 +2283,11 @@ def ogr_gml_56():
     if not gdaltest.have_gml_reader:
         return 'skip'
 
+    try:
+        os.unlink('data/ogr_gml_56.gfs')
+    except:
+        pass
+
     gdal.SetConfigOption('GML_REGISTRY', 'data/ogr_gml_56_registry.xml')
     ds = ogr.Open('data/ogr_gml_56.gml')
     gdal.SetConfigOption('GML_REGISTRY', None)
@@ -2415,6 +2427,11 @@ def ogr_gml_58():
 
     if not gdaltest.have_gml_reader:
         return 'skip'
+
+    try:
+        os.unlink('data/inspire_cadastralparcel.gfs')
+    except:
+        pass
 
     ds = ogr.Open('data/inspire_cadastralparcel.xml')
     lyr = ds.GetLayer(0)
@@ -2935,16 +2952,16 @@ def ogr_gml_63():
     lyr = ds.GetLayer(0)
     if lyr.GetName() != 'Staty':
         return 'fail'
-    
+
     # check geometry column name
     if lyr.GetGeometryColumn() != 'DefinicniBod':
         return 'fail'
-    
+
     ds = None
 
     ### test OB file type
     ds = ogr.Open('data/ruian_ob_v1.xml.gz')
-    
+
     # check number of layers
     nlayers = ds.GetLayerCount()
     if nlayers != 11: 
@@ -2957,14 +2974,14 @@ def ogr_gml_63():
         nfeatures += lyr.GetFeatureCount()
     if nfeatures != 7:
         return 'fail'
-        
+
     return 'success'
 
 ###############################################################################
-# Test multiple instanciation of parser (#5571)
+# Test multiple instances of parsers (#5571)
 
 def ogr_gml_64():
-    
+
     if not gdaltest.have_gml_reader:
         return 'skip'
 
@@ -4113,4 +4130,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

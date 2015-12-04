@@ -233,7 +233,7 @@ void OGRJMLLayer::startElementCbk(const char *pszName, const char **ppszAttr)
             {
                 /* <osElementName osAttributeName="value"></osElementName> */
 
-                AddStringToElementValue(ppszAttr[1], strlen(ppszAttr[1]));
+                AddStringToElementValue(ppszAttr[1], (int)strlen(ppszAttr[1]));
 
                 nAttributeElementDepth = currentDepth;
                 iAttr = (i < 0) ? iAttr + 1 : i;
@@ -250,9 +250,9 @@ void OGRJMLLayer::startElementCbk(const char *pszName, const char **ppszAttr)
         while( papszIter && *papszIter != NULL )
         {
             AddStringToElementValue(" ", 1);
-            AddStringToElementValue(papszIter[0], strlen(papszIter[0]));
+            AddStringToElementValue(papszIter[0], (int)strlen(papszIter[0]));
             AddStringToElementValue("=\"", 2);
-            AddStringToElementValue(papszIter[1], strlen(papszIter[1]));
+            AddStringToElementValue(papszIter[1], (int)strlen(papszIter[1]));
             AddStringToElementValue("\"", 1);
             papszIter += 2;
         }
@@ -386,11 +386,10 @@ void OGRJMLLayer::AddStringToElementValue(const char *data, int nLen)
 {
     if( nElementValueLen + nLen + 1 > nElementValueAlloc )
     {
-        char* pszNewElementValue = (char*) VSIRealloc(pszElementValue,
+        char* pszNewElementValue = (char*) VSI_REALLOC_VERBOSE(pszElementValue,
                                         nElementValueLen + nLen + 1 + 1000);
         if (pszNewElementValue == NULL)
         {
-            CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
             XML_StopParser(oParser, XML_FALSE);
             bStopParsing = TRUE;
             return;

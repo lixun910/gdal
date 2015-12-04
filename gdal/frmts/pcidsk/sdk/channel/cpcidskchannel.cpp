@@ -48,16 +48,18 @@ using namespace PCIDSK;
 /************************************************************************/
 
 CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header, 
-                                uint64 ih_offset,
-                                CPCIDSKFile *file, 
-                                eChanType pixel_type,
-                                int channel_number )
+                                uint64 ih_offsetIn,
+                                CPCIDSKFile *fileIn, 
+                                eChanType pixel_typeIn,
+                                int channel_numberIn )
 
 {
-    this->pixel_type = pixel_type;
-    this->file = file;
-    this->channel_number = channel_number;
-    this->ih_offset = ih_offset;
+    this->pixel_type = pixel_typeIn;
+    this->file = fileIn;
+    this->channel_number = channel_numberIn;
+    this->ih_offset = ih_offsetIn;
+    byte_order = 'S';
+    needs_swap = FALSE;
 
     width = file->GetWidth();
     height = file->GetHeight();
@@ -150,7 +152,7 @@ void CPCIDSKChannel::EstablishOverviewInfo() const
 
     for( i = 0; i < keys.size(); i++ )
     {
-        if( strncmp(keys[i].c_str(),"_Overview_",10) != 0 )
+        if( !STARTS_WITH(keys[i].c_str(), "_Overview_") )
             continue;
 
         std::string value = GetMetadataValue( keys[i] );
@@ -187,7 +189,7 @@ int CPCIDSKChannel::GetOverviewCount()
 {
     EstablishOverviewInfo();
 
-    return overview_infos.size();
+    return static_cast<int>(overview_infos.size());
 }
 
 /************************************************************************/
@@ -200,7 +202,7 @@ PCIDSKChannel *CPCIDSKChannel::GetOverview( int overview_index )
     EstablishOverviewInfo();
 
     if( overview_index < 0 || overview_index >= (int) overview_infos.size() )
-        ThrowPCIDSKException( "Non existant overview (%d) requested.", 
+        ThrowPCIDSKException( "Non existent overview (%d) requested.", 
                               overview_index );
 
     if( overview_bands[overview_index] == NULL )
@@ -231,7 +233,7 @@ bool CPCIDSKChannel::IsOverviewValid( int overview_index )
     EstablishOverviewInfo();
 
     if( overview_index < 0 || overview_index >= (int) overview_infos.size() )
-        ThrowPCIDSKException( "Non existant overview (%d) requested.", 
+        ThrowPCIDSKException( "Non existent overview (%d) requested.", 
                               overview_index );
 
     int sis_id, validity=0;
@@ -252,7 +254,7 @@ std::string CPCIDSKChannel::GetOverviewResampling( int overview_index )
     EstablishOverviewInfo();
 
     if( overview_index < 0 || overview_index >= (int) overview_infos.size() )
-        ThrowPCIDSKException( "Non existant overview (%d) requested.", 
+        ThrowPCIDSKException( "Non existent overview (%d) requested.", 
                               overview_index );
 
     int sis_id, validity=0;
@@ -275,7 +277,7 @@ void CPCIDSKChannel::SetOverviewValidity( int overview_index,
     EstablishOverviewInfo();
 
     if( overview_index < 0 || overview_index >= (int) overview_infos.size() )
-        ThrowPCIDSKException( "Non existant overview (%d) requested.", 
+        ThrowPCIDSKException( "Non existent overview (%d) requested.", 
                               overview_index );
 
     int sis_id, validity=0;

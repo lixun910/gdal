@@ -63,7 +63,7 @@ static int OGRGMLDriverIdentify( GDALOpenInfo* poOpenInfo )
     else
     if ( poOpenInfo->pabyHeader[0] == 0x1f && poOpenInfo->pabyHeader[1] == 0x8b &&
          EQUAL(CPLGetExtension(poOpenInfo->pszFilename), "gz") &&
-         strncmp(poOpenInfo->pszFilename, "/vsigzip/", strlen("/vsigzip/")) != 0 )
+         !STARTS_WITH(poOpenInfo->pszFilename, "/vsigzip/") )
     {
         return -1; /* must be later checked */
     }
@@ -212,7 +212,7 @@ void RegisterOGRGML()
 "  </Option>"
 "  <Option name='GML3_LONGSRS' type='boolean' description='Whether to write SRS with \"urn:ogc:def:crs:EPSG::\" prefix with GML3* versions' default='YES'/>"
 "  <Option name='WRITE_FEATURE_BOUNDED_BY' type='boolean' description='Whether to write <gml:boundedBy> element for each feature with GML3* versions' default='YES'/>"
-"  <Option name='SPACE_INDENTATION' type='boolean' description='Whether to indentate the output for readability' default='YES'/>"
+"  <Option name='SPACE_INDENTATION' type='boolean' description='Whether to indent the output for readability' default='YES'/>"
 "  <Option name='SRSDIMENSION_LOC' type='string-select' description='(only valid for FORMAT=GML3xx) Location where to put srsDimension attribute' default='POSLIST'>"
 "    <Value>POSLIST</Value>"
 "    <Value>GEOMETRY</Value>"

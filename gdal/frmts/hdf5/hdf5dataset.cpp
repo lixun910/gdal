@@ -34,7 +34,17 @@
 
 #define MAX_METADATA_LEN 32768
 
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4005 ) /* warning C4005: '_HDF5USEDLL_' : macro redefinition */
+#endif
+
 #include "hdf5.h"
+
+#ifdef _MSC_VER
+#pragma warning( pop ) 
+#endif
+
 
 #include "gdal_priv.h"
 #include "cpl_string.h"
@@ -80,23 +90,16 @@ void GDALRegister_HDF5()
 #ifdef HDF5_PLUGIN
     GDALRegister_HDF5Image();
 #endif
-
 }
 
 /************************************************************************/
 /*                           HDF5Dataset()                      	*/
 /************************************************************************/
-HDF5Dataset::HDF5Dataset()
-{
-    papszSubDatasets    = NULL;
-    papszMetadata       = NULL;
-    poH5RootGroup       = NULL;
-    nSubDataCount       = 0;
-    hHDF5               = -1;
-    hGroupID            = -1;
-    bIsHDFEOS           = FALSE;
-    nDatasetType        = -1;
-}
+HDF5Dataset::HDF5Dataset() :
+    hHDF5(-1), hGroupID(-1), papszSubDatasets(NULL), bIsHDFEOS(FALSE),
+    nDatasetType(-1), nSubDataCount(0), poH5RootGroup(NULL),
+    papszMetadata(NULL), poH5CurrentObject(NULL)
+{ }
 
 /************************************************************************/
 /*                            ~HDF5Dataset()                            */
@@ -383,29 +386,26 @@ void HDF5Dataset::DestroyH5Objects( HDF5GroupObjects *poH5Object )
 /*                                                                      */
 /*      Find Dataset path for HDopen                                    */
 /************************************************************************/
-char* CreatePath( HDF5GroupObjects *poH5Object )
+static void CreatePath( HDF5GroupObjects *poH5Object )
 {
-    char pszPath[8192];
-    char pszUnderscoreSpaceInName[8192];
-    char *popszPath;
-    int  i;
-    char **papszPath;
+    char szPath[8192];
+    char szUnderscoreSpaceInName[8192];
 
 /* -------------------------------------------------------------------- */
 /*      Recurse to the root path                                        */
 /* -------------------------------------------------------------------- */
-    pszPath[0]='\0';
+    szPath[0]='\0';
     if( poH5Object->poHparent !=NULL ) {
-        popszPath=CreatePath( poH5Object->poHparent );
-        strcpy( pszPath,popszPath );
+        CreatePath( poH5Object->poHparent );
+        snprintf( szPath, sizeof(szPath), "%s", poH5Object->poHparent->pszPath );
     }
 
 /* -------------------------------------------------------------------- */
 /*      add name to the path                                            */
 /* -------------------------------------------------------------------- */
     if( !EQUAL( poH5Object->pszName,"/" ) ){
-        strcat( pszPath,"/" );
-        strcat( pszPath,poH5Object->pszName );
+        snprintf( szPath + strlen(szPath), sizeof(szPath) - strlen(szPath),
+                  "/%s", poH5Object->pszName );
     }
 
 /* -------------------------------------------------------------------- */
@@ -414,30 +414,32 @@ char* CreatePath( HDF5GroupObjects *poH5Object )
     if( poH5Object->pszPath == NULL ) {
 
         if( strlen( poH5Object->pszName ) == 1 ) {
-            strcat(pszPath, poH5Object->pszName );
-            strcpy(pszUnderscoreSpaceInName, poH5Object->pszName);
+            snprintf( szPath + strlen(szPath), sizeof(szPath) - strlen(szPath),
+                      "%s", poH5Object->pszName );
+            snprintf( szUnderscoreSpaceInName, sizeof(szUnderscoreSpaceInName),
+                      "%s", poH5Object->pszName);
         }
         else {
 /* -------------------------------------------------------------------- */
 /*      Change space for underscore                                     */
 /* -------------------------------------------------------------------- */
-            papszPath = CSLTokenizeString2( pszPath,
+            char** papszPath = CSLTokenizeString2( szPath,
                             " ", CSLT_HONOURSTRINGS );
 
-            strcpy(pszUnderscoreSpaceInName,papszPath[0]);
-            for( i=1; i < CSLCount( papszPath ); i++ ) {
-                strcat( pszUnderscoreSpaceInName, "_" );
-                strcat( pszUnderscoreSpaceInName, papszPath[ i ] );
+            szUnderscoreSpaceInName[0] = 0;
+            for( int i=0; papszPath[i] != NULL &&
+                      strlen(szUnderscoreSpaceInName) + 1 + strlen(papszPath[i ]) < sizeof(szUnderscoreSpaceInName) ; i++ ) {
+                if( i > 0 )
+                    strcat( szUnderscoreSpaceInName, "_" );
+                strcat( szUnderscoreSpaceInName, papszPath[ i ] );
             }
             CSLDestroy(papszPath);
 
         }
         poH5Object->pszUnderscorePath  =
-            CPLStrdup( pszUnderscoreSpaceInName );
-        poH5Object->pszPath  = CPLStrdup( pszPath );
+            CPLStrdup( szUnderscoreSpaceInName );
+        poH5Object->pszPath  = CPLStrdup( szPath );
     }
-
-    return( poH5Object->pszPath );
 }
 
 /************************************************************************/
@@ -519,10 +521,10 @@ herr_t HDF5CreateGroupObjs(hid_t hHDF5, const char *pszObjName,
     poHchild->objno[0]  = oStatbuf.objno[0];
     poHchild->objno[1]  = oStatbuf.objno[1];
     if( poHchild->pszPath == NULL ) {
-        poHchild->pszPath  = CreatePath( poHchild );
+        CreatePath( poHchild );
     }
     if( poHparent->pszPath == NULL ) {
-        poHparent->pszPath = CreatePath( poHparent );
+        CreatePath( poHparent );
     }
 
 
@@ -593,7 +595,7 @@ herr_t HDF5CreateGroupObjs(hid_t hHDF5, const char *pszObjName,
 
             if( n_dims > 0 ) {
                 poHchild->nRank     = n_dims;   // rank of the array
-                poHchild->paDims    = dims;      // dimmension of the array.
+                poHchild->paDims    = dims;      // dimension of the array.
                 poHchild->HDatatype = datatype;  // HDF5 datatype
             }
             else  {
@@ -631,7 +633,7 @@ herr_t HDF5CreateGroupObjs(hid_t hHDF5, const char *pszObjName,
 /*                          HDF5AttrIterate()                           */
 /************************************************************************/
 
-herr_t HDF5AttrIterate( hid_t hH5ObjID,
+static herr_t HDF5AttrIterate( hid_t hH5ObjID,
                         const char *pszAttrName,
                         void *pDS )
 {
@@ -846,7 +848,7 @@ herr_t HDF5AttrIterate( hid_t hH5ObjID,
 /************************************************************************/
 CPLErr HDF5Dataset::CreateMetadata( HDF5GroupObjects *poH5Object, int nType)
 {
-    hid_t       hGroupID;       /* identifier of group */
+    hid_t       l_hGroupID;       /* identifier of group */
     hid_t       hDatasetID;
     int         nbAttrs;
 
@@ -868,9 +870,9 @@ CPLErr HDF5Dataset::CreateMetadata( HDF5GroupObjects *poH5Object, int nType)
     case H5G_GROUP:
 
         if( nbAttrs > 0 ) {
-            hGroupID = H5Gopen( hHDF5, poH5Object->pszPath );
-            H5Aiterate( hGroupID, NULL, HDF5AttrIterate, (void *)poDS  );
-            H5Gclose( hGroupID );
+            l_hGroupID = H5Gopen( hHDF5, poH5Object->pszPath );
+            H5Aiterate( l_hGroupID, NULL, HDF5AttrIterate, (void *)poDS  );
+            H5Gclose( l_hGroupID );
         }
 
         break;
@@ -1091,7 +1093,7 @@ CPLErr HDF5Dataset::ReadGlobalAttributes(int bSUBDATASET)
 
     if( poRootGroup->nbObjs > 0 ) {
         poRootGroup->poHchild = ( HDF5GroupObjects * )
-            CPLCalloc( poRootGroup->nbObjs,
+            CPLCalloc( static_cast<size_t>(poRootGroup->nbObjs),
             sizeof( HDF5GroupObjects ) );
         H5Giterate( hGroupID, "/", NULL,
                HDF5CreateGroupObjs, (void *)poRootGroup );
@@ -1114,9 +1116,9 @@ CPLErr HDF5Dataset::ReadGlobalAttributes(int bSUBDATASET)
  *        the attribute name must be the form:
  *            root attribute name
  *            SUBDATASET/subdataset attribute name
- * @param pdfValues pointer wich will store the array of doubles read.
- * @param nLen it stores the length of the array read. If NULL it doesn't 
- *        inform the lenght of the array.
+ * @param pdfValues pointer which will store the array of doubles read.
+ * @param nLen it stores the length of the array read. If NULL it doesn't
+ *        inform the length of the array.
  * @return CPLErr CE_None in case of success, CE_Failure in case of failure
  */
 CPLErr HDF5Dataset::HDF5ReadDoubleAttr(const char* pszAttrFullPath,
@@ -1196,12 +1198,12 @@ CPLErr HDF5Dataset::HDF5ReadDoubleAttr(const char* pszAttrFullPath,
             }
             else
             {
-                //Get the ammount of elements
+                // Get the amount of elements.
                 nAttrElmts = 1;
                 for( i=0; i < nAttrDims; i++ )
                 {
                     //For multidimensional attributes
-                     nAttrElmts *= nSize[i];
+                     nAttrElmts *= static_cast<unsigned int>(nSize[i]);
                 }
 
                 if(nLen != NULL)

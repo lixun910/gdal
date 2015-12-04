@@ -218,7 +218,7 @@ int OGRIdrisiLayer::Detect_AVL_ADC(const char* pszFilename)
             }
         }
         else if (bFieldFound &&
-                 strncmp(pszLine, "data type   :", strlen("data type   :")) == 0)
+                 STARTS_WITH(pszLine, "data type   :"))
         {
             const char* pszFieldType = pszLine + strlen("data type   :");
 
@@ -269,7 +269,7 @@ OGRFeature *OGRIdrisiLayer::GetNextFeature()
 {
     OGRFeature  *poFeature;
 
-    while(TRUE)
+    while( true )
     {
         if (bEOF)
             return NULL;
@@ -315,7 +315,7 @@ int OGRIdrisiLayer::TestCapability( const char * pszCap )
 
 OGRFeature *OGRIdrisiLayer::GetNextRawFeature()
 {
-    while(TRUE)
+    while( true )
     {
         if (eGeomType == wkbPoint)
         {
@@ -391,7 +391,7 @@ OGRFeature *OGRIdrisiLayer::GetNextRawFeature()
                 continue;
             }
 
-            OGRRawPoint* poRawPoints = (OGRRawPoint*)VSIMalloc2(sizeof(OGRRawPoint), nNodes);
+            OGRRawPoint* poRawPoints = (OGRRawPoint*)VSI_MALLOC2_VERBOSE(sizeof(OGRRawPoint), nNodes);
             if (poRawPoints == NULL)
             {
                 return NULL;
@@ -467,7 +467,7 @@ OGRFeature *OGRIdrisiLayer::GetNextRawFeature()
                 continue;
             }
 
-            OGRRawPoint* poRawPoints = (OGRRawPoint*)VSIMalloc2(sizeof(OGRRawPoint), nTotalNodes);
+            OGRRawPoint* poRawPoints = (OGRRawPoint*)VSI_MALLOC2_VERBOSE(sizeof(OGRRawPoint), nTotalNodes);
             if (poRawPoints == NULL)
             {
                 return NULL;

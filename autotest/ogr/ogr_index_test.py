@@ -73,11 +73,11 @@ def ogr_index_1():
 
     # Close and reopen, since it seems the .mif driver does not allow reading
     # from a newly created (updatable) file.
-    
-    gdaltest.p_ds.Destroy()
+
+    gdaltest.p_ds = None
     gdaltest.p_ds = ogr.OpenShared( 'index_p.mif', update = 0 )
     gdaltest.p_lyr = gdaltest.p_ds.GetLayerByName( 'index_p' )
-                                  
+
     return 'success'
 
 ###############################################################################
@@ -147,7 +147,7 @@ def ogr_index_4():
 def ogr_index_5():
 
     gdaltest.s_lyr.SetAttributeFilter( 'SKEY = 5' )
-    
+
     expect = [ 'Value 5' ]
 
     tr = ogrtest.check_features_against_list( gdaltest.s_lyr, 'VALUE', expect )
@@ -155,7 +155,7 @@ def ogr_index_5():
         return 'success'
     else:
         return 'fail'
-        
+
 ###############################################################################
 # Check that indexable single string lookup works.
 #
@@ -167,9 +167,9 @@ def ogr_index_6():
     gdaltest.s_ds.Release()
     gdaltest.s_ds = ogr.OpenShared( 'join_t.dbf', update = 1 )
     gdaltest.s_lyr = gdaltest.s_ds.GetLayerByName( 'join_t' )
-                                  
+
     gdaltest.s_lyr.SetAttributeFilter( "VALUE='Value 5'" )
-    
+
     expect = [ 5 ]
     
     tr = ogrtest.check_features_against_list( gdaltest.s_lyr, 'SKEY', expect )
@@ -539,4 +539,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

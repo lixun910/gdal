@@ -11,6 +11,8 @@
 
 ## @ignore ApproximateArcAngles
 
+## @ignore OLMD_FID64
+
 ## @ignore ForceTo
 ## @ignore ForceToLineString
 ## @ignore ForceToMultiLineString
@@ -18,18 +20,17 @@
 ## @ignore ForceToMultiPolygon
 ## @ignore ForceToPolygon
 
-## @ignore GeneralCmdLineProcessor
 ## @ignore GeometryTypeToName
 ## @ignore GetFieldTypeName
 
 ## @ignore GeometryType
 ## @ignore GetFieldSubTypeName
 
-## @cmethod @GeometryTypes()
+## @sub @GeometryTypes()
 # @return a list of all geometry types, currently:
 # +list Geo::OGR wkb 25DBit,25Bit,NDR,XDR
 
-## @cmethod list ByteOrders
+## @sub list ByteOrders
 # @return a list of byte order types, XDR and NDR. XDR denotes
 # big-endian and NDR denotes little-endian.
 
@@ -49,39 +50,43 @@
 ## @ignore CreateGeometryFromGML
 ## @ignore CreateGeometryFromJson
 
-## @ignore Drivers
-## @ignore GetDriverCount
-## @ignore GetDriverByName
-## @ignore Driver
-
-## @method @GetDriverNames()
-# @return a list of the names of available Geo::OGR::Drivers.
-
-## @method Geo::OGR::Driver GetDriver($name)
-# @param name a driver name. One of Geo::OGR::GetDriverNames.
-# @return a Geo::OGR::Driver object that represents the internal driver.
-
-## @method $GetOpenDSCount()
-# @return the number of all open data sources.
-
 ## @method SetGenerate_DB2_V72_BYTE_ORDER($Generate_DB2_V72_BYTE_ORDER)
 # Needed only on IBM DB2.
 
-## @method Geo::OGR::DataSource GetOpenDS($number)
-# @param number The number of the requested data source.
-# @return a new Geo::OGR::DataSource object.
-
-## @method Geo::OGR::DataSource Open($name, $update = 0)
-# @param name The data source string (directory, filename, etc.).
-# @param update Whether to open the data source in update mode.
-# @return a new Geo::OGR::DataSource object.
-
-## @method Geo::OGR::DataSource OpenShared($name, $update = 0)
-# @param name The data source string (directory, filename, etc.).
-# @param update Whether to open the data source in update mode.
-# @return a new Geo::OGR::DataSource object.
-
 ## @ignore NullFID
+
+## @ignore GetDriver
+## @ignore GetDriverCount
+## @ignore GetDriverNames
+
+## @sub @Drivers()
+# @note Use Geo::GDAL::Drivers for raster drivers.
+# @return a list of all available GDAL vector drivers.
+
+## @sub @DriverNames()
+# A.k.a GetDriverNames
+# @note Use Geo::GDAL::DriverNames for raster drivers.
+# @return a list of the short names of all available GDAL vector drivers.
+
+## @sub Geo::GDAL::Driver Driver($name)
+# A.k.a GetDriver.
+# @param name the short name of the driver.
+# @note No check is made that the driver is actually a vector driver.
+# @return a Geo::GDAL::Driver object.
+
+
+## @method Geo::GDAL::Dataset Open($name, $update = 0)
+# Open a vector data source.
+# @param name The data source string (directory, filename, etc.).
+# @param update Whether to open the data source in update mode (default is not).
+# @return a new Geo::GDAL::Dataset object.
+
+## @method Geo::GDAL::Dataset OpenShared($name, $update = 0)
+# Open a vector data source in shared mode.
+# @param name The data source string (directory, filename, etc.).
+# @param update Whether to open the data source in update mode.
+# @return a new Geo::GDAL::Dataset object.
+
 
 
 
@@ -89,192 +94,49 @@
 ## @class Geo::OGR::Driver
 # @brief A vector format driver.
 #
-# A driver may, depending on its capabilities, create, open, copy, and
-# delete data sources.
-# @isa (Geo::OGR)
+# This is a convenience class, which provides a vector driver only
+# access to the set of all drivers.
 
-## @ignore Register
-## @ignore Deregister
+## @method Open
+# The same as Geo::OGR::Open except that only this driver is allowed.
 
-## @method @Capabilities()
-# Both a class and an object method.
-# @return a list of capabilities. The object method returns a list of
-# the capabilities the driver has. The class method returns a list of
-# all potential capabilities a driver may have. These are currently:
-# +list Geo::OGR ODrC
-#
-# Examples:
-# \code
-# @all_capabilities = Geo::OGR::Driver::Capabilities;
-# @capabilities_of_a_driver = Geo::OGR::Driver('KML')->Capabilities;
-# \endcode
-
-## @method $TestCapability($cap)
-# @param cap A capability string.
-# @return boolean value.
-
-## @ignore CreateDataSource
-
-## @method Geo::OGR::DataSource Create($name, hashref options = undef )
-# Create an OGR data source object.
-# @note a.k.a. CreateDataSource
+## @method Geo::GDAL::Dataset Create($name, hashref options = undef )
+# Create a new vector data source using this driver.
 # @param name The data source name.
-# @param options Driver specific options.
+# @param options Driver specific dataset creation options. 
 #
 # Usage:
 # \code
-# $ds = Geo::OGR::Driver('driver name')->Create('data source name', {});
+# $ds = Geo::OGR::Driver('GML')->Create('/tmp/x.gml', {PREFIX => $prefix});
 # \endcode
-# @return a new Geo::OGR::DataSource object.
+# @return a new Geo::GDAL::Dataset object.
 
-## @ignore CopyDataSource
+## @method Geo::GDAL::Dataset Copy(Geo::GDAL::Dataset source, $name, arrayref options = undef)
+# Copy a vector data source into a new data source with this driver.
+# @param source The Geo::GDAL::Dataset object to be copied.
+# @param name The name for the new data source.
+# @param options Driver specific options. In addition to options
+# specified in GDAL documentation the option STRICT can be set to 'NO'
+# for a more relaxed copy. Otherwise the STRICT is 'YES'.
+# @note The order of the first two parameters is different from that in Geo::GDAL::Driver::Copy.
+# @return a new Geo::GDAL::Dataset object.
 
-## @method Geo::OGR::DataSource Copy(Geo::OGR::DataSource source, $name, arrayref options = undef)
-# Copy an OGR data source object.
-# @note a.k.a. CopyDataSource
-# @param source the Geo::OGR::DataSource object to be copied.
-# @param name the name for the new data source.
-# @param options driver specific options.
-# @return a new Geo::OGR::DataSource object.
-
-## @ignore OpenDataSource
-
-## @method Geo::OGR::DataSource Open($name, $update = 0)
-# Open an OGR data source object. Alternative name: OpenDataSource.
-# @note a.k.a. GetDataSource
-# @param name the name of data source.
-# @param update whether to open the data source in update mode.
-# @return a new Geo::OGR::DataSource object
-
-## @ignore DeleteDataSource
-
-## @method Delete($name)
-# Delete an OGR data source.
-# @note a.k.a. DeleteDataSource
-# @param name The name of data source.
-
-## @ignore GetName
-
-## @method $Name()
-# @note a.k.a. GetName
-# @return the name of the driver.
 
 
 
 
 ## @class Geo::OGR::DataSource
-# @brief A source and/or storage of vector data layers.
+# @brief A legacy class for opening vector datasets. Otherwise see
+# Geo::OGR and Geo::GDAL::Dataset.
 #
-# A data source object may, depending on its capabilities, create,
-# open (as such or using GDAL SQL), copy, and delete layers.
-# @isa (Geo::OGR)
+# This is a legacy class, which provides methods to ensure a
+# vector driver is used to open a data source.
 
-## @ignore SyncToDisk
+## @sub Geo::GDAL::Dataset Open
+# The same as Geo::OGR::Open
 
-## @method @Capabilities()
-# Both a class and an object method.
-# @return a list of capabilities. The object method returns a list of
-# all capabilities the data source has. The class method returns a
-# list of all potential capabilities a data source may have. These are
-# currently:
-# +list Geo::OGR ODsC
-
-## @method $TestCapability($cap)
-# @param cap A capability string.
-# @return a boolean value indicating whether the data source has the
-# specified capability.
-
-## @cmethod Geo::OGR::DataSource Open($name, $update = 0)
-# An example:
-# \code
-# use Geo::GDAL;
-# $ds = Geo::OGR::DataSource::Open('/data/roads.shp');
-# \endcode
-# @param name The data source name (directory, filename, etc.).
-# @param update Whether to open the data source in update mode.
-# @return a new Geo::OGR::DataSource object.
-
-## @cmethod Geo::OGR::DataSource OpenShared($name, $update = 0)
-# @param name The data source name (directory, filename, etc.).
-# @param update Whether to open the data source in update mode.
-# @return a new Geo::OGR::DataSource object.
-
-## @ignore GetLayerByIndex
-## @ignore GetLayerByName
-## @ignore Layer
-
-## @method Geo::OGR::Layer GetLayer($name)
-# @param name the name of the requested layer. If not given, then
-# returns the first layer in the data source.
-# @return a new Geo::OGR::Layer object that represents the layer
-# in the data source.
-
-## @ignore GetLayerCount
-## @ignore Layers
-
-## @method @GetLayerNames()
-# @note Delivers the functionality of undocumented method GetLayerCount.
-# @return a list of the names of the layers this data source provides.
-
-## @method Geo::OGR::Driver GetDriver()
-# @return a Geo::OGR::Driver object for this data source.
-
-## @method $GetName()
-# @return the name of this data source.
-
-## @method Geo::OGR::Layer CreateLayer(%params)
-# @brief Create a new layer into this data source.
-#
-# @param %params A list of named parameters:
-# - \a Name (scalar) name for the new layer.
-# - \a Fields (array reference) a list of field definitions as in 
-# Geo::OGR::Layer::CreateField.
-# - \a ApproxOK (boolean value, default is true) a flag, which is forwarded to Geo::OGR::Layer::CreateField.
-# - \a Options (hash reference) driver specific hash of layer creation options.
-# - \a Schema (hash reference, deprecated) may contain keys Name, Fields, GeomFields, GeometryType.
-# - \a SRS (scalar, deprecated) the spatial reference for the default geometry field.
-# - \a GeometryType (scalar) the type of the default geometry field (if only one geometry field).
-#
-# @note If Fields or Schema|Fields is not given, a default geometry
-# field (Name => '', GeometryType => 'Unknown') is created. The type
-# can be also set with the named parameter.
-#
-# Example:
-# \code
-# my $roads = Geo::OGR::Driver('Memory')->Create('road')->
-# .   CreateLayer(
-# .       Fields => [ { Name => 'class', 
-# .                     Type => 'Integer' },
-# .                   { Name => 'geom', 
-# .                     Type => 'LineString25D' } ] );
-# \endcode
-# @return a new Geo::OGR::Layer object.
-
-## @method Geo::OGR::Layer CopyLayer($layer, $name, hashref options = undef)
-# @param layer A Geo::OGR::Layer object to be copied.
-# @param name A name for the new layer.
-# @param options A ref to a hash of format specific options.
-# @return a new Geo::OGR::Layer object.
-
-## @method DeleteLayer($name)
-# Deletes a layer from the data source. Note that if there is a layer
-# object for the deleted layer, it becomes unusable.
-# @param name name of the layer to delete.
-
-## @method Geo::OGR::Layer ExecuteSQL($statement, $geom = undef, $dialect = "")
-# @param statement A SQL statement.
-# @param geom A Geo::OGR::Geometry object.
-# @param dialect
-# @return a new Geo::OGR::Layer object. The data source object will
-# exist as long as the layer object exists.
-
-## @method ReleaseResultSet($layer)
-# @param layer A layer the has been created with ExecuteSQL.
-# @note There is no need to call this method. The result set layer is
-# released in the destructor of the layer that was created with SQL.
-
-## @ignore GetRefCount
-## @ignore GetSummaryRefCount
+## @sub Geo::GDAL::Dataset OpenShared
+# The same as Geo::OGR::OpenShared
 
 
 
@@ -294,17 +156,21 @@
 # compared to each other with methods Clip, Erase, Identity,
 # Intersection, SymDifference, Union, and Update.
 # @isa (Geo::OGR)
+#
+# A layer may have metadata OLMD_FID64 => 'YES' if it holds features
+# with 64 bit FIDs. The metadata of a layer can be obtained with
+# GetMetadata method.
 
 ## @method @Capabilities()
-# Both a class and an object method.
+# Both a package subroutine and an object method.
 # @return a list of capabilities. The object method returns a list of
-# the capabilities the layer has. The class method returns a list of
+# the capabilities the layer has. The package subroutine returns a list of
 # all potential capabilities a layer may have. These are currently:
 # +list Geo::OGR OLC
 #
 # Examples:
 # \code
-# @cap = Geo::OGR::Layer::Capabilities(); # the class method
+# @cap = Geo::OGR::Layer::Capabilities(); # the package subroutine
 # @cap = $layer->Capabilities(); # the object method
 # \endcode
 
@@ -581,6 +447,7 @@
 # @param feature a Geo::OGR::Feature object or reference to feature
 # data in a hash (as in Geo::OGR::Feature::Row) or in an array (as in
 # Geo::OGR::Feature::Tuple)
+# @return the new feature.
 
 ## @method DeleteFeature($fid)
 # @param fid feature id
@@ -601,12 +468,10 @@
 # @param force compute the extent even if it is expensive
 # @note In scalar context returns a reference to an anonymous array
 # containing the extent.
-# @note The order of values is different from those returned by
-# Geo::OGR::Geometry::GetEnvelope.
-# @return the extent ($minx, $miny, $maxx, $maxy)
+# @return the extent ($minx, $maxx, $miny, $maxy)
 
 # @param force
-# @return the extent = ($minx, $miny, $maxx, $maxy) as a listref
+# @return the extent = ($minx, $maxx, $miny, $maxy) as a listref
 
 ## @method StartTransaction()
 
@@ -629,11 +494,6 @@
 # @return a list of the names of the fields in this layer. The
 # non-geometry field names are first in the list and then the geometry
 # fields.
-
-## @method $GetFieldDef($name)
-# @param name name of the field.
-# @return the definition object of the given field. Either
-# Geo::OGR::FieldDefn or Geo::OGR::GeomFieldDefn.
 
 ## @method SetIgnoredFields(@fields)
 # @param fields a list of field names
@@ -696,9 +556,9 @@
 #
 # Get and/set the data of the feature. The expected data in the tuple
 # is ([feature_id,] non-spatial fields, spatial fields). The fields in
-# the order they are in the schema. Field values are set using the
-# Geo::OGR::Feature::Field method. Geometries are set and get using
-# the Geo::OGR::Feature::Geometry method.
+# the tuple are in the order they are in the schema. Field values are
+# set using the Geo::OGR::Feature::Field method. Geometries are set
+# and get using the Geo::OGR::Feature::Geometry method.
 # @param tuple [optional] feature data in an array
 # @return feature data in an array
 
@@ -904,7 +764,7 @@
 ## @ignore AddGeomFieldDefn
 
 ## @method AddField(%params)
-# @param params named parameters to create a new Geo::OGR::FieldDefn
+# @param params Named parameters to create a new Geo::OGR::FieldDefn
 # or Geo::OGR::GeomFieldDefn object.
 
 ## @ignore DeleteGeomFieldDefn
@@ -967,31 +827,23 @@
 # @brief A definition of a non-spatial attribute.
 # @isa (Geo::OGR)
 
-## @cmethod list Types
+## @sub list Types
 # Field types supported by GDAL. Current list is
 # +list Geo::OGR OFT
 
-## @cmethod list JustifyValues
+## @sub list JustifyValues
 # Justify values supported by GDAL. Current list is
 # +list Geo::OGR OJ
 
 ## @cmethod Geo::OGR::FieldDefn new(%params)
 # @brief Create a new field definition.
 #
-# This method supports both an argument list and named arguments.
-#
-# @param name Field name.
-# @param type One of supported field types
-# (see Geo::OGR::FieldDefn::Types). Optional. Default is String.
-#
-# or
-#
-# @param params one or more of:
+# @param Named parameters:
 # - \a Name Field name (default is 'unnamed').
 # - \a Type Field type, one of Geo::OGR::FieldDefn::Types (default is 'String').
 # - \a SubType Field sub type, one of Geo::OGR::FieldDefn::SubTypes.
 # - \a Justify Justify value, one of Geo::OGR::FieldDefn::JustifyValues
-# - \a Width
+# - \a Width 
 # - \a Precision
 # - \a Nullable (default is true)
 # - \a Default 
@@ -1019,6 +871,7 @@
 ## @ignore SetType
 
 ## @method $Type($type)
+# Get and/or set the type of the field.
 # @note a.k.a. GetFieldTypeName, GetTypeName, GetType, SetType
 # @param type [optional] One of field types (Geo::OGR::FieldDefn::Types).
 # @return one of field types in non-void context.
@@ -1113,7 +966,7 @@
 ## @method Type
 # @return the type of this geometry field. One of Geo::OGR::GeomFieldDefn::Types
 
-## @cmethod Types
+## @sub Types
 # @return a list of all geometry types, currently:
 # +list Geo::OGR wkb 25DBit,25Bit,NDR,XDR
 
@@ -1168,15 +1021,14 @@
 # @note Most spatial analysis methods require <a
 # href="http://geos.osgeo.org/doxygen/">GEOS</a> to work rigorously.
 
-## @cmethod @GeometryTypes()
+## @sub @GeometryTypes()
 # Same as Geo::OGR::GeometryTypes
 
-## @cmethod list ByteOrders
+## @sub list ByteOrders
 # Same as Geo::OGR::ByteOrders
 
 ## @cmethod Geo::OGR::Geometry new(%params)
-# @param %params A named parameter, one of: WKT, WKB, HEXWKB,
-# HEXEWKB, GML, GeoJSON, arc, or GeometryType and optionally Points.
+# @param %params A named parameter, one of:
 # - \a GeometryType one the supported geometry types, see Geo::OGR::GeometryTypes.
 # - \a WKT a well known text string, which defines a geometry.
 # - \a WKB a well known binary string, which defines a geometry.
@@ -1191,26 +1043,20 @@
 #      Geo::OGR::Geometry::Points; Note: requires also GeometryType
 #      parameter
 #
-# @note uses CreateGeometryFrom* functions from Geo::OGR
-#
 # @return a new Geo::OGR::Geometry object.
-# Usage:
-# \code
-# $g = Geo::OGR::Geometry->new(...arguments...);
-# \endcode
 
-## @cmethod Geo::OGR::Geometry ApproximateArcAngles(%params)
+## @sub Geo::OGR::Geometry ApproximateArcAngles(%params)
 # Create a line string, which approximates an arc. 
 # @note All angles are in degrees.
 #
-# @param %params named parameters, these are:
+# @param %params Named parameters:
 # - \a Center center point (default is [0, 0, 0])
-# - \a PrimaryRadius default is 1,
-# - \a SecondaryAxis default is 1,
-# - \a Rotation default is 0,
-# - \a StartAngle default is 0,
-# - \a EndAngle default is 360,
-# - \a MaxAngleStepSizeDegrees default is 4 
+# - \a PrimaryRadius default is 1.
+# - \a SecondaryAxis default is 1.
+# - \a Rotation default is 0.
+# - \a StartAngle default is 0.
+# - \a EndAngle default is 360.
+# - \a MaxAngleStepSizeDegrees default is 4. 
 # @return a new Geo::OGR::Geometry object.
 
 ## @method FlattenTo2D()
@@ -1245,13 +1091,24 @@
 
 ## @method $As(%params)
 # Export the geometry into a known format.
-
-# @param params named parameters, either: Text (a.k.a WKT), WKB
-# (a.k.a. Binary) (ByteOrder can also be defined, default is 'XDR'),
-# ISO WKT and WKB, HEXWKB, HEXEWKB (srid can also be given), GML,
-# GeoJSON, Binary.
-
-# @note Uses As\<format\>/ExportTo\<format\> methods.
+#
+# @param params Named parameters:
+# - \a Format One of 
+#     - \a WKT Well Known Text.
+#     - <em>ISO WKT</em>
+#     - \a Text Same as WKT.
+#     - \a WKB Well Known Binary.
+#     - <em>ISO WKB</em>
+#     - \a Binary Same as WKB.
+#     - \a HEXWKB
+#     - \a HEXEWKB
+#     - \a GML
+#     - \a GeoJSON
+# - \a ByteOrder Byte order for binary formats. Default is 'XDR'.
+# - \a SRID Spatial reference id for HEXEWKB.
+# - \a Options GML generation options.
+# - \a AltitudeMode For KML.
+#
 # @return the geometry in a given format.
 
 ## @method AddPoint($x, $y, $z)
@@ -1567,8 +1424,6 @@
 ## @method @GetEnvelope()
 # @note In scalar context returns a reference to an anonymous array
 # containing the envelope.
-# @note The order of values is different from those returned by
-# Geo::OGR::Layer::GetExtent.
 # @return the envelope ($minx, $maxx, $miny, $maxy)
 
 ## @method @GetEnvelope3D()

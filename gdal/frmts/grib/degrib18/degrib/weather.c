@@ -172,7 +172,7 @@ enum {
    HAZ_PRI2 = 254, HAZ_OR = 255
 };
 
-/* Note: HazCode currently can handle upto (21 + 4) different WxAttrib
+/* Note: HazCode currently can handle up to (21 + 4) different WxAttrib
  * numbers because it is stored in a "sInt4" (2^31 = 21,47,48,36,48) */
 WxTable WxAttrib[] = {
    /* 0 */ {"", "None", HAZ_NOHAZ},
@@ -1948,7 +1948,7 @@ static int NDFD_WxTable4 (UglyStringType * ugly)
  */
 void FreeUglyString (UglyStringType * ugly)
 {
-   int j;               /* Used to free all the english words. */
+   int j;               /* Used to free all the English words. */
 
    for (j = 0; j < NUM_UGLY_ATTRIB; j++) {
       free (ugly->english[j]);
@@ -2065,8 +2065,8 @@ static int FindInTable (WxTable * table, int tableLen, char *data, uChar *ans)
  *   ugly = The ugly string structure to modify. (Output)
  *   data = The string (or phrase) to look for. (Input)
  *   word = Which word we are currently working on. (Input)
- *  place = What part of the word (ie # of :'s) (Input)
- * attNum = What part of attribute piece (ie # of ,'s) (Input)
+ *  place = What part of the word (i.e. # of :'s) (Input)
+ * attNum = What part of attribute piece (i.e. # of ,'s) (Input)
  *
  * FILES/DATABASES: None
  *
@@ -2231,7 +2231,7 @@ static int UglyLookUp (UglyStringType * ugly, char *data, uChar word,
  *   5/2003 Arthur Taylor (MDL/RSIS): Created.
  *
  * NOTES
- * 1) buffer size is choosen so each of the 8 parts has 50 bytes for the
+ * 1) buffer size is chosen so each of the 8 parts has 50 bytes for the
  *    table entry and the ' ' and ', ' and ' with '.  If NUM_UGLY_ATTRIB
  *    increases (from 5), we may need more.
  * 2) Instead of static buffer, we could use myerror.c :: AllocSprintf.
@@ -2265,7 +2265,7 @@ static void Ugly2English (UglyStringType * ugly)
       f_first = 1;
       for (j = 0; j < NUM_UGLY_ATTRIB; j++) {
          if (ugly->attrib[i][j] != 0) {
-            if (ugly->f_priority == 0) {
+            if (ugly->f_priority[i] == 0) {
                if (f_first) {
                   strcat (buffer, " with ");
                   f_first = 0;

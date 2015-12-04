@@ -32,6 +32,8 @@
 #include "cpl_vsi_virtual.h"
 #include "cpl_multiproc.h"
 #include "cpl_string.h"
+
+#include <cassert>
 #include <string>
 
 CPL_CVSID("$Id$");
@@ -116,7 +118,7 @@ char **VSIReadDirRecursive( const char *pszPathIn )
     char* pszPath = CPLStrdup(pszPathIn);
     char* pszDisplayedPath = NULL;
 
-    while(TRUE)
+    while(true)
     {
         if( nCount < 0 )
         {
@@ -229,7 +231,7 @@ char **VSIReadDirRecursive( const char *pszPathIn )
 /************************************************************************/
 /*                             CPLReadDir()                             */
 /*                                                                      */
-/*      This is present only to provide ABI compatability with older    */
+/*      This is present only to provide ABI compatibility with older    */
 /*      versions.                                                       */
 /************************************************************************/
 #undef CPLReadDir
@@ -249,7 +251,7 @@ char **CPLReadDir( const char *pszPath )
 
 /**
  * \brief Create a directory. 
- * 
+ *
  * Create a new directory with the indicated mode.  The mode is ignored
  * on some platforms.  A reasonable default mode value would be 0666.
  * This method goes through the VSIFileHandler virtualization and may
@@ -500,7 +502,7 @@ int VSIIsCaseSensitiveFS( const char * pszFilename )
  * Analog of the POSIX fopen() function.
  *
  * @param pszFilename the file to open.  UTF-8 encoded.
- * @param pszAccess access requested (ie. "r", "r+", "w".  
+ * @param pszAccess access requested (i.e. "r", "r+", "w".
  *
  * @return NULL on failure, or the file handle.
  */
@@ -510,11 +512,11 @@ VSILFILE *VSIFOpenL( const char * pszFilename, const char * pszAccess )
 {
     VSIFilesystemHandler *poFSHandler = 
         VSIFileManager::GetHandler( pszFilename );
-        
+
     VSILFILE* fp = (VSILFILE *) poFSHandler->Open( pszFilename, pszAccess );
 
     VSIDebug3( "VSIFOpenL(%s,%s) = %p", pszFilename, pszAccess, fp );
-        
+
     return fp;
 }
 
@@ -532,7 +534,8 @@ VSILFILE *VSIFOpenL( const char * pszFilename, const char * pszAccess )
  *
  * Analog of the POSIX fclose() function.
  *
- * @param fp file handle opened with VSIFOpenL().
+ * @param fp file handle opened with VSIFOpenL().  Passing a nullptr produces
+ * undefined behavior.
  *
  * @return 0 on success or -1 on failure.
  */
@@ -612,10 +615,20 @@ vsi_l_offset VSIFTellL( VSILFILE * fp )
 /*                             VSIRewindL()                             */
 /************************************************************************/
 
+/**
+ * \brief Rewind the file pointer to the beginning of the file.
+ *
+ * This is equivalent to VSIFSeekL( fp, 0, SEEK_SET )
+ *
+ * Analog of the POSIX rewind() call.
+ *
+ * @param fp file handle opened with VSIFOpenL(). 
+ */
+
 void VSIRewindL( VSILFILE * fp )
 
 {
-    VSIFSeekL( fp, 0, SEEK_SET );
+    CPL_IGNORE_RET_VAL(VSIFSeekL( fp, 0, SEEK_SET ));
 }
 
 /************************************************************************/
@@ -831,18 +844,36 @@ int VSIFPrintfL( VSILFILE *fp, const char *pszFormat, ... )
     osResult.vPrintf( pszFormat, args );
     va_end( args );
 
-    return VSIFWriteL( osResult.c_str(), 1, osResult.length(), fp );
+    return static_cast<int>(VSIFWriteL( osResult.c_str(), 1, osResult.length(), fp ));
 }
 
 /************************************************************************/
 /*                              VSIFPutcL()                              */
 /************************************************************************/
 
+// TODO: should we put in conformance with POSIX regarding the return
+// value. As of today (2015-08-29), no code in GDAL sources actually
+// check the return value.
+
+/**
+ * \brief Write a single byte to the file
+ *
+ * Writes the character nChar, cast to an unsigned char, to file.
+ *
+ * Almost an analog of the POSIX fputc() call, except that it returns
+ * the number of character written (1 or 0), and not the (cast) character itself or EOF.
+ *
+ * @param nChar character to write.
+ * @param fp file handle opened with VSIFOpenL(). 
+ * 
+ * @return 1 in case of success, 0 on error.
+ */
+
 int VSIFPutcL( int nChar, VSILFILE * fp )
 
 {
     unsigned char cChar = (unsigned char)nChar;
-    return VSIFWriteL(&cChar, 1, 1, fp);
+    return static_cast<int>(VSIFWriteL(&cChar, 1, 1, fp));
 }
 
 /************************************************************************/
@@ -881,7 +912,7 @@ int VSIIngestFile( VSILFILE* fp,
                    GIntBig nMaxSize)
 {
     vsi_l_offset nDataLen = 0;
-    int bFreeFP = FALSE;
+    bool bFreeFP = false;
 
     if( fp == NULL && pszFilename == NULL )
         return FALSE;
@@ -901,17 +932,25 @@ int VSIIngestFile( VSILFILE* fp,
                       "Cannot open file '%s'", pszFilename );
             return FALSE;
         }
-        bFreeFP = TRUE;
+        bFreeFP = true;
     }
     else
-        VSIFSeekL(fp, 0, SEEK_SET);
+    {
+        if( VSIFSeekL(fp, 0, SEEK_SET) != 0 )
+            return FALSE;
+    }
 
     if( pszFilename == NULL ||
         strcmp(pszFilename, "/vsistdin/") == 0 )
     {
         vsi_l_offset nDataAlloc = 0;
-        VSIFSeekL( fp, 0, SEEK_SET );
-        while(TRUE)
+        if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 )
+        {
+            if( bFreeFP )
+                VSIFCloseL( fp );
+            return FALSE;
+        }
+        while(true)
         {
             if( nDataLen + 8192 + 1 > nDataAlloc )
             {
@@ -965,7 +1004,12 @@ int VSIIngestFile( VSILFILE* fp,
     }
     else
     {
-        VSIFSeekL( fp, 0, SEEK_END );
+        if( VSIFSeekL( fp, 0, SEEK_END ) != 0 )
+        {
+            if( bFreeFP )
+                VSIFCloseL( fp );
+            return FALSE;
+        }
         nDataLen = VSIFTellL( fp );
 
         // With "large" VSI I/O API we can read data chunks larger than VSIMalloc
@@ -980,7 +1024,12 @@ int VSIIngestFile( VSILFILE* fp,
             return FALSE;
         }
 
-        VSIFSeekL( fp, 0, SEEK_SET );
+        if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 )
+        {
+            if( bFreeFP )
+                VSIFCloseL( fp );
+            return FALSE;
+        }
 
         *ppabyRet = (GByte*)VSIMalloc((size_t)(nDataLen + 1));
         if( NULL == *ppabyRet )
@@ -1092,20 +1141,22 @@ static CPLMutex* hVSIFileManagerMutex = NULL;
 VSIFileManager *VSIFileManager::Get()
 
 {
-    static volatile int nConstructerPID = 0;
+    static volatile GPtrDiff_t nConstructerPID = 0;
     if( poManager != NULL )
     {
         if( nConstructerPID != 0 )
         {
-            int nCurrentPID = (int)CPLGetPID();
+            GPtrDiff_t nCurrentPID = (GPtrDiff_t)CPLGetPID();
             if( nConstructerPID != nCurrentPID )
             {
-                //printf("Thread %d: Waiting for VSIFileManager to be finished by other thread.\n", nCurrentPID);
                 {
                     CPLMutexHolder oHolder( &hVSIFileManagerMutex );
                 }
-                //printf("Thread %d: End of wait for VSIFileManager construction to be finished\n", nCurrentPID);
-                CPLAssert(nConstructerPID == 0);
+                if ( nConstructerPID != 0 )
+                {
+                    VSIDebug1( "nConstructerPID != 0: %d", nConstructerPID);
+                    assert(false);
+                }
             }
         }
         return poManager;
@@ -1114,7 +1165,7 @@ VSIFileManager *VSIFileManager::Get()
     CPLMutexHolder oHolder2( &hVSIFileManagerMutex );
     if( poManager == NULL )
     {
-        nConstructerPID = (int)CPLGetPID();
+        nConstructerPID = (GPtrDiff_t)CPLGetPID();
         //printf("Thread %d: VSIFileManager in construction\n", nConstructerPID);
         poManager = new VSIFileManager;
         VSIInstallLargeFileHandler();
@@ -1127,11 +1178,15 @@ VSIFileManager *VSIFileManager::Get()
 #ifdef HAVE_CURL
         VSIInstallCurlFileHandler();
         VSIInstallCurlStreamingFileHandler();
+        VSIInstallS3FileHandler();
+        VSIInstallS3StreamingFileHandler();
 #endif
         VSIInstallStdinHandler();
         VSIInstallStdoutHandler();
         VSIInstallSparseFileHandler();
         VSIInstallTarFileHandler();
+        VSIInstallCryptFileHandler();
+
         //printf("Thread %d: VSIFileManager construction finished\n", nConstructerPID);
         nConstructerPID = 0;
     }
@@ -1148,14 +1203,14 @@ VSIFilesystemHandler *VSIFileManager::GetHandler( const char *pszPath )
 {
     VSIFileManager *poThis = Get();
     std::map<std::string,VSIFilesystemHandler*>::const_iterator iter;
-    int nPathLen = strlen(pszPath);
+    size_t nPathLen = strlen(pszPath);
 
     for( iter = poThis->oHandlers.begin();
          iter != poThis->oHandlers.end();
          ++iter )
     {
         const char* pszIterKey = iter->first.c_str();
-        int nIterKeyLen = iter->first.size();
+        size_t nIterKeyLen = iter->first.size();
         if( strncmp(pszPath,pszIterKey,nIterKeyLen) == 0 )
             return iter->second;
 
@@ -1167,8 +1222,8 @@ VSIFilesystemHandler *VSIFileManager::GetHandler( const char *pszPath )
             return iter->second;
 
         /* /vsimem should be treated as a match for /vsimem/ */
-        if( nPathLen == nIterKeyLen - 1
-            && strncmp(pszPath,pszIterKey,nIterKeyLen-1) == 0 )
+        if( nPathLen + 1 == nIterKeyLen
+            && strncmp(pszPath,pszIterKey,nPathLen) == 0 )
             return iter->second;
     }
     

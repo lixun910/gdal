@@ -10,7 +10,7 @@ void simpack(g2float *fld,g2int ndpts,g2int *idrstmpl,unsigned char *cpack,g2int
 //   PRGMMR: Gilbert          ORG: W/NP11    DATE: 2002-11-06
 //
 // ABSTRACT: This subroutine packs up a data field using the simple
-//   packing algorithm as defined in the GRIB2 documention.  It
+//   packing algorithm as defined in the GRIB2 documentation.  It
 //   also fills in GRIB2 Data Representation Template 5.0 with the
 //   appropriate values.
 //
@@ -96,7 +96,7 @@ void simpack(g2float *fld,g2int ndpts,g2int *idrstmpl,unsigned char *cpack,g2int
         //
         if (nbits==0 && idrstmpl[1]==0) {
            //
-           //  No binary scaling and calculate minumum number of 
+           //  No binary scaling and calculate minimum number of 
            //  bits in which the data will fit.
            //
            imin=(g2int)RINT(rmin*dscale);
@@ -126,7 +126,7 @@ void simpack(g2float *fld,g2int ndpts,g2int *idrstmpl,unsigned char *cpack,g2int
         }
         else if (nbits==0 && idrstmpl[1]!=0) {
            //
-           //  Use binary scaling factor and calculate minumum number of 
+           //  Use binary scaling factor and calculate minimum number of 
            //  bits in which the data will fit.
            //
            rmin=rmin*dscale;
@@ -140,7 +140,7 @@ void simpack(g2float *fld,g2int ndpts,g2int *idrstmpl,unsigned char *cpack,g2int
         }
         else if (nbits!=0 && idrstmpl[1]!=0) {
            //
-           //  Use binary scaling factor and use minumum number of 
+           //  Use binary scaling factor and use minimum number of 
            //  bits specified by user.   Dangerous - may loose
            //  information if binary scale factor and nbits not set
            //  properly by user.

@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _CPL_VIRTUAL_MEM_INCLUDED
-#define _CPL_VIRTUAL_MEM_INCLUDED
+#ifndef CPL_VIRTUAL_MEM_INCLUDED
+#define CPL_VIRTUAL_MEM_INCLUDED
 
 #include "cpl_port.h"
 #include "cpl_vsi.h"
@@ -192,13 +192,14 @@ int CPL_DLL CPLIsVirtualMemFileMapAvailable(void);
  * On Linux AMD64 platforms, the maximum value for nLength is 128 TB.
  * On Linux x86 platforms, the maximum value for nLength is 2 GB.
  *
- * Only supported on Linux for now.
+ * Supported on Linux only in GDAL <= 2.0, and all POSIX systems supporting
+ * mmap() in GDAL >= 2.1
  *
  * @param  fp       Virtual file handle.
  * @param  nOffset  Offset in the file to start the mapping from.
  * @param  nLength  Length of the portion of the file to map into memory.
  * @param eAccessMode Permission to use for the virtual memory mapping. This must
- *                    be consistant with how the file has been opened.
+ *                    be consistent with how the file has been opened.
  * @param pfnFreeUserData callback that is called when the object is destroyed.
  * @param pCbkUserData user data passed to pfnFreeUserData.
  * @return a virtual memory object that must be freed by CPLVirtualMemFree(),
@@ -386,4 +387,4 @@ void CPL_DLL CPLVirtualMemManagerTerminate(void);
 
 CPL_C_END
 
-#endif /* _CPL_VIRTUAL_MEM_INCLUDED */
+#endif /* CPL_VIRTUAL_MEM_INCLUDED */

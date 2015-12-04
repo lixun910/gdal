@@ -75,7 +75,7 @@ int VFKDataBlockSQLite::LoadGeometryPoint()
         x = -1.0 * sqlite3_column_double(hStmt, 0); /* S-JTSK coordinate system expected */
         y = -1.0 * sqlite3_column_double(hStmt, 1);
 #ifdef DEBUG
-	const long iFID = sqlite3_column_double(hStmt, 2);
+	const GIntBig iFID = sqlite3_column_int64(hStmt, 2);
 #endif
 	rowId = sqlite3_column_int(hStmt, 3);
 
@@ -159,7 +159,7 @@ bool VFKDataBlockSQLite::SetGeometryLineString(VFKFeatureSQLite *poLine, OGRLine
                      "Circle (fid=" CPL_FRMT_GIB ") defined by invalid number of vertices (%d)",
                      poLine->GetFID(), oOGRLine->getNumPoints());
         }
-        else if (strlen(ftype) > 2 && EQUALN(ftype, "15", 2) && npoints != 1) {
+        else if (strlen(ftype) > 2 && STARTS_WITH_CI(ftype, "15") && npoints != 1) {
             bValid = FALSE;
             CPLError(CE_Warning, CPLE_AppDefined, 
                      "Circle (fid=" CPL_FRMT_GIB ") defined by invalid number of vertices (%d)",
@@ -261,8 +261,8 @@ int VFKDataBlockSQLite::LoadGeometryLineStringSBP()
 	
         while(poReader->ExecuteSQL(hStmt) == OGRERR_NONE) {
             // read values
-            id    = sqlite3_column_double(hStmt, 0);
-            ipcb  = sqlite3_column_double(hStmt, 1);
+            id    = sqlite3_column_int64(hStmt, 0);
+            ipcb  = sqlite3_column_int64(hStmt, 1);
             szFType = (char *) sqlite3_column_text(hStmt, 2);
             rowId = sqlite3_column_int(hStmt, 3);
 
@@ -376,8 +376,8 @@ int VFKDataBlockSQLite::LoadGeometryLineStringHP()
 
     while(poReader->ExecuteSQL(hStmt) == OGRERR_NONE) {
         /* read values */
-        vrValue[0] = sqlite3_column_double(hStmt, 0);
-        iFID       = sqlite3_column_double(hStmt, 1);
+        vrValue[0] = sqlite3_column_int64(hStmt, 0);
+        iFID       = static_cast<long>(sqlite3_column_int64(hStmt, 1));
         rowId      = sqlite3_column_int(hStmt, 2);
 
         poFeature = (VFKFeatureSQLite *) GetFeatureByIndex(rowId - 1);
@@ -491,8 +491,8 @@ int VFKDataBlockSQLite::LoadGeometryPolygon()
         nBridges = 0;
         
         /* read values */
-        id        = sqlite3_column_double(hStmt, 0);
-        iFID      = sqlite3_column_double(hStmt, 1);
+        id        = sqlite3_column_int64(hStmt, 0);
+        iFID      = static_cast<long>(sqlite3_column_int64(hStmt, 1));
         rowId     = sqlite3_column_int(hStmt, 2);
         
         poFeature = (VFKFeatureSQLite *) GetFeatureByIndex(rowId - 1);
@@ -518,7 +518,7 @@ int VFKDataBlockSQLite::LoadGeometryPolygon()
             hStmtOb = poReader->PrepareStatement(osSQL.c_str());
             
             while(poReader->ExecuteSQL(hStmtOb) == OGRERR_NONE) {
-                idOb = sqlite3_column_double(hStmtOb, 0); 
+                idOb = sqlite3_column_int64(hStmtOb, 0); 
                 vrValue[0] = idOb;
                 poLineSbp = poDataBlockLines2->GetFeature(vrColumn, vrValue, 2);
                 if (poLineSbp)
@@ -541,7 +541,7 @@ int VFKDataBlockSQLite::LoadGeometryPolygon()
         /* collect rings from lines */
         bFound = FALSE;
         nCount = 0;
-        nCountMax = nLines * 2;
+        nCountMax = static_cast<int>(nLines) * 2;
 	while (poLineList.size() > 0 && nCount < nCountMax) {
             bNewRing = !bFound ? TRUE : FALSE;
             bFound = FALSE;
@@ -901,7 +901,7 @@ bool VFKDataBlockSQLite::LoadGeometryFromDB()
 {
     int nInvalid, nGeometries, nGeometriesCount, nBytes, rowId;
 #ifdef DEBUG
-    long iFID;
+    GIntBig iFID;
 #endif
     bool bSkipInvalid;
 
@@ -946,9 +946,8 @@ bool VFKDataBlockSQLite::LoadGeometryFromDB()
     while(poReader->ExecuteSQL(hStmt) == OGRERR_NONE) {
         rowId++; // =sqlite3_column_int(hStmt, 1);
 #ifdef DEBUG
-        iFID =
+        iFID = sqlite3_column_int64(hStmt, 2);
 #endif
-            sqlite3_column_double(hStmt, 2);
 
         poFeature = (VFKFeatureSQLite *) GetFeatureByIndex(rowId - 1);
         CPLAssert(NULL != poFeature && poFeature->GetFID() == iFID);

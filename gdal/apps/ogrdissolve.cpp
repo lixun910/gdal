@@ -117,7 +117,7 @@ int main( int nArgc, char ** papszArgv )
         {
             bPreserveFID = TRUE;
         }
-        else if( EQUALN(papszArgv[iArg],"-skip",5) )
+        else if( STARTS_WITH_CI(papszArgv[iArg], "-skip") )
         {
             bSkipFailures = TRUE;
         }
@@ -150,13 +150,13 @@ int main( int nArgc, char ** papszArgv )
             int bIs3D = FALSE;
             CPLString osGeomName = papszArgv[iArg+1];
             if (strlen(papszArgv[iArg+1]) > 3 &&
-                EQUALN(papszArgv[iArg+1] + strlen(papszArgv[iArg+1]) - 3, "25D", 3))
+                STARTS_WITH_CI(papszArgv[iArg+1] + strlen(papszArgv[iArg+1]) - 3, "25D"))
             {
                 bIs3D = TRUE;
                 osGeomName.resize(osGeomName.size() - 3);
             }
             else if (strlen(papszArgv[iArg+1]) > 1 &&
-                EQUALN(papszArgv[iArg+1] + strlen(papszArgv[iArg+1]) - 1, "Z", 1))
+                STARTS_WITH_CI(papszArgv[iArg+1] + strlen(papszArgv[iArg+1]) - 1, "Z"))
             {
                 bIs3D = TRUE;
                 osGeomName.resize(osGeomName.size() - 1);
@@ -505,9 +505,9 @@ static void Usage()
     printf(" -a_srs srs_def: Assign an output SRS\n"
            " -t_srs srs_def: Reproject/transform to this SRS on output\n"
            " -s_srs srs_def: Override source SRS\n"
-           "\n" 
+           "\n"
            " Srs_def can be a full WKT definition (hard to escape properly),\n"
-           " or a well known definition (ie. EPSG:4326) or a file with a WKT\n"
+           " or a well known definition (i.e. EPSG:4326) or a file with a WKT\n"
            " definition.\n" );
 
     exit( 1 );
@@ -523,12 +523,11 @@ StringGeometryMap* CollectGeometries(   OGRLayer* poSrcLayer,
 /*      are a GeometryCollection of all of the geometries for records   */
 /*      with that value.                                                */
 /* -------------------------------------------------------------------- */
-    
+
     StringGeometryMMap poGeometriesMap;
 
-    
     OGRFeature  *poFeature;
-    
+
     poSrcLayer->ResetReading();
 
     int iField;
@@ -537,7 +536,7 @@ StringGeometryMap* CollectGeometries(   OGRLayer* poSrcLayer,
 /*      include values for which the selected fields is NULL.           */
 /* -------------------------------------------------------------------- */
 
-    while( TRUE )
+    while( true )
     {
 
         poFeature = poSrcLayer->GetNextFeature();
@@ -1100,11 +1099,11 @@ static int DissolveLayer( OGRDataSource *poSrcDS,
 // 
 //     if( nGroupTransactions )
 //         poDstLayer->StartTransaction();
-// 
-//     while( TRUE )
+//
+//     while( true )
 //     {
 //         OGRFeature      *poDstFeature = NULL;
-// 
+//
 //         if( nFIDToFetch != OGRNullFID )
 //         {
 //             // Only fetch feature on first pass.

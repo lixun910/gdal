@@ -226,6 +226,7 @@ void OGRCloudantTableLayer::GetSpatialView()
         if ((papszTokens[0] == NULL) || (papszTokens[1] == NULL))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "GetSpatialView() failed, invalid spatial design doc.");
+            CSLDestroy(papszTokens);
             return;
         }
 
@@ -294,13 +295,13 @@ void OGRCloudantTableLayer::WriteMetadata()
         if (poSRS->IsProjected())
         {
             pszAuthName = poSRS->GetAuthorityName("PROJCS");
-            if ((pszAuthName != NULL) && (strncmp(pszAuthName, "EPSG", 4) == 0))
+            if ((pszAuthName != NULL) && (STARTS_WITH(pszAuthName, "EPSG")))
                 pszEpsg = poSRS->GetAuthorityCode("PROJCS");
         }
         else
         {
             pszAuthName = poSRS->GetAuthorityName("GEOGCS");
-            if ((pszAuthName != NULL) && (strncmp(pszAuthName, "EPSG", 4) == 0))
+            if ((pszAuthName != NULL) && (STARTS_WITH(pszAuthName, "EPSG")))
                 pszEpsg = poSRS->GetAuthorityCode("GEOGCS");
         }
 
@@ -339,7 +340,7 @@ void OGRCloudantTableLayer::WriteMetadata()
     json_object* poFields = json_object_new_array();
     json_object_object_add(poDDocObj, "fields", poFields);
 
-    for(int i=FIRST_FIELD;i<poFeatureDefn->GetFieldCount();i++)
+    for(int i=COUCHDB_FIRST_FIELD;i<poFeatureDefn->GetFieldCount();i++)
     {
         json_object* poField = json_object_new_object();
         json_object_array_add(poFields, poField);

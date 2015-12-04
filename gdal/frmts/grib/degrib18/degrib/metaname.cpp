@@ -679,7 +679,7 @@ GRIB2ParmTable MeteoMass[] = {
    /* 6 */ {"DIST", "Geometric Height", "m", UC_NONE},
    /* 7 */ {"HSTDV", "Standard deviation of height", "m", UC_NONE},
    /* 8 */ {"PRESA", "Pressure anomaly", "Pa", UC_NONE},
-   /* 9 */ {"GPA", "Geopotential height anomally", "gpm", UC_NONE},
+   /* 9 */ {"GPA", "Geopotential height anomaly", "gpm", UC_NONE},
    /* 10 */ {"DEN", "Density", "kg/(m^3)", UC_NONE},
    /* 11 */ {"", "Altimeter setting", "Pa", UC_NONE},
    /* 12 */ {"", "Thickness", "m", UC_NONE},
@@ -764,6 +764,7 @@ GRIB2ParmTable MeteoStability[] = {
    /* 7 */ {"CIN", "Convective inhibition", "J/kg", UC_NONE},
    /* 8 */ {"HLCY", "Storm relative helicity", "J/kg", UC_NONE},
    /* 9 */ {"", "Energy helicity index", "numeric", UC_NONE},
+// TODO: Spelling fifted.
 /* 10 */   {"LFTX", "Surface fifted index", "K", UC_NONE},
 /* 11 */   {"4LFTX", "Best (4-layer) lifted index", "K", UC_NONE},
 /* 12 */   {"RI", "Richardson number", "-", UC_NONE},
@@ -1449,7 +1450,7 @@ static GRIB2LocalTable *Choose_LocalParmTable (unsigned short int center,
  *
  * PURPOSE
  *   Converts a prodType, template, category and subcategory quadruple to the
- * ASCII string abreviation of that variable.
+ * ASCII string abbreviation of that variable.
  *   For example: 0, 0, 0, 0, = "T" for temperature.
  *
  * ARGUMENTS
@@ -1901,7 +1902,7 @@ void ParseElemName (uShort2 center, uShort2 subcenter, int prodType,
  *
  * PURPOSE
  *   Converts a prodType, template, category and subcategory quadruple to the
- * ASCII string abreviation of that variable.
+ * ASCII string abbreviation of that variable.
  *   For example: 0, 0, 0, 0, = "T" for temperature.
  *
  * ARGUMENTS
@@ -1919,7 +1920,7 @@ void ParseElemName (uShort2 center, uShort2 subcenter, int prodType,
  * FILES/DATABASES: None
  *
  * RETURNS: char *
- *   Same as 'strcpy', ie it returns name.
+ *   Same as 'strcpy', i.e. it returns name.
  *
  * HISTORY
  *   9/2002 Arthur Taylor (MDL/RSIS): Created.
@@ -2069,7 +2070,7 @@ static void ParseElemName2 (int prodType, int templat, int cat, int subcat,
  * is m = 1, b = 0.
  *
  * Currently:
- *   For f_unit = 1 (english) we return Fahrenheit, knots, and inches for
+ *   For f_unit = 1 (English) we return Fahrenheit, knots, and inches for
  * temperature, wind speed, and amount of snow or rain.  The original units
  * are Kelvin, m/s, kg/m**2.
  *   For f_unit = 2 (metric) we return Celsius instead of Kelvin.
@@ -2185,7 +2186,7 @@ int ComputeUnit (int convert, char *origName, sChar f_unit, double *unitM,
  * is m = 1, b = 0.
  *
  * Currently:
- *   For f_unit = 1 (english) we return Fahrenheit, knots, and inches for
+ *   For f_unit = 1 (English) we return Fahrenheit, knots, and inches for
  * temperature, wind speed, and amount of snow or rain.  The original units
  * are Kelvin, m/s, kg/m**2.
  *   For f_unit = 2 (metric) we return Celsius instead of Kelvin.
@@ -2338,7 +2339,7 @@ typedef struct {
 /* based on http://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_table4-5.shtml
  * updated last on 3/14/2006 */
 GRIB2LocalSurface NCEP_Surface[] = {
-   {200, {"EATM", "Entire atmosphere (considerd as a single layer)", "-"}},
+   {200, {"EATM", "Entire atmosphere (considered as a single layer)", "-"}},
    {201, {"EOCN", "Entire ocean (considered as a single layer)", "-"}},
    {204, {"HTFL", "Highest tropospheric freezing level", "-"}},
    {206, {"GCBL", "Grid scale cloud bottom level", "-"}},

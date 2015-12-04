@@ -29,17 +29,13 @@
  ****************************************************************************/
 
 
-#ifndef __OGRDXF_SMOOTH_POLYLINE_H__
-#define __OGRDXF_SMOOTH_POLYLINE_H__
+#ifndef OGRDXF_SMOOTH_POLYLINE_H_INCLUDED
+#define OGRDXF_SMOOTH_POLYLINE_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "cpl_conv.h"
 #include <vector>
 #include "assert.h"
-
-#ifndef M_PI
-    #define M_PI        3.14159265358979323846  /* pi */
-#endif
 
 
 class DXFSmoothPolylineVertex
@@ -114,13 +110,9 @@ private:
     bool                                    m_bClosed;
     int										m_dim;
 
-       
 public:
-    DXFSmoothPolyline()
-        {
-            m_bClosed = false;
-            m_dim = 2;
-        }
+    DXFSmoothPolyline() : m_blinestringstarted(false), m_bClosed(false),
+                          m_dim(2) { }
 
     OGRGeometry* Tesselate() const;
 
@@ -152,5 +144,4 @@ private:
                   OGRLineString*, bool bConstantZ, double dfZ) const;
 };
 
-#endif  /* __OGRDXF_SMOOTH_POLYLINE_H__ */
-
+#endif  /* OGRDXF_SMOOTH_POLYLINE_H_INCLUDED */

@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGRGRASS_H_INCLUDED
-#define _OGRGRASS_H_INCLUDED
+#ifndef OGRGRASS_H_INCLUDED
+#define OGRGRASS_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 
@@ -57,6 +57,8 @@ class OGRGRASSLayer : public OGRLayer
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
     GIntBig             GetFeatureCount( int );
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
     virtual OGRSpatialReference *GetSpatialRef();
     int                 TestCapability( const char * );
 
@@ -69,6 +71,8 @@ class OGRGRASSLayer : public OGRLayer
     // Filters
     virtual OGRErr 	SetAttributeFilter( const char *query );
     virtual void 	SetSpatialFilter( OGRGeometry * poGeomIn );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     // Write access, not supported:
     virtual OGRErr      CreateField( OGRFieldDefn *poField, int bApproxOK = TRUE );
@@ -183,4 +187,4 @@ class OGRGRASSDriver : public OGRSFDriver
     OGRErr              DeleteDataSource( const char *pszDataSource );
 };
 
-#endif /* ndef _OGRGRASS_H_INCLUDED */
+#endif /* ndef OGRGRASS_H_INCLUDED */

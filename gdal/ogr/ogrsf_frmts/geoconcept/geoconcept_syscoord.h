@@ -29,8 +29,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  **********************************************************************/
-#ifndef _GEOCONCEPT_SYSCOORD_H_INCLUDED
-#define _GEOCONCEPT_SYSCOORD_H_INCLUDED
+#ifndef GEOCONCEPT_SYSCOORD_H_INCLUDED
+#define GEOCONCEPT_SYSCOORD_H_INCLUDED
 
 #include "ogr_srs_api.h"
 
@@ -62,7 +62,7 @@ typedef struct _tSysCoord_GCSRS GCSysCoord;
 struct _tSpheroidInfo_GCSRS {
   const char *pszSpheroidName;
   double      dfA; /* semi major axis in meters */
-  double      dfE; /* excentricity */
+  double      dfE; /* eccentricity */
   int         nEllipsoidID;
 };
 
@@ -185,4 +185,4 @@ OGRSpatialReferenceH GCSRSAPI_CALL SysCoord2OGRSpatialReference_GCSRS ( GCSysCoo
 #endif
 
 
-#endif /* ndef _GEOCONCEPT_SYSCOORD_H_INCLUDED */
+#endif /* ndef GEOCONCEPT_SYSCOORD_H_INCLUDED */

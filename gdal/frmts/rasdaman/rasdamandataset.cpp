@@ -34,15 +34,7 @@
 #include <string>
 #include <memory>
 #include <map>
-
-
-#define __EXECUTABLE__
-#define EARLY_TEMPLATE
-#include "raslib/template_inst.hh"
-#include "raslib/structuretype.hh"
-#include "raslib/type.hh"
-
-#include "rasodmg/database.hh"
+#include "rasdamandataset.h"
 
 CPL_CVSID("$Id$");
 
@@ -55,8 +47,8 @@ CPL_C_END
 class Subset
 {
 public:
-  Subset(int x_lo, int x_hi, int y_lo, int y_hi)
-    : m_x_lo(x_lo), m_x_hi(x_hi),  m_y_lo(y_lo),  m_y_hi(y_hi)
+  Subset(int x_loIn, int x_hiIn, int y_loIn, int y_hiIn)
+    : m_x_lo(x_loIn), m_x_hi(x_hiIn),  m_y_lo(y_loIn),  m_y_hi(y_hiIn)
   {}
 
   bool operator < (const Subset& rhs) const {
@@ -343,17 +335,17 @@ public:
 /*                           RasdamanRasterBand()                       */
 /************************************************************************/
 
-RasdamanRasterBand::RasdamanRasterBand( RasdamanDataset *poDS, int nBand, GDALDataType type, int offset, int size, int nBlockXSize, int nBlockYSize )
+RasdamanRasterBand::RasdamanRasterBand( RasdamanDataset *poDSIn, int nBandIn, GDALDataType type, int offset, int size, int nBlockXSizeIn, int nBlockYSizeIn )
 {
-  this->poDS = poDS;
-  this->nBand = nBand;
+  this->poDS = poDSIn;
+  this->nBand = nBandIn;
 
   eDataType = type;
   typeSize = size;
   typeOffset = offset;
 
-  this->nBlockXSize = nBlockXSize;
-  this->nBlockYSize = nBlockYSize;
+  this->nBlockXSize = nBlockXSizeIn;
+  this->nBlockYSize = nBlockYSizeIn;
 
   nRecordSize = nBlockXSize * nBlockYSize * typeSize;
 }
@@ -447,7 +439,7 @@ static int getOption(const char *string, regmatch_t cMatch, int defaultValue) {
   return nRet;
 }
 
-void replace(CPLString& str, const char *from, const char *to) {
+static void replace(CPLString& str, const char *from, const char *to) {
   if(strlen(from) == 0)
     return;
   size_t start_pos = 0;
@@ -469,7 +461,7 @@ static CPLString getQuery(const char *templateString, const char* x_lo, const ch
   return result;
 }
 
-GDALDataType mapRasdamanTypesToGDAL(r_Type::r_Type_Id typeId) {
+static GDALDataType mapRasdamanTypesToGDAL(r_Type::r_Type_Id typeId) {
   switch (typeId) {
   case r_Type::ULONG:
     return GDT_UInt32;
@@ -578,7 +570,7 @@ GDALDataset *RasdamanDataset::Open( GDALOpenInfo * poOpenInfo )
   }
   // check 2: the request contains --collection
   char* connString = poOpenInfo->pszFilename;
-  if (!EQUALN(connString, "rasdaman", 8)) {
+  if (!STARTS_WITH_CI(connString, "rasdaman")) {
     return NULL;
   }
 

@@ -1,4 +1,8 @@
-my @pm = qw(lib/Geo/GDAL.pm lib/Geo/OGR.pm lib/Geo/OSR.pm lib/Geo/GDAL/Const.pm);
+use strict;
+use warnings;
+use Modern::Perl;
+
+my @pm = qw(lib/Geo/GDAL.pm lib/Geo/OGR.pm lib/Geo/OSR.pm lib/Geo/GDAL/Const.pm lib/Geo/GNM.pm);
 
 my %internal_methods = map {$_=>1} qw/TIEHASH CLEAR FIRSTKEY NEXTKEY FETCH STORE 
                                       DESTROY DISOWN ACQUIRE RELEASE_PARENTS
@@ -21,6 +25,7 @@ for my $pm (@pm) {
         next if $_ eq '';
         next if $_ =~ /^#####/; # skip swig comments
         my($w) = /^(\S+)\s/;
+        $w //= '';
         if ($w eq 'package') {
             $package = $_;
             $package =~ s/^(\S+)\s+//;
@@ -33,6 +38,7 @@ for my $pm (@pm) {
             $sub = $_;
             $sub =~ s/^(\S+)\s+//;
             $sub =~ s/\W.*//;
+            next if $sub eq ''; # skip anonymous subs
             $package{$package}{subs}{$sub} = 1;
             $attr = '';
             next;
@@ -56,7 +62,7 @@ for my $pm (@pm) {
         if (/use base/) {
             #print "$_\n";
         }
-        if (/\@ISA/ and /=/) {
+        if ($package and /\@ISA/ and /=/) {
             my $isa = $_;
             $isa =~ s/\@ISA//;
             $isa =~ s/=//;
@@ -64,7 +70,7 @@ for my $pm (@pm) {
             $isa =~ s/\(//;
             $isa =~ s/\)//;
             $isa =~ s/;//;
-            @isa = split /\s+/, $isa;
+            my @isa = split /\s+/, $isa;
             for my $isa (@isa) {
                 next if $isa eq '';
                 push @{$package{$package}{isas}}, $isa;
@@ -84,19 +90,17 @@ for my $pm (@pm) {
     close $fh;
 }
 
-my @dox = qw(lib/Geo/GDAL.dox lib/Geo/OGR.dox lib/Geo/OSR.dox);
+my @dox = qw(lib/Geo/GDAL.dox lib/Geo/OGR.dox lib/Geo/OSR.dox lib/Geo/GNM.dox);
 
-my $package;
-my $sub;
-my $attr;
 for my $dox (@dox) {
     open(my $fh, "<", $dox) or die "cannot open < $dox: $!";
     while (<$fh>) {
         chomp;
         next if $_ eq '';
-        s/^[\s#]+//;
-        #next if $_ eq '';
-        ($w) = /^(\S+)\s/;
+        s/^[#]+//;
+        s/^ //;
+        my ($w) = /^(\S+)\s/;
+        $w //= '';
         if ($w eq '@class') {
             $package = $_;
             $package =~ s/^(\S+)\s+//;
@@ -116,10 +120,16 @@ for my $dox (@dox) {
             $package{$package}{dox}{$sub}{ignore} = 1;
             next;
         }
-        if ($w eq '@cmethod' or $w eq '@method') {
+        if ($w eq '@ignore_class') {
+            my $class = $_;
+            $class =~ s/^(\S+)\s+//;
+            $package{$class}{ignore} = 1;
+            next;
+        }
+        if ($w eq '@cmethod' or $w eq '@method' or $w eq '@sub') {
             $sub = $_;
             $sub =~ s/^(\S+)\s+//;
-            $d = $sub;
+            my $d = $sub;
             if (/(\w+)\(/) {
                 $sub = $1;
             } elsif (/(\w+)$/) {
@@ -137,7 +147,7 @@ for my $dox (@dox) {
             $attr =~ s/^(\S+)\s+//;
             $attr =~ s/\s*list\s+/@/;
             $attr = '$'.$attr unless $attr =~ /^@/;;
-            $d = $attr;
+            my $d = $attr;
             $attr =~ s/@//;
             #print "attr: '$d'\n";
             $package{$package}{attrs}{$attr} = 1;
@@ -168,6 +178,13 @@ for my $dox (@dox) {
 for my $package (sort keys %package) {
     next if $package eq '';
     next if $package eq 'Geo::GDAL::Const';
+    next if $package{$package}{ignore};
+    for my $sub (sort keys %{$package{$package}{dox}}) {
+        next if $sub =~ /^\$/;
+        if ($package{$package}{dox}{$sub} and not $package{$package}{subs}{$sub}) {
+            print STDERR "Warning: non-existing $package::$sub documented.\n";
+        }
+    }
     print "#** \@class $package\n";
     for my $l (@{$package{$package}{package_dox}}) {
         print "# $l\n";
@@ -175,7 +192,7 @@ for my $package (sort keys %package) {
     print "#*\n";
     print "package $package;\n\n";
 
-    print "use base qw(",join(' ', @{$package{$package}{isas}}),")\n\n";
+    print "use base qw(",join(' ', @{$package{$package}{isas}}),")\n\n" if $package{$package}{isas};
 
     for my $attr (sort keys %{$package{$package}{attrs}}) {
         next if $package{$package}{dox}{$attr}{ignore};
@@ -196,7 +213,7 @@ for my $package (sort keys %package) {
         next if $package{$package}{dox}{$sub}{ignore};
         next if $sub =~ /^_/; # no use showing these
         next if $sub =~ /swig_/; # skip attribute setters and getters
-        next if $sub =~ /GDAL_GCP_/; # skip GDAL::GCP class methods from class GDAL
+        next if $sub =~ /GDAL_GCP_/; # skip GDAL::GCP package subroutines from class GDAL
 
         next if $sub =~ /GT_/; # done in methods geometry type test and modify
 
@@ -234,33 +251,38 @@ for my $package (sort keys %package) {
         $d =~ s/^\\\@/array reference /;
         $d =~ s/^\%/hash /;
         $d =~ s/^\\\%/hash reference /;
-        $dp = $d;
+        my $dp = $d;
         $dp .= '()' unless $dp =~ /\(/;
         print "#** \@method $dp\n";
-        if ($private_methods{$d} or $package{$package}{dox}{$sub}{at} eq '@ignore') {
+        my $at = $package{$package}{dox}{$sub}{at} // '';
+        if ($private_methods{$d} or $at eq '@ignore') {
             print "# Undocumented method, do not call unless you know what you're doing.\n";
             print "# \@todo Test and document this method.\n";
         }
-        if ($package{$package}{dox}{$sub}{at} eq '@cmethod') {
+        if ($at eq '@cmethod') {
             print "# Class method.\n";
+        }
+        elsif ($at eq '@sub') {
+            print "# Package subroutine.\n";
+        }
+        elsif ($at eq '@method') {
+            print "# Object method.\n";
         }
         for my $c (@{$package{$package}{dox}{$sub}{c}}) {
             if ($c =~ /^\+list/) {
                 $c =~ s/\+list //;
                 my($pkg, $prefix, $exclude) = split / /, $c;
-                #print STDERR "$pkg, $prefix, $exclude\n";
-                my %exclude = map {$_=>1} split /,/, $exclude;
-                print "# ";
+                my %exclude;
+                %exclude = map {$_=>1} split /,/, $exclude if $exclude;
                 my @list;
                 for my $l (sort keys %{$package{$pkg}{subs}}) {
                     next unless $l =~ /^$prefix/;
                     $l =~ s/^$prefix//;
                     next if $exclude{$l};
-                    #print STDERR "  $l\n";
                     push @list, $l;
                 }
                 my $last = pop @list;
-                print join(', ', @list),", and $last.\n";
+                print "# ",join(', ', @list),", and $last.\n";
             } else {
                 print "# $c\n";
             }
@@ -269,7 +291,7 @@ for my $package (sort keys %package) {
         print "sub $sub {\n";
         my $code = $package{$package}{code}{$sub};
         fix_indentation($code);
-        pop @$code if $code->[$#$code] =~ /^\s*}\s*$/; # remove duplicate ending } of the sub
+        pop @$code if $code->[$#$code] && $code->[$#$code] =~ /^\s*}\s*$/; # remove duplicate ending } of the sub
         for my $l (@$code) {
             print "$l\n";
         }
@@ -279,6 +301,7 @@ for my $package (sort keys %package) {
 
 sub fix_indentation {
     my $code = shift;
+    return unless $code && @$code;
     my($space) = $code->[0] =~ /^(\s*)/;
     my $l = length($space);
     if ($l < 4) {

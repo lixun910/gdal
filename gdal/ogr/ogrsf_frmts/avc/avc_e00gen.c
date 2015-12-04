@@ -35,7 +35,7 @@
  * (GDAL/OGR ticket http://trac.osgeo.org/gdal/ticket/2495)
  *
  * Revision 1.17  2006/06/14 15:01:33  daniel
- * Remove any embeded '\0' from data line in AVCE00GenTableRec()
+ * Remove any embedded '\0' from data line in AVCE00GenTableRec()
  *
  * Revision 1.16  2005/06/03 03:49:58  daniel
  * Update email address, website url, and copyright dates
@@ -169,7 +169,7 @@ const char *AVCE00GenStartSection(AVCE00GenInfo *psInfo, AVCFileType eType,
         int i;
         for(i=0; pszClassName[i] != '\0'; i++)
         {
-            psInfo->pszBuf[i] = toupper(pszClassName[i]);
+            psInfo->pszBuf[i] = (char) toupper(pszClassName[i]);
         }
         psInfo->pszBuf[i] = '\0';
     }
@@ -1016,6 +1016,7 @@ const char *AVCE00GenTx6(AVCE00GenInfo *psInfo, AVCTxt *psTxt, GBool bCont)
         }
         else
         {
+            /* coverity[overrun-local] */
             sprintf(psInfo->pszBuf, "%10d%10d%10d%10d%10d%10d%10d",
                                 pValue[0], pValue[1], pValue[2], 
                                 pValue[3], pValue[4], pValue[5], pValue[6]);

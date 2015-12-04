@@ -191,7 +191,16 @@ TABFeature::TABFeature(OGRFeatureDefn *poDefnIn):
     m_nMapInfoType = TAB_GEOM_NONE;
     m_bDeletedFlag = FALSE;
 
-    SetMBR(0.0, 0.0, 0.0, 0.0);
+    m_nXMin = 0;
+    m_nYMin = 0;
+    m_nXMax = 0;
+    m_nYMax = 0;
+    m_nComprOrgX = 0;
+    m_nComprOrgY = 0;
+    m_dXMin = 0;
+    m_dYMin = 0;
+    m_dXMax = 0;
+    m_dYMax = 0;
 }
 
 /**********************************************************************
@@ -297,7 +306,7 @@ TABFeature *TABFeature::CreateFromMapInfoType(int nMapInfoType,
 //        poFeature = new TABDebugFeature(poDefn);
         poFeature = new TABFeature(poDefn);
 
-        CPLError(CE_Warning, TAB_WarningFeatureTypeNotSupported,
+        CPLError(CE_Warning, (CPLErrorNum)TAB_WarningFeatureTypeNotSupported,
                  "Unsupported object type %d (0x%2.2x).  Feature will be "
                  "returned with NONE geometry.",
                  nMapInfoType, nMapInfoType);
@@ -1594,7 +1603,7 @@ const char *TABFontPoint::GetStyleString()
         /* Get the SymbolStyleString, and add the outline Color 
            (halo/border in MapInfo Symbol terminology) */
         char *pszSymbolStyleString = CPLStrdup(GetSymbolStyleString(GetSymbolAngle()));
-        int nStyleStringlen = strlen(pszSymbolStyleString);
+        int nStyleStringlen = static_cast<int>(strlen(pszSymbolStyleString));
         pszSymbolStyleString[nStyleStringlen-1] = '\0';
 
         const char *outlineColor;
@@ -1843,6 +1852,8 @@ TABPolyline::TABPolyline(OGRFeatureDefn *poDefnIn):
     m_bCenterIsSet = FALSE;
     m_bSmooth = FALSE;
     m_bWriteTwoPointLineAsPolyline = FALSE;
+    m_dCenterX = 0;
+    m_dCenterY = 0;
 }
 
 /**********************************************************************
@@ -2900,6 +2911,8 @@ TABRegion::TABRegion(OGRFeatureDefn *poDefnIn):
 {
     m_bCenterIsSet = FALSE;
     m_bSmooth = FALSE;
+    m_dCenterX = 0;
+    m_dCenterY = 0;
 }
 
 /**********************************************************************
@@ -4125,19 +4138,19 @@ int TABRectangle::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
          *------------------------------------------------------------*/
         double dXRadius = MIN(m_dRoundXRadius, (dXMax-dXMin)/2.0);
         double dYRadius = MIN(m_dRoundYRadius, (dYMax-dYMin)/2.0);
-        TABGenerateArc(poRing, 45, 
+        TABGenerateArc(poRing, 45,
                        dXMin + dXRadius, dYMin + dYRadius, dXRadius, dYRadius,
-                       PI, 3.0*PI/2.0);
-        TABGenerateArc(poRing, 45, 
+                       M_PI, 3.0*M_PI/2.0);
+        TABGenerateArc(poRing, 45,
                        dXMax - dXRadius, dYMin + dYRadius, dXRadius, dYRadius,
-                       3.0*PI/2.0, 2.0*PI);
-        TABGenerateArc(poRing, 45, 
+                       3.0*M_PI/2.0, 2.0*M_PI);
+        TABGenerateArc(poRing, 45,
                        dXMax - dXRadius, dYMax - dYRadius, dXRadius, dYRadius,
-                       0.0, PI/2.0);
-        TABGenerateArc(poRing, 45, 
+                       0.0, M_PI/2.0);
+        TABGenerateArc(poRing, 45,
                        dXMin + dXRadius, dYMax - dYRadius, dXRadius, dYRadius,
-                       PI/2.0, PI);
-                       
+                       M_PI/2.0, M_PI);
+
         TABCloseRing(poRing);
     }
     else
@@ -4341,6 +4354,10 @@ void TABRectangle::DumpMIF(FILE *fpOut /*=NULL*/)
 TABEllipse::TABEllipse(OGRFeatureDefn *poDefnIn):
               TABFeature(poDefnIn)
 {
+    m_dCenterX = 0;
+    m_dCenterY = 0;
+    m_dXRadius = 0;
+    m_dYRadius = 0;
 }
 
 /**********************************************************************
@@ -4568,7 +4585,7 @@ int TABEllipse::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     TABGenerateArc(poRing, 180, 
                    m_dCenterX, m_dCenterY,
                    m_dXRadius, m_dYRadius,
-                   0.0, 2.0*PI);
+                   0.0, 2.0*M_PI);
     TABCloseRing(poRing);
 
     poPolygon->addRingDirectly(poRing);
@@ -4869,7 +4886,7 @@ int TABArc::UpdateMBR(TABMAPFile * poMapFile /*=NULL*/)
     else if ( (poGeom && wkbFlatten(poGeom->getGeometryType()) == wkbPoint ) ) 
     {
         /*-------------------------------------------------------------
-         * In the case of a POINT GEOMETRY, we will make sure the the 
+         * In the case of a POINT GEOMETRY, we will make sure the
          * feature's m_dCenterX/Y are in sync with the point's X,Y coords.
          *
          * In this case we have to reconstruct the arc inside a temporary
@@ -4890,7 +4907,7 @@ int TABArc::UpdateMBR(TABMAPFile * poMapFile /*=NULL*/)
         TABGenerateArc(&oTmpLine, numPts,
                        m_dCenterX, m_dCenterY,
                        m_dXRadius, m_dYRadius,
-                       m_dStartAngle*PI/180.0, m_dEndAngle*PI/180.0);
+                       m_dStartAngle*M_PI/180.0, m_dEndAngle*M_PI/180.0);
 
         oTmpLine.getEnvelope(&sEnvelope);
     }
@@ -4991,9 +5008,9 @@ int TABArc::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
      *  -> Quadrant 2 and 4, angles order = end, start
      * + Always adjust angles for x and y axis based on quadrant.
      *
-     * This was confirmed using some more files in which the quadrant was 
-     * manually changed, but whether these are valid results is 
-     * discutable.
+     * This was confirmed using some more files in which the quadrant was
+     * manually changed, but whether these are valid results is
+     * disputable.
      *
      * The ReflectXAxis flag seems to have no effect here...
      *------------------------------------------------------------*/
@@ -5082,7 +5099,7 @@ int TABArc::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     TABGenerateArc(poLine, numPts,
                    m_dCenterX, m_dCenterY,
                    m_dXRadius, m_dYRadius,
-                   m_dStartAngle*PI/180.0, m_dEndAngle*PI/180.0);
+                   m_dStartAngle*M_PI/180.0, m_dEndAngle*M_PI/180.0);
 
     SetGeometryDirectly(poLine);
 
@@ -5530,8 +5547,8 @@ int TABText::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
      * on the MBR after rotation, the text height and the rotation angle.
      *----------------------------------------------------------------*/
     double dCos, dSin, dX, dY;
-    dSin = sin(m_dAngle*PI/180.0);
-    dCos = cos(m_dAngle*PI/180.0);
+    dSin = sin(m_dAngle*M_PI/180.0);
+    dCos = cos(m_dAngle*M_PI/180.0);
     if (dSin > 0.0  && dCos > 0.0)
     {
         dX = dXMin + m_dHeight * dSin;
@@ -5649,7 +5666,7 @@ int TABText::WriteGeometryToMAPFile(TABMAPFile *poMapFile,
     // This string was escaped before 20050714
     char *pszTmpString = m_pszString;
 
-    nStringLen = strlen(pszTmpString);
+    nStringLen = static_cast<int>(strlen(pszTmpString));
 
     if (nStringLen > 0)
     {
@@ -5890,11 +5907,11 @@ int TABText::UpdateMBR(TABMAPFile * poMapFile /*=NULL*/)
         dX0 = poPoint->getX();
         dY0 = poPoint->getY();
 
-        dSin = sin(m_dAngle*PI/180.0);
-        dCos = cos(m_dAngle*PI/180.0);
+        dSin = sin(m_dAngle*M_PI/180.0);
+        dCos = cos(m_dAngle*M_PI/180.0);
 
         GetTextBoxWidth();  // Force default width value if necessary.
-        
+
         dX[0] = dX0;
         dY[0] = dY0;
         dX[1] = dX0 + m_dWidth;
@@ -6170,7 +6187,7 @@ int TABText::IsFontUnderline()
 const char *TABText::GetLabelStyleString()
 {
     const char *pszStyle = NULL;
-    int nStringLen = strlen(GetTextString());
+    int nStringLen = static_cast<int>(strlen(GetTextString()));
     // ALL Caps, Extpanded need to modify the string value
     char *pszTextString = (char*)CPLMalloc((nStringLen+1)*sizeof(char));
     /* char szPattern[20]; */
@@ -6364,6 +6381,8 @@ TABMultiPoint::TABMultiPoint(OGRFeatureDefn *poDefnIn):
               TABFeature(poDefnIn)
 {
     m_bCenterIsSet = FALSE;
+    m_dCenterX = 0;
+    m_dCenterY = 0;
 }
 
 /**********************************************************************
@@ -6532,6 +6551,7 @@ int TABMultiPoint::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
                 CPLError(CE_Failure, CPLE_FileIO,
                          "Failed reading coordinate data at offset %d", 
                          poMPointHdr->m_nCoordBlockPtr);
+                delete poGeometry;
                 return -1;
             }
 
@@ -7314,7 +7334,7 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     /*-----------------------------------------------------------------
      * PLine Component
      *----------------------------------------------------------------*/
-    if(poCollHdr->m_nNumPLineSections > 0)
+    if(poCoordBlock != NULL && poCollHdr->m_nNumPLineSections > 0)
     {
         //
         // Build fake coord section header to pass to TABPolyline::ReadGeom..()
@@ -7376,7 +7396,7 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     /*-----------------------------------------------------------------
      * MultiPoint Component
      *----------------------------------------------------------------*/
-    if(poCollHdr->m_nNumMultiPoints > 0)
+    if(poCoordBlock != NULL && poCollHdr->m_nNumMultiPoints > 0)
     {
         //
         // Build fake coord section header to pass to TABMultiPoint::ReadGeom()
@@ -7830,8 +7850,7 @@ int    TABCollection::SyncOGRGeometryCollection(GBool bSyncRegion,
     // poGeometry is defined in the OGRFeature class
     if (poThisGeom == NULL)
     {
-        poThisGeom = poGeomColl = new OGRGeometryCollection();
-        SetGeometryDirectly(poGeomColl);
+        poGeomColl = new OGRGeometryCollection();
     }
     else if (wkbFlatten(poThisGeom->getGeometryType())==wkbGeometryCollection)
     {
@@ -7890,6 +7909,9 @@ int    TABCollection::SyncOGRGeometryCollection(GBool bSyncRegion,
 
     if(bSyncMpoint && m_poMpoint && m_poMpoint->GetGeometryRef() != NULL)
         poGeomColl->addGeometry(m_poMpoint->GetGeometryRef());
+
+    if( poThisGeom == NULL )
+        SetGeometryDirectly(poGeomColl);
 
     return 0;
 }
@@ -8024,6 +8046,9 @@ void TABCollection::DumpMIF(FILE *fpOut /*=NULL*/)
 TABDebugFeature::TABDebugFeature(OGRFeatureDefn *poDefnIn):
               TABFeature(poDefnIn)
 {
+    m_nSize = 0;
+    m_nCoordDataPtr = 0;
+    m_nCoordDataSize = 0;
 }
 
 /**********************************************************************
@@ -8409,7 +8434,7 @@ void  ITABFeaturePen::SetPenFromStyleString(const char *pszStyleString)
 
     // Use the Style Manager to retreive all the information we need.
     OGRStyleMgr *poStyleMgr = new OGRStyleMgr(NULL);
-    OGRStyleTool *poStylePart;
+    OGRStyleTool *poStylePart = NULL;
 
     // Init the StyleMgr with the StyleString.
     poStyleMgr->InitStyleString(pszStyleString);
@@ -8434,7 +8459,7 @@ void  ITABFeaturePen::SetPenFromStyleString(const char *pszStyleString)
     }
 
     // If the no Pen found, do nothing.
-    if(i >= numParts)
+    if(poStylePart == NULL)
     {
         delete poStyleMgr;
         return;
@@ -8474,7 +8499,7 @@ void  ITABFeaturePen::SetPenFromStyleString(const char *pszStyleString)
         if(pszPenColor[0] == '#')
             pszPenColor++;
         // The Pen color is an Hexa string that need to be convert in a int
-        nPenColor = strtol(pszPenColor, NULL, 16);
+        nPenColor = static_cast<int>(strtol(pszPenColor, NULL, 16));
         SetPenColor(nPenColor);
     }
 
@@ -8670,7 +8695,7 @@ void  ITABFeatureBrush::SetBrushFromStyleString(const char *pszStyleString)
 
     // Use the Style Manager to retreive all the information we need.
     OGRStyleMgr *poStyleMgr = new OGRStyleMgr(NULL);
-    OGRStyleTool *poStylePart;
+    OGRStyleTool *poStylePart = NULL;
 
     // Init the StyleMgr with the StyleString.
     poStyleMgr->InitStyleString(pszStyleString);
@@ -8695,7 +8720,7 @@ void  ITABFeatureBrush::SetBrushFromStyleString(const char *pszStyleString)
     }
 
     // If the no Brush found, do nothing.
-    if(i >= numParts)
+    if(poStylePart == NULL)
     {
         delete poStyleMgr;
         return;
@@ -8733,7 +8758,7 @@ void  ITABFeatureBrush::SetBrushFromStyleString(const char *pszStyleString)
     {
         if(pszBrushColor[0] == '#')
             pszBrushColor++;
-        nBrushColor = strtol(pszBrushColor, NULL, 16);
+        nBrushColor = static_cast<int>(strtol(pszBrushColor, NULL, 16));
         SetBrushBGColor((GInt32)nBrushColor);
     }
     else
@@ -8749,7 +8774,7 @@ void  ITABFeatureBrush::SetBrushFromStyleString(const char *pszStyleString)
     {
         if(pszBrushColor[0] == '#')
             pszBrushColor++;
-        nBrushColor = strtol(pszBrushColor, NULL, 16);
+        nBrushColor = static_cast<int>(strtol(pszBrushColor, NULL, 16));
         SetBrushFGColor((GInt32)nBrushColor);
     }
 
@@ -8941,7 +8966,7 @@ void ITABFeatureSymbol::SetSymbolFromStyleString(const char *pszStyleString)
 
     // Use the Style Manager to retreive all the information we need.
     OGRStyleMgr *poStyleMgr = new OGRStyleMgr(NULL);
-    OGRStyleTool *poStylePart;
+    OGRStyleTool *poStylePart = NULL;
 
     // Init the StyleMgr with the StyleString.
     poStyleMgr->InitStyleString(pszStyleString);
@@ -8966,7 +8991,7 @@ void ITABFeatureSymbol::SetSymbolFromStyleString(const char *pszStyleString)
     }
 
     // If the no Symbol found, do nothing.
-    if(i >= numParts)
+    if(poStylePart == NULL)
     {
         delete poStyleMgr;
         return;
@@ -9054,7 +9079,7 @@ void ITABFeatureSymbol::SetSymbolFromStyleString(const char *pszStyleString)
     {
         if(pszSymbolColor[0] == '#')
             pszSymbolColor++;
-        nSymbolColor = strtol(pszSymbolColor, NULL, 16);
+        nSymbolColor = static_cast<int>(strtol(pszSymbolColor, NULL, 16));
         SetSymbolColor((GInt32)nSymbolColor);
     }
 

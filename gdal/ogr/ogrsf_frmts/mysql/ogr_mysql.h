@@ -29,11 +29,23 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_MYSQL_H_INCLUDED
-#define _OGR_MYSQL_H_INCLUDED
+#ifndef OGR_MYSQL_H_INCLUDED
+#define OGR_MYSQL_H_INCLUDED
+
+
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4324 ) /* 'my_alignment_imp<0x02>' : structure was padded due to __declspec(align()) */
+#pragma warning( disable : 4201 ) /* nonstandard extension used : nameless struct/union */
+#pragma warning( disable : 4211 ) /* nonstandard extension used : redefined extern to static */
+#endif
 
 #include <my_global.h>
 #include <mysql.h>
+
+#ifdef _MSC_VER
+#pragma warning( pop ) 
+#endif
 
 /* my_global.h from mysql 5.1 declares the min and max macros. */
 /* This conflicts with templates in g++-4.3.2 header files. Grrr */
@@ -140,6 +152,8 @@ class OGRMySQLTableLayer : public OGRMySQLLayer
     virtual GIntBig     GetFeatureCount( int );
 
     void                SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     virtual OGRErr      SetAttributeFilter( const char * );
     virtual OGRErr      ICreateFeature( OGRFeature *poFeature );
@@ -155,7 +169,9 @@ class OGRMySQLTableLayer : public OGRMySQLLayer
                                 { bPreservePrecision = bFlag; }    
 
     virtual int         TestCapability( const char * );
-	virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 };
 
 /************************************************************************/
@@ -199,11 +215,9 @@ class OGRMySQLDataSource : public OGRDataSource
 
     int                 bDSUpdate;
 
-    int                 nSoftTransactionLevel;
-
     MYSQL              *hConn;
 
-    int                DeleteLayer( int iLayer );
+    OGRErr              DeleteLayer( int iLayer );
 
     // We maintain a list of known SRID to reduce the number of trips to
     // the database to get SRSes. 
@@ -256,6 +270,6 @@ class OGRMySQLDataSource : public OGRDataSource
     void                InterruptLongResult();
 };
 
-#endif /* ndef _OGR_MYSQL_H_INCLUDED */
+#endif /* ndef OGR_MYSQL_H_INCLUDED */
 
 

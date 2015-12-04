@@ -2,7 +2,7 @@
  * $Id$
  *
  * Project:  OpenGIS Simple Features Reference Implementation
- * Purpose:  Formal test harnass for OGRLayer implementations.
+ * Purpose:  Formal test harness for OGRLayer implementations.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
@@ -34,6 +34,8 @@
 #include "ogr_api.h"
 #include "ogr_p.h"
 #include "commonutils.h"
+
+#include <limits>
 
 CPL_CVSID("$Id$");
 
@@ -118,6 +120,7 @@ int main( int nArgc, char ** papszArgv )
         {
             printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
                    papszArgv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            CSLDestroy(papszArgv);
             return 0;
         }
         else if( EQUAL(papszArgv[iArg],"-ro") )
@@ -539,16 +542,18 @@ static int TestCreateLayer( GDALDriver* poDriver, OGRwkbGeometryType eGeomType )
         // Create fields of various types
         int bCreateField = LOG_ACTION(poLayer->TestCapability(OLCCreateField));
         int iFieldStr = -1, iFieldInt = -1, iFieldReal = -1, iFieldDate = -1, iFieldDateTime = -1;
-
-        OGRFieldDefn oFieldStr("str", OFTString);
-        CPLPushErrorHandler(CPLQuietErrorHandler);
-        int bStrFieldOK = (LOG_ACTION(poLayer->CreateField(&oFieldStr)) == OGRERR_NONE);
-        CPLPopErrorHandler();
-        if( bStrFieldOK && (iFieldStr = LOG_ACTION(poLayer->GetLayerDefn())->GetFieldIndex("str")) < 0 )
+        int bStrFieldOK;
         {
-            printf("ERROR: %s: CreateField(str) returned OK but field was not created.\n",
-                   poDriver->GetDescription());
-            bRet = FALSE;
+            OGRFieldDefn oFieldStr("str", OFTString);
+            CPLPushErrorHandler(CPLQuietErrorHandler);
+            bStrFieldOK = (LOG_ACTION(poLayer->CreateField(&oFieldStr)) == OGRERR_NONE);
+            CPLPopErrorHandler();
+            if( bStrFieldOK && (iFieldStr = LOG_ACTION(poLayer->GetLayerDefn())->GetFieldIndex("str")) < 0 )
+            {
+                printf("ERROR: %s: CreateField(str) returned OK but field was not created.\n",
+                    poDriver->GetDescription());
+                bRet = FALSE;
+            }
         }
 
         OGRFieldDefn oFieldInt("int", OFTInteger);
@@ -752,7 +757,7 @@ static int TestCreateLayer( GDALDriver* poDriver, OGRwkbGeometryType eGeomType )
             CPLPopErrorHandler();
 
             poFeature = new OGRFeature( poLayer2->GetLayerDefn() );
-            const char* pszWKT = GetWKT(eGeomType);
+            pszWKT = GetWKT(eGeomType);
             if( pszWKT != NULL )
             {
                 OGRGeometry* poGeom = NULL;
@@ -777,7 +782,7 @@ static int TestCreateLayer( GDALDriver* poDriver, OGRwkbGeometryType eGeomType )
         CPLPushErrorHandler(CPLQuietErrorHandler);
         eErr = LOG_ACTION(poDS->DeleteLayer(0));
         CPLPopErrorHandler();
-        if( eErr == CE_None )
+        if( eErr == OGRERR_NONE )
         {
             if( !bDeleteLayerCap )
             {
@@ -1126,7 +1131,7 @@ bye:
 /*                          GetLayerNameForSQL()                        */
 /************************************************************************/
 
-const char* GetLayerNameForSQL( GDALDataset* poDS, const char* pszLayerName )
+static const char* GetLayerNameForSQL( GDALDataset* poDS, const char* pszLayerName )
 {
     int i;
     char ch;
@@ -1686,15 +1691,6 @@ end:
     return bRet;
 }
 
-#ifndef INFINITY
-    static CPL_INLINE double CPLInfinity(void)
-    {
-        static double ZERO = 0;
-        return 1.0 / ZERO; /* MSVC doesn't like 1.0 / 0.0 */
-    }
-    #define INFINITY CPLInfinity()
-#endif
-
 /************************************************************************/
 /*                         TestSpatialFilter()                          */
 /*                                                                      */
@@ -1888,8 +1884,8 @@ static int TestSpatialFilter( OGRLayer *poLayer, int iGeomField )
 /*     Test infinity envelope                                           */
 /* -------------------------------------------------------------------- */
 
-#define NEG_INF -INFINITY
-#define POS_INF INFINITY
+#define NEG_INF -std::numeric_limits<double>::infinity()
+#define POS_INF std::numeric_limits<double>::infinity()
 
     oRing.setPoint( 0, NEG_INF, NEG_INF );
     oRing.setPoint( 1, NEG_INF, POS_INF );
@@ -3277,7 +3273,7 @@ static int TestOGRLayer( GDALDataset* poDS, OGRLayer * poLayer, int bIsSQLLayer 
 /*                        TestInterleavedReading()                      */
 /************************************************************************/
 
-static int TestInterleavedReading( const char* pszDataSource, char** papszLayers )
+static int TestInterleavedReading( const char* pszDataSourceIn, char** papszLayersIn )
 {
     int bRet = TRUE;
     GDALDataset* poDS = NULL;
@@ -3294,7 +3290,7 @@ static int TestInterleavedReading( const char* pszDataSource, char** papszLayers
     OGRFeature* poFeature22 = NULL;
 
     /* Check that we have 2 layers with at least 2 features */
-    poDS = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSource,
+    poDS = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSourceIn,
                             GDAL_OF_VECTOR, NULL, papszOpenOptions, NULL ));
     if (poDS == NULL)
     {
@@ -3305,8 +3301,8 @@ static int TestInterleavedReading( const char* pszDataSource, char** papszLayers
         goto bye;
     }
 
-    poLayer1 = LOG_ACTION(papszLayers ? poDS->GetLayerByName(papszLayers[0]) : poDS->GetLayer(0));
-    poLayer2 = LOG_ACTION(papszLayers ? poDS->GetLayerByName(papszLayers[1]) : poDS->GetLayer(1));
+    poLayer1 = LOG_ACTION(papszLayersIn ? poDS->GetLayerByName(papszLayersIn[0]) : poDS->GetLayer(0));
+    poLayer2 = LOG_ACTION(papszLayersIn ? poDS->GetLayerByName(papszLayersIn[1]) : poDS->GetLayer(1));
     if (poLayer1 == NULL || poLayer2 == NULL ||
         LOG_ACTION(poLayer1->GetFeatureCount()) < 2 || LOG_ACTION(poLayer2->GetFeatureCount()) < 2)
     {
@@ -3319,9 +3315,9 @@ static int TestInterleavedReading( const char* pszDataSource, char** papszLayers
 
     /* Test normal reading */
     LOG_ACTION(GDALClose( (GDALDatasetH)poDS ));
-    poDS = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSource,
+    poDS = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSourceIn,
                                 GDAL_OF_VECTOR, NULL, papszOpenOptions, NULL ));
-    poDS2 = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSource,
+    poDS2 = LOG_ACTION((GDALDataset*) GDALOpenEx( pszDataSourceIn,
                                 GDAL_OF_VECTOR, NULL, papszOpenOptions, NULL ));
     if (poDS == NULL || poDS2 == NULL)
     {
@@ -3332,8 +3328,8 @@ static int TestInterleavedReading( const char* pszDataSource, char** papszLayers
         goto bye;
     }
 
-    poLayer1 = LOG_ACTION(papszLayers ? poDS->GetLayerByName(papszLayers[0]) : poDS->GetLayer(0));
-    poLayer2 = LOG_ACTION(papszLayers ? poDS->GetLayerByName(papszLayers[1]) : poDS->GetLayer(1));
+    poLayer1 = LOG_ACTION(papszLayersIn ? poDS->GetLayerByName(papszLayersIn[0]) : poDS->GetLayer(0));
+    poLayer2 = LOG_ACTION(papszLayersIn ? poDS->GetLayerByName(papszLayersIn[1]) : poDS->GetLayer(1));
     if (poLayer1 == NULL || poLayer2 == NULL)
     {
         printf( "ERROR: Skipping TestInterleavedReading(). Test conditions are not met\n" );
@@ -3354,8 +3350,8 @@ static int TestInterleavedReading( const char* pszDataSource, char** papszLayers
     }
 
     /* Test interleaved reading */
-    poLayer1 = LOG_ACTION(papszLayers ? poDS2->GetLayerByName(papszLayers[0]) : poDS2->GetLayer(0));
-    poLayer2 = LOG_ACTION(papszLayers ? poDS2->GetLayerByName(papszLayers[1]) : poDS2->GetLayer(1));
+    poLayer1 = LOG_ACTION(papszLayersIn ? poDS2->GetLayerByName(papszLayersIn[0]) : poDS2->GetLayer(0));
+    poLayer2 = LOG_ACTION(papszLayersIn ? poDS2->GetLayerByName(papszLayersIn[1]) : poDS2->GetLayer(1));
     if (poLayer1 == NULL || poLayer2 == NULL)
     {
         printf( "ERROR: Skipping TestInterleavedReading(). Test conditions are not met\n" );
@@ -3476,12 +3472,19 @@ static int TestVirtualIO( GDALDataset * poDS )
 {
     int bRet = TRUE;
 
-    if( strncmp( poDS->GetDescription(), "/vsimem/", strlen("/vsimem/") ) == 0 )
+    if( STARTS_WITH(poDS->GetDescription(), "/vsimem/") )
         return TRUE;
 
     VSIStatBufL sStat;
     if( !(VSIStatL( poDS->GetDescription(), &sStat) == 0) )
         return TRUE;
+
+    // Don't try with ODBC (will avoid a useless error message in ogr_odbc.py)
+    if( poDS->GetDriver() != NULL &&
+        EQUAL(poDS->GetDriver()->GetDescription(), "ODBC") )
+    {
+        return TRUE;
+    }
 
     char** papszFileList = LOG_ACTION(poDS->GetFileList());
     char** papszIter = papszFileList;

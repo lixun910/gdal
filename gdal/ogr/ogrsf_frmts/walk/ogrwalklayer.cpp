@@ -193,7 +193,7 @@ void OGRWalkLayer::ResetReading()
 OGRFeature *OGRWalkLayer::GetNextFeature()
 
 {
-    while( TRUE )
+    while( true )
     {
         OGRFeature      *poFeature;
 
@@ -276,7 +276,10 @@ OGRFeature *OGRWalkLayer::GetNextRawFeature()
             WKBGeometry *WalkGeom = (WKBGeometry *)CPLMalloc(sizeof(WKBGeometry));
             if( Binary2WkbGeom((unsigned char *)pszGeomBin, WalkGeom, nGeomLength) 
                 != OGRERR_NONE )
+            {
+                CPLFree(WalkGeom);
                 return NULL;
+            }
             eErr = TranslateWalkGeom(&poGeom, WalkGeom);
 
             DeleteWKBGeometry(*WalkGeom);

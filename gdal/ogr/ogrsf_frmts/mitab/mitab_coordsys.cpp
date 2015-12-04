@@ -176,7 +176,7 @@ char *MITABSpatialRef2CoordSys( OGRSpatialReference * poSR )
 /* -------------------------------------------------------------------- */
 /*      Do coordsys lookup                                              */
 /* -------------------------------------------------------------------- */
-    double dXMin, dYMin, dXMax, dYMax;
+    double dXMin = 0.0, dYMin = 0.0, dXMax = 0.0, dYMax = 0.0;
     int bHasBounds = FALSE;
     if (sTABProj.nProjId > 1 &&
         MITABLookupCoordSysBounds(&sTABProj, dXMin, dYMin, dXMax, dYMax, TRUE) == TRUE)
@@ -348,7 +348,7 @@ int MITABCoordSys2TABProjInfo(const char * pszCoordSys, TABProjInfo *psProj)
      * Parse the passed string into words.
      *----------------------------------------------------------------*/
     while(*pszCoordSys == ' ') pszCoordSys++;  // Eat leading spaces
-    if( EQUALN(pszCoordSys,"CoordSys",8) )
+    if( STARTS_WITH_CI(pszCoordSys, "CoordSys") )
         pszCoordSys += 9;
     
     papszFields = CSLTokenizeStringComplex( pszCoordSys, " ,", TRUE, FALSE );

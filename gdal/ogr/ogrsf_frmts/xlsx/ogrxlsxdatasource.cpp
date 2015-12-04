@@ -431,7 +431,7 @@ OGRFieldType OGRXLSXDataSource::GetOGRFieldType(const char* pszValue,
         else if (eValueType == CPL_VALUE_INTEGER)
         {
             GIntBig nVal = CPLAtoGIntBig(pszValue);
-            if( (GIntBig)(int)nVal != nVal )
+            if( !CPL_INT64_FITS_ON_INT32(nVal) )
                 return OFTInteger64;
             else
                 return OFTInteger;
@@ -488,7 +488,8 @@ static void SetField(OGRFeature* poFeature,
         {
             double fFracSec = fmod(fmod(dfNumberOfDaysSince1900,1) * 3600 * 24, 1);
             poFeature->SetField(i, sTm.tm_year + 1900, sTm.tm_mon + 1, sTm.tm_mday,
-                                sTm.tm_hour, sTm.tm_min, sTm.tm_sec + fFracSec, 0 );
+                                sTm.tm_hour, sTm.tm_min,
+                                static_cast<float>(sTm.tm_sec + fFracSec), 0 );
         }
         else if (strcmp(pszCellType, "time") == 0)
         {
@@ -505,7 +506,8 @@ static void SetField(OGRFeature* poFeature,
             double fFracSec = fmod(fmod(dfNumberOfDaysSince1900,1) * 3600 * 24, 1);
             poFeature->SetField(i,
                                 sTm.tm_year + 1900, sTm.tm_mon + 1, sTm.tm_mday,
-                                sTm.tm_hour, sTm.tm_min, sTm.tm_sec + fFracSec, 0);
+                                sTm.tm_hour, sTm.tm_min,
+                                static_cast<float>(sTm.tm_sec + fFracSec), 0);
         }
     }
     else
@@ -640,10 +642,10 @@ void OGRXLSXDataSource::endElementTable(CPL_UNUSED const char *pszName)
             OGRFeature* poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
             for(i = 0; i < apoFirstLineValues.size(); i++)
             {
-                SetField(poFeature, i, apoFirstLineValues[i].c_str(),
+                SetField(poFeature, static_cast<int>(i), apoFirstLineValues[i].c_str(),
                          apoFirstLineTypes[i].c_str());
             }
-            poCurLayer->CreateFeature(poFeature);
+            CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
             delete poFeature;
         }
 
@@ -788,10 +790,10 @@ void OGRXLSXDataSource::endElementRow(CPL_UNUSED const char *pszName)
                 poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
                 for(i = 0; i < apoFirstLineValues.size(); i++)
                 {
-                    SetField(poFeature, i, apoFirstLineValues[i].c_str(),
+                    SetField(poFeature, static_cast<int>(i), apoFirstLineValues[i].c_str(),
                              apoFirstLineTypes[i].c_str());
                 }
-                poCurLayer->CreateFeature(poFeature);
+                CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
                 delete poFeature;
             }
         }
@@ -827,7 +829,7 @@ void OGRXLSXDataSource::endElementRow(CPL_UNUSED const char *pszName)
                                                 apoCurLineValues[i].c_str(),
                                                 apoCurLineTypes[i].c_str());
                         OGRFieldType eFieldType =
-                            poCurLayer->GetLayerDefn()->GetFieldDefn(i)->GetType();
+                            poCurLayer->GetLayerDefn()->GetFieldDefn(static_cast<int>(i))->GetType();
                         if (eFieldType == OFTDateTime &&
                             (eValType == OFTDate || eValType == OFTTime) )
                         {
@@ -844,7 +846,7 @@ void OGRXLSXDataSource::endElementRow(CPL_UNUSED const char *pszName)
                         else if (eFieldType != OFTString && eValType != eFieldType)
                         {
                             OGRFieldDefn oNewFieldDefn(
-                                poCurLayer->GetLayerDefn()->GetFieldDefn(i));
+                                poCurLayer->GetLayerDefn()->GetFieldDefn(static_cast<int>(i)));
                             if ((eFieldType == OFTDate || eFieldType == OFTTime) &&
                                    eValType == OFTDateTime)
                                 oNewFieldDefn.SetType(OFTDateTime);
@@ -855,7 +857,7 @@ void OGRXLSXDataSource::endElementRow(CPL_UNUSED const char *pszName)
                                 oNewFieldDefn.SetType(OFTInteger64);
                             else
                                 oNewFieldDefn.SetType(OFTString);
-                            poCurLayer->AlterFieldDefn(i, &oNewFieldDefn,
+                            poCurLayer->AlterFieldDefn(static_cast<int>(i), &oNewFieldDefn,
                                                        ALTER_TYPE_FLAG);
                         }
                     }
@@ -866,10 +868,10 @@ void OGRXLSXDataSource::endElementRow(CPL_UNUSED const char *pszName)
             poFeature = new OGRFeature(poCurLayer->GetLayerDefn());
             for(i = 0; i < apoCurLineValues.size(); i++)
             {
-                SetField(poFeature, i, apoCurLineValues[i].c_str(),
+                SetField(poFeature, static_cast<int>(i), apoCurLineValues[i].c_str(),
                          apoCurLineTypes[i].c_str());
             }
-            poCurLayer->CreateFeature(poFeature);
+            CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
             delete poFeature;
        }
 

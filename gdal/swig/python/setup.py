@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
- 
+
 # Setup script for GDAL Python bindings.
 # Inspired by psycopg2 setup.py file
 # http://www.initd.org/tracker/psycopg/browser/psycopg2/trunk/setup.py
 # Howard Butler hobu.inc@gmail.com
 
 
-gdal_version = '2.0.0'
+gdal_version = '2.1.0'
 
 import sys
 import os
-import string
 
 from glob import glob
 
@@ -28,7 +27,7 @@ BUILD_FOR_CHEESESHOP = False
 # (may be overriden with setup.cfg or command line switches).
 # ---------------------------------------------------------------------------
 
-include_dirs = ['../../port', '../../gcore', '../../alg', '../../ogr/']
+include_dirs = ['../../port', '../../gcore', '../../alg', '../../ogr/', '../../ogr/ogrsf_frmts', '../../gnm', '../../apps']
 library_dirs = ['../../.libs', '../../']
 libraries = ['gdal']
 
@@ -104,7 +103,6 @@ class gdal_config_error(Exception): pass
 
 from distutils.command.build_ext import build_ext
 from distutils.ccompiler import get_default_compiler
-from distutils.sysconfig import get_python_inc
 
 def fetch_config(option, gdal_config='gdal-config'):
 
@@ -132,16 +130,16 @@ except OSError, e:
         p.wait()
 
     except ImportError:
-        
+
         import popen2
-        
+
         p = popen2.popen3(command)
         r = p[0].readline().strip()
         if not r:
             raise Warning(p[2].readline())
-    
+
     return r
-    
+
 class gdal_ext(build_ext):
 
     GDAL_CONFIG = 'gdal-config'
@@ -161,7 +159,7 @@ class gdal_ext(build_ext):
 
     def get_compiler(self):
         return self.compiler or get_default_compiler()
-    
+
     def get_gdal_config(self, option):
         try:
             return fetch_config(option, gdal_config = self.gdal_config)
@@ -174,7 +172,7 @@ class gdal_ext(build_ext):
             if not self.already_raised_no_config_error:
                 self.already_raised_no_config_error = True
                 return fetch_config(option)
-            
+
     def finalize_options(self):
         if self.include_dirs is None:
             self.include_dirs = include_dirs
@@ -187,9 +185,9 @@ class gdal_ext(build_ext):
             self.libraries = libraries
 
         build_ext.finalize_options(self)
-        
+
         self.include_dirs.append(self.numpy_include_dir)
-        
+
         if self.get_compiler() == 'msvc':
             return True
 
@@ -232,16 +230,23 @@ array_module = Extension('osgeo._gdal_array',
                     extra_compile_args = extra_compile_args,
                     extra_link_args = extra_link_args)
 
+gnm_module = Extension('osgeo._gnm',
+                    sources=['extensions/gnm_wrap.cpp'],
+                    extra_compile_args = extra_compile_args,
+                    extra_link_args = extra_link_args)
+
 ext_modules = [gdal_module,
               gdalconst_module,
               osr_module,
-              ogr_module]
+              ogr_module,
+              gnm_module]
 
 py_modules = ['gdal',
               'ogr',
               'osr',
-              'gdalconst']
-      
+              'gdalconst',
+              'gnm']
+
 if HAVE_NUMPY:
     ext_modules.append(array_module)
     py_modules.append('gdalnumeric')
@@ -272,16 +277,15 @@ classifiers = [
         'Programming Language :: C++',
         'Topic :: Scientific/Engineering :: GIS',
         'Topic :: Scientific/Engineering :: Information Analysis',
-        
-]
 
+]
 
 
 if BUILD_FOR_CHEESESHOP:
     data_files = [("osgeo/data/gdal", glob(os.path.join("../../data", "*")))]
 else:
     data_files = None
-    
+
 exclude_package_data = {'':['GNUmakefile']}
 
 if HAVE_SETUPTOOLS:

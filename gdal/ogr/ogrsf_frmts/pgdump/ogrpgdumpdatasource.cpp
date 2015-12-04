@@ -171,24 +171,23 @@ OGRPGDumpDataSource::ICreateLayer( const char * pszLayerName,
     const char* pszFIDColumnNameIn = CSLFetchNameValue(papszOptions, "FID");
     CPLString osFIDColumnName, osFIDColumnNameEscaped;
     if (pszFIDColumnNameIn == NULL)
-        osFIDColumnNameEscaped = osFIDColumnName = "OGC_FID";
+        osFIDColumnName = "ogc_fid";
     else
     {
         if( CSLFetchBoolean(papszOptions,"LAUNDER", TRUE) )
         {
             char* pszLaunderedFid = OGRPGCommonLaunderName(pszFIDColumnNameIn, "PGDump");
             osFIDColumnName = pszLaunderedFid;
-            osFIDColumnNameEscaped = OGRPGDumpEscapeColumnName(osFIDColumnName);
             CPLFree(pszLaunderedFid);
         }
         else
         {
             osFIDColumnName = pszFIDColumnNameIn;
-            osFIDColumnNameEscaped = OGRPGDumpEscapeColumnName(osFIDColumnName);
         }
     }
+    osFIDColumnNameEscaped = OGRPGDumpEscapeColumnName(osFIDColumnName);
 
-    if (strncmp(pszLayerName, "pg", 2) == 0)
+    if (STARTS_WITH(pszLayerName, "pg"))
     {
         CPLError(CE_Warning, CPLE_AppDefined,
                  "The layer name should not begin by 'pg' as it is a reserved prefix");
@@ -226,7 +225,7 @@ OGRPGDumpDataSource::ICreateLayer( const char * pszLayerName,
     const char* pszDotPos = strstr(pszLayerName,".");
     if ( pszDotPos != NULL && bExtractSchemaFromLayerName )
     {
-      int length = pszDotPos - pszLayerName;
+      int length = static_cast<int>(pszDotPos - pszLayerName);
       pszSchemaName = (char*)CPLMalloc(length+1);
       strncpy(pszSchemaName, pszLayerName, length);
       pszSchemaName[length] = '\0';
@@ -323,10 +322,15 @@ OGRPGDumpDataSource::ICreateLayer( const char * pszLayerName,
 /* -------------------------------------------------------------------- */
     int nUnknownSRSId = -1;
     const char* pszPostgisVersion = CSLFetchNameValue( papszOptions, "POSTGIS_VERSION" );
-    int bPostGIS2 = FALSE;
+    int nPostGISMajor = 1;
+    int nPostGISMinor = 5;
     if( pszPostgisVersion != NULL && atoi(pszPostgisVersion) >= 2 )
     {
-        bPostGIS2 = TRUE;
+        nPostGISMajor = atoi(pszPostgisVersion);
+        if( strchr(pszPostgisVersion, '.') )
+            nPostGISMinor = atoi(strchr(pszPostgisVersion, '.')+1);
+        else
+            nPostGISMinor = 0;
         nUnknownSRSId = 0;
     }
 
@@ -369,7 +373,7 @@ OGRPGDumpDataSource::ICreateLayer( const char * pszLayerName,
         else
             pszGFldName = "wkb_geometry";
 
-        if( pszPostgisVersion == NULL || atoi(pszPostgisVersion) < 2 )
+        if( nPostGISMajor < 2 )
         {
             /* Sometimes there is an old cruft entry in the geometry_columns
             * table if things were not properly cleaned up before.  We make
@@ -498,7 +502,7 @@ OGRPGDumpDataSource::ICreateLayer( const char * pszLayerName,
     poLayer->SetUnknownSRSId(nUnknownSRSId);
     poLayer->SetForcedSRSId(nForcedSRSId);
     poLayer->SetCreateSpatialIndexFlag(bCreateSpatialIndex);
-    poLayer->SetPostGIS2(bPostGIS2);
+    poLayer->SetPostGISVersion(nPostGISMajor, nPostGISMinor);
 
     if( bHavePostGIS )
     {

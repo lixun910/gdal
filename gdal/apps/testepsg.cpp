@@ -34,7 +34,7 @@
 #include "ogr_p.h"
 #include "cpl_multiproc.h"
 
-void Usage()
+static void Usage()
 
 {
     printf( "testepsg [-xml] [-t src_def trg_def x y z]* [def]*\n" );
@@ -99,7 +99,7 @@ int main( int nArgc, char ** papszArgv )
             }
             else
                 z_orig = z = 0;
-            
+
             if( poCT == NULL || !poCT->Transform( 1, &x, &y, &z ) )
                 printf( "Transformation failed.\n" );
             else
@@ -108,14 +108,15 @@ int main( int nArgc, char ** papszArgv )
                         CPLAtof( papszArgv[i+4] ),
                         z_orig, 
                         x, y, z );
-            
+
             i += nArgsUsed;
         }
         else 
         {
+            /* coverity[tainted_data] */
             if( oSRS.SetFromUserInput(papszArgv[i]) != OGRERR_NONE )
                 CPLError( CE_Failure, CPLE_AppDefined, 
-                          "Error occured translating %s.\n", 
+                          "Error occurred translating %s.\n",
                           papszArgv[i] );
             else
             {
@@ -125,7 +126,7 @@ int main( int nArgc, char ** papszArgv )
                     printf( "Validate Fails.\n" );
                 else
                     printf( "Validate Succeeds.\n" );
-                
+
                 oSRS.exportToPrettyWkt( &pszWKT, FALSE );
                 printf( "WKT[%s] =\n%s\n", 
                         papszArgv[i], pszWKT );

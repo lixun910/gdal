@@ -41,9 +41,9 @@ static CPLString OGRPGDumpEscapeStringList(
                                        OGRPGCommonEscapeStringCbk pfnEscapeString,
                                        void* userdata);
 
-static CPLString OGRPGDumpEscapeStringWithUserData(   void* user_data,
+static CPLString OGRPGDumpEscapeStringWithUserData(   CPL_UNUSED void* user_data,
                                    const char* pszStrValue, int nMaxLength,
-                                   const char* pszLayerName,
+                                   CPL_UNUSED const char* pszLayerName,
                                    const char* pszFieldName)
 {
     return OGRPGDumpEscapeString(pszStrValue, nMaxLength, pszFieldName);
@@ -81,7 +81,8 @@ OGRPGDumpLayer::OGRPGDumpLayer(OGRPGDumpDataSource* poDS,
     nUnknownSRSId = -1;
     nForcedSRSId = -2;
     bCreateSpatialIndexFlag = TRUE;
-    bPostGIS2 = FALSE;
+    nPostGISMajor = 1;
+    nPostGISMinor = 2;
     iNextShapeId = 0;
     iFIDAsRegularColumnIndex = -1;
     bAutoFIDOnCreateViaCopy = TRUE;
@@ -158,8 +159,8 @@ OGRErr OGRPGDumpLayer::ICreateFeature( OGRFeature *poFeature )
                 poFeature->GetFieldAsInteger64(iFIDAsRegularColumnIndex) != poFeature->GetFID() )
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
-                            "Inconsistant values of FID and field of same name");
-                return CE_Failure;
+                            "Inconsistent values of FID and field of same name");
+                return OGRERR_FAILURE;
             }
         }
     }
@@ -220,7 +221,7 @@ OGRErr OGRPGDumpLayer::ICreateFeature( OGRFeature *poFeature )
                 eErr = CreateFeatureViaCopy( poFeature );
                 if( bFIDSet )
                     bAutoFIDOnCreateViaCopy = FALSE;
-                if( eErr == CE_None && bAutoFIDOnCreateViaCopy )
+                if( eErr == OGRERR_NONE && bAutoFIDOnCreateViaCopy )
                 {
                     poFeature->SetFID( ++iNextShapeId );
                 }
@@ -228,7 +229,7 @@ OGRErr OGRPGDumpLayer::ICreateFeature( OGRFeature *poFeature )
         }
     }
 
-    if( eErr == CE_None && iFIDAsRegularColumnIndex >= 0 )
+    if( eErr == OGRERR_NONE && iFIDAsRegularColumnIndex >= 0 )
     {
         poFeature->SetField(iFIDAsRegularColumnIndex, poFeature->GetFID());
     }
@@ -325,7 +326,8 @@ OGRErr OGRPGDumpLayer::CreateFeatureViaInsert( OGRFeature *poFeature )
             if( bWriteAsHex )
             {
                 char* pszHex = OGRGeometryToHexEWKB( poGeom, poGFldDefn->nSRSId,
-                                                     bPostGIS2 );
+                                                     nPostGISMajor,
+                                                     nPostGISMinor );
                 osCommand += "'";
                 if (pszHex)
                     osCommand += pszHex;
@@ -422,7 +424,8 @@ OGRErr OGRPGDumpLayer::CreateFeatureViaCopy( OGRFeature *poFeature )
                 pszGeom = GeometryToBYTEA( poGeometry );
             else*/
                 pszGeom = OGRGeometryToHexEWKB( poGeometry, poGFldDefn->nSRSId,
-                                                bPostGIS2 );
+                                                nPostGISMajor,
+                                                nPostGISMinor );
         }
     
         if (osCommand.size() > 0)
@@ -534,7 +537,7 @@ void OGRPGCommonAppendCopyFieldsExceptGeom(CPLString& osCommand,
                 if( j != 0 )
                     strcat( pszNeedToFree+nOff, "," );
 
-                nOff += strlen(pszNeedToFree+nOff);
+                nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
                 sprintf( pszNeedToFree+nOff, "%d", panItems[j] );
             }
             strcat( pszNeedToFree+nOff, "}" );
@@ -553,7 +556,7 @@ void OGRPGCommonAppendCopyFieldsExceptGeom(CPLString& osCommand,
                 if( j != 0 )
                     strcat( pszNeedToFree+nOff, "," );
 
-                nOff += strlen(pszNeedToFree+nOff);
+                nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
                 sprintf( pszNeedToFree+nOff, CPL_FRMT_GIB, panItems[j] );
             }
             strcat( pszNeedToFree+nOff, "}" );
@@ -573,7 +576,7 @@ void OGRPGCommonAppendCopyFieldsExceptGeom(CPLString& osCommand,
                 if( j != 0 )
                     strcat( pszNeedToFree+nOff, "," );
 
-                nOff += strlen(pszNeedToFree+nOff);
+                nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
                 //Check for special values. They need to be quoted.
                 if( CPLIsNan(padfItems[j]) )
                     sprintf( pszNeedToFree+nOff, "NaN" );
@@ -681,7 +684,7 @@ OGRErr OGRPGDumpLayer::StartCopy(int bSetFID)
 
     CPLString osFields = BuildCopyFields(bSetFID);
 
-    int size = strlen(osFields) +  strlen(pszSqlTableName) + 100;
+    size_t size = strlen(osFields) +  strlen(pszSqlTableName) + 100;
     char *pszCommand = (char *) CPLMalloc(size);
 
     sprintf( pszCommand,
@@ -799,7 +802,7 @@ CPLString OGRPGDumpEscapeString(
     /* We need to quote and escape string fields. */
     osCommand += "'";
 
-    int nSrcLen = strlen(pszStrValue);
+    int nSrcLen = static_cast<int>(strlen(pszStrValue));
     int nSrcLenUTF = CPLStrlenUTF8(pszStrValue);
 
     if (nMaxLength > 0 && nSrcLenUTF > nMaxLength)
@@ -967,7 +970,7 @@ void OGRPGCommonAppendFieldValue(CPLString& osCommand,
             if( j != 0 )
                 strcat( pszNeedToFree+nOff, "," );
 
-            nOff += strlen(pszNeedToFree+nOff);
+            nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
             sprintf( pszNeedToFree+nOff, "%d", panItems[j] );
         }
         strcat( pszNeedToFree+nOff, "}'" );
@@ -991,7 +994,7 @@ void OGRPGCommonAppendFieldValue(CPLString& osCommand,
             if( j != 0 )
                 strcat( pszNeedToFree+nOff, "," );
 
-            nOff += strlen(pszNeedToFree+nOff);
+            nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
             sprintf( pszNeedToFree+nOff, CPL_FRMT_GIB, panItems[j] );
         }
         strcat( pszNeedToFree+nOff, "}'" );
@@ -1016,7 +1019,7 @@ void OGRPGCommonAppendFieldValue(CPLString& osCommand,
             if( j != 0 )
                 strcat( pszNeedToFree+nOff, "," );
 
-            nOff += strlen(pszNeedToFree+nOff);
+            nOff += static_cast<int>(strlen(pszNeedToFree+nOff));
             //Check for special values. They need to be quoted.
             if( CPLIsNan(padfItems[j]) )
                 sprintf( pszNeedToFree+nOff, "NaN" );
@@ -1071,7 +1074,7 @@ void OGRPGCommonAppendFieldValue(CPLString& osCommand,
     // Check if date is NULL: 0000-00-00
     if( nOGRFieldType == OFTDate )
     {
-        if( EQUALN( pszStrValue, "0000", 4 ) )
+        if( STARTS_WITH_CI(pszStrValue, "0000") )
         {
             pszStrValue = "NULL";
             bIsDateNull = TRUE;
@@ -1261,9 +1264,9 @@ int OGRPGCommonLayerSetType(OGRFieldDefn& oField,
     {
         if( nWidth == -1 )
         {
-            if( EQUALN(pszFormatType,"character(",10) )
+            if( STARTS_WITH_CI(pszFormatType, "character(") )
                 nWidth = atoi(pszFormatType+10);
-            else if( EQUALN(pszFormatType,"character varying(",18) )
+            else if( STARTS_WITH_CI(pszFormatType, "character varying(") )
                 nWidth = atoi(pszFormatType+18);
             else
                 nWidth = 0;
@@ -1337,7 +1340,7 @@ int OGRPGCommonLayerSetType(OGRFieldDefn& oField,
     {
         oField.SetType( OFTInteger64List );
     }
-    else if( EQUALN(pszType,"int",3) )
+    else if( STARTS_WITH_CI(pszType, "int") )
     {
         oField.SetType( OFTInteger );
     }
@@ -1346,21 +1349,21 @@ int OGRPGCommonLayerSetType(OGRFieldDefn& oField,
         oField.SetType( OFTReal );
         oField.SetSubType( OFSTFloat32 );
     }
-    else if( EQUALN(pszType,"float",5) ||
-            EQUALN(pszType,"double",6) ||
+    else if( STARTS_WITH_CI(pszType, "float") ||
+            STARTS_WITH_CI(pszType, "double") ||
             EQUAL(pszType,"real") )
     {
         oField.SetType( OFTReal );
     }
-    else if( EQUALN(pszType, "timestamp",9) )
+    else if( STARTS_WITH_CI(pszType, "timestamp") )
     {
         oField.SetType( OFTDateTime );
     }
-    else if( EQUALN(pszType, "date",4) )
+    else if( STARTS_WITH_CI(pszType, "date") )
     {
         oField.SetType( OFTDate );
     }
-    else if( EQUALN(pszType, "time",4) )
+    else if( STARTS_WITH_CI(pszType, "time") )
     {
         oField.SetType( OFTTime );
     }
@@ -1468,7 +1471,7 @@ OGRErr OGRPGDumpLayer::CreateField( OGRFieldDefn *poFieldIn,
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Wrong field type for %s",
                  oField.GetNameRef());
-        return CE_Failure;
+        return OGRERR_FAILURE;
     }
 
 /* -------------------------------------------------------------------- */

@@ -19,16 +19,16 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  **********************************************************************
  *
@@ -37,7 +37,8 @@
  * Fixed missing initializations that cause crashes
  *
  * Revision 1.77  2010-10-08 18:38:13  aboudreault
- * Added attribute index support for the sql queries in mapinfo tab format (GDAL bug #3687)
+ * Added attribute index support for the sql queries in mapinfo tab format
+ * (GDAL bug #3687)
  *
  * Revision 1.76  2010-07-07 19:00:15  aboudreault
  * Cleanup Win32 Compile Warnings (GDAL bug #2930)
@@ -46,7 +47,8 @@
  * Fixed bad feature count after we deleted a feature in MapInfo (bug 2227)
  *
  * Revision 1.74  2010-01-07 20:39:12  aboudreault
- * Added support to handle duplicate field names, Added validation to check if a field name start with a number (bug 2141)
+ * Added support to handle duplicate field names, Added validation to check
+ * if a field name start with a number (bug 2141)
  *
  * Revision 1.73  2008-11-27 20:50:23  aboudreault
  * Improved support for OGR date/time types. New Read/Write methods (bug 1948)
@@ -269,7 +271,7 @@ int TABFile::Open(const char *pszFname, TABAccess eAccess,
      * Make sure filename has a .TAB extension... 
      *----------------------------------------------------------------*/
     m_pszFname = CPLStrdup(pszFname);
-    nFnameLen = strlen(m_pszFname);
+    nFnameLen = static_cast<int>(strlen(m_pszFname));
 
     if (nFnameLen > 4 && (strcmp(m_pszFname+nFnameLen-4, ".TAB")==0 ||
                      strcmp(m_pszFname+nFnameLen-4, ".MAP")==0 ||
@@ -710,7 +712,7 @@ int TABFile::ParseTABFileFields()
         while(*pszStr != '\0' && isspace((unsigned char)*pszStr))
             pszStr++;
 
-        if (EQUALN(pszStr, "Fields", 6))
+        if (STARTS_WITH_CI(pszStr, "Fields"))
         {
             /*---------------------------------------------------------
              * We found the list of table fields
@@ -1191,7 +1193,7 @@ GIntBig TABFile::GetNextFeatureId(GIntBig nPrevId)
         ResetReading();
     m_bLastOpWasRead = TRUE;
 
-    if( (GIntBig)(int)nPrevId != nPrevId )
+    if( !CPL_INT64_FITS_ON_INT32(nPrevId) )
         return -1;
 
     /*-----------------------------------------------------------------
@@ -1671,7 +1673,7 @@ OGRErr TABFile::ISetFeature( OGRFeature *poFeature )
     {
         CPLError(CE_Failure, CPLE_NotSupported,
                  "SetFeature() cannot be used in read-only access.");
-        return -1;
+        return OGRERR_FAILURE;
     }
 
     /*-----------------------------------------------------------------
@@ -2760,16 +2762,23 @@ OGRErr TABFile::SyncToDisk()
     if( m_eAccessMode == TABRead )
         return OGRERR_NONE;
 
+    OGRErr eErr = OGRERR_NONE;
+    
+    // This is a hack for Windows and VSIFFlushL() issue. See http://trac.osgeo.org/gdal/ticket/5556
+    CPLSetConfigOption("VSI_FLUSH", "TRUE"); 
+    
     if( WriteTABFile() != 0 )
-        return OGRERR_FAILURE;
+        eErr = OGRERR_FAILURE;
 
     if( m_poMAPFile->SyncToDisk() != 0 )
-        return OGRERR_FAILURE;
+        eErr = OGRERR_FAILURE;
 
     if( m_poDATFile->SyncToDisk() != 0 )
-        return OGRERR_FAILURE;
-
-    return OGRERR_NONE;
+        eErr = OGRERR_FAILURE;
+    
+    CPLSetConfigOption("VSI_FLUSH", NULL);
+    
+    return eErr;
 }
 
 /************************************************************************/

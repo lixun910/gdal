@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_SRS_API_H_INCLUDED
-#define _OGR_SRS_API_H_INCLUDED
+#ifndef OGR_SRS_API_H_INCLUDED
+#define OGR_SRS_API_H_INCLUDED
 
 #ifndef SWIG
 #include "ogr_core.h"
@@ -88,7 +88,7 @@ typedef enum {
 /*      Some standard WKT geographic coordinate systems.                */
 /* ==================================================================== */
 
-#define SRS_WKT_WGS84 "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+#define SRS_WKT_WGS84 "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
 
 /* ==================================================================== */
 /*      Some "standard" strings.                                        */
@@ -297,8 +297,8 @@ typedef enum {
 /* -------------------------------------------------------------------- */
 /*      C Wrappers for C++ objects and methods.                         */
 /* -------------------------------------------------------------------- */
-#ifndef _DEFINED_OGRSpatialReferenceH
-#define _DEFINED_OGRSpatialReferenceH
+#ifndef DEFINED_OGRSpatialReferenceH
+#define DEFINED_OGRSpatialReferenceH
 
 #ifdef DEBUG
 typedef struct OGRSpatialReferenceHS *OGRSpatialReferenceH;
@@ -462,7 +462,8 @@ int    CPL_DLL OSREPSGTreatsAsNorthingEasting( OGRSpatialReferenceH hSRS );
 const char CPL_DLL *OSRGetAxis( OGRSpatialReferenceH hSRS,
                                 const char *pszTargetKey, int iAxis, 
                                 OGRAxisOrientation *peOrientation );
-OGRErr CPL_DLL OSRSetAxes( const char *pszTargetKey,
+OGRErr CPL_DLL OSRSetAxes( OGRSpatialReferenceH hSRS, 
+                           const char *pszTargetKey,
                            const char *pszXAxisName,
                            OGRAxisOrientation eXAxisOrientation,
                            const char *pszYAxisName, 
@@ -560,6 +561,13 @@ OGRErr CPL_DLL OSRSetHOM( OGRSpatialReferenceH hSRS,
                           double dfScale,
                           double dfFalseEasting, double dfFalseNorthing );
 
+OGRErr CPL_DLL OSRSetHOMAC( OGRSpatialReferenceH hSRS, 
+                    double dfCenterLat, double dfCenterLong,
+                    double dfAzimuth, double dfRectToSkew, 
+                    double dfScale,
+                    double dfFalseEasting,
+                    double dfFalseNorthing );
+
 /** Hotine Oblique Mercator using two points on centerline */
 OGRErr CPL_DLL OSRSetHOM2PNO( OGRSpatialReferenceH hSRS, double dfCenterLat,
                               double dfLat1, double dfLong1,
@@ -614,6 +622,10 @@ OGRErr CPL_DLL OSRSetMercator( OGRSpatialReferenceH hSRS,
                                double dfCenterLat, double dfCenterLong,
                                double dfScale, 
                                double dfFalseEasting, double dfFalseNorthing );
+OGRErr CPL_DLL OSRSetMercator2SP( OGRSpatialReferenceH hSRS, 
+                          double dfStdP1,
+                          double dfCenterLat, double dfCenterLong,
+                          double dfFalseEasting, double dfFalseNorthing );
 
 /** Mollweide */
 OGRErr CPL_DLL  OSRSetMollweide( OGRSpatialReferenceH hSRS,
@@ -701,6 +713,11 @@ OGRErr CPL_DLL OSRSetTMSO( OGRSpatialReferenceH hSRS,
                            double dfScale,
                            double dfFalseEasting, double dfFalseNorthing );
 
+OGRErr CPL_DLL OSRSetTPED( OGRSpatialReferenceH hSRS,
+                   double dfLat1, double dfLong1,
+                   double dfLat2, double dfLong2,
+                   double dfFalseEasting, double dfFalseNorthing );
+
 /** VanDerGrinten */
 OGRErr CPL_DLL OSRSetVDG( OGRSpatialReferenceH hSRS,
                           double dfCenterLong,
@@ -708,6 +725,7 @@ OGRErr CPL_DLL OSRSetVDG( OGRSpatialReferenceH hSRS,
 
 /** Wagner I -- VII */
 OGRErr CPL_DLL OSRSetWagner( OGRSpatialReferenceH hSRS, int nVariation,
+                             double dfCenterLat,
                              double dfFalseEasting,
                              double dfFalseNorthing );
 
@@ -760,4 +778,4 @@ CPL_C_END
 
 #endif /* ndef SWIG */
 
-#endif /* ndef _OGR_SRS_API_H_INCLUDED */
+#endif /* ndef OGR_SRS_API_H_INCLUDED */

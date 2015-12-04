@@ -44,6 +44,8 @@
 class CPL_DLL GDALProxyDataset : public GDALDataset
 {
     protected:
+        GDALProxyDataset() {};
+
         virtual GDALDataset *RefUnderlyingDataset() = 0;
         virtual void UnrefUnderlyingDataset(GDALDataset* poUnderlyingDataset);
 
@@ -91,6 +93,8 @@ class CPL_DLL GDALProxyDataset : public GDALDataset
 
         virtual CPLErr          CreateMaskBand( int nFlags );
 
+  private:
+    CPL_DISALLOW_COPY_ASSIGN(GDALProxyDataset);
 };
 
 /* ******************************************************************** */
@@ -100,6 +104,8 @@ class CPL_DLL GDALProxyDataset : public GDALDataset
 class CPL_DLL GDALProxyRasterBand : public GDALRasterBand
 {
     protected:
+        GDALProxyRasterBand() {};
+
         virtual GDALRasterBand* RefUnderlyingRasterBand() = 0;
         virtual void UnrefUnderlyingRasterBand(GDALRasterBand* poUnderlyingRasterBand);
 
@@ -134,6 +140,7 @@ class CPL_DLL GDALProxyRasterBand : public GDALRasterBand
 
         virtual CPLErr SetCategoryNames( char ** );
         virtual CPLErr SetNoDataValue( double );
+        virtual CPLErr DeleteNoDataValue();
         virtual CPLErr SetColorTable( GDALColorTable * ); 
         virtual CPLErr SetColorInterpretation( GDALColorInterp );
         virtual CPLErr SetOffset( double );
@@ -185,6 +192,8 @@ class CPL_DLL GDALProxyRasterBand : public GDALRasterBand
                                                 int *pnPixelSpace,
                                                 GIntBig *pnLineSpace,
                                                 char **papszOptions );
+  private:
+    CPL_DISALLOW_COPY_ASSIGN(GDALProxyRasterBand);
 };
 
 
@@ -247,6 +256,8 @@ class CPL_DLL GDALProxyPoolDataset : public GDALProxyDataset
 
         virtual const char *GetGCPProjection();
         virtual const GDAL_GCP *GetGCPs();
+  private:
+    CPL_DISALLOW_COPY_ASSIGN(GDALProxyPoolDataset);
 };
 
 /* ******************************************************************** */
@@ -300,7 +311,8 @@ class CPL_DLL GDALProxyPoolRasterBand : public GDALProxyRasterBand
         virtual GDALRasterBand *GetOverview(int);
         virtual GDALRasterBand *GetRasterSampleOverview( GUIntBig nDesiredSamples); // TODO
         virtual GDALRasterBand *GetMaskBand();
-
+  private:
+    CPL_DISALLOW_COPY_ASSIGN(GDALProxyPoolRasterBand);
 };
 
 /* ******************************************************************** */

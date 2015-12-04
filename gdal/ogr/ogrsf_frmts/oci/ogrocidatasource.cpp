@@ -108,7 +108,7 @@ int OGROCIDataSource::Open( const char * pszNewName,
 /* -------------------------------------------------------------------- */
 /*      Verify Oracle prefix.                                           */
 /* -------------------------------------------------------------------- */
-    if( !EQUALN(pszNewName,"OCI:",3) )
+    if( !STARTS_WITH_CI(pszNewName,"OCI:") )
     {
         if( !bTestOpen )
         {
@@ -142,7 +142,7 @@ int OGROCIDataSource::Open( const char * pszNewName,
         pszUserid = CPLStrdup( pszNewName + 4 );
 
         // Is there a table list? 
-        for( i = strlen(pszUserid)-1; i > 1; i-- )
+        for( i = static_cast<int>(strlen(pszUserid))-1; i > 1; i-- )
         {
             if( pszUserid[i] == ':' )
             {
@@ -255,7 +255,7 @@ int OGROCIDataSource::Open( const char * pszNewName,
 /************************************************************************/
 
 int OGROCIDataSource::OpenTable( const char *pszNewName, 
-                                 int nSRID, int bUpdate, int bTestOpen )
+                                 int nSRID, int bUpdate, CPL_UNUSED int bTestOpen )
 
 {
 /* -------------------------------------------------------------------- */
@@ -326,7 +326,7 @@ void OGROCIDataSource::ValidateLayer( const char *pszLayerName )
 /*      Prepare and execute the geometry validation.                    */
 /* -------------------------------------------------------------------- */
 
-    if( !strlen(poLayer->GetGeometryColumn()) == 0 )
+    if( strlen(poLayer->GetGeometryColumn()) != 0 )
     {
         OGROCIStringBuf oValidateCmd;
         OGROCIStatement oValidateStmt( GetSession() );
@@ -550,11 +550,11 @@ OGROCIDataSource::ICreateLayer( const char * pszLayerName,
 /* -------------------------------------------------------------------- */
     const char *pszExpectedFIDName = 
         CPLGetConfigOption( "OCI_FID", "OGR_FID" );    
-   
+
     OGROCIStatement oStatement( poSession );
 
 /* -------------------------------------------------------------------- */
-/*      If geometry type is wkbNone, do not create a geoemtry column    */
+/*      If geometry type is wkbNone, do not create a geometry column.   */
 /* -------------------------------------------------------------------- */
 
     if ( CSLFetchNameValue( papszOptions, "TRUNCATE" ) == NULL  )
@@ -582,7 +582,7 @@ OGROCIDataSource::ICreateLayer( const char * pszLayerName,
             CPLFree( pszSafeLayerName );
             return NULL;
         }
-    }  
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Create the layer object.                                        */
@@ -684,7 +684,7 @@ OGRLayer * OGROCIDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Special case DELLAYER: command.                                 */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand,"DELLAYER:",9) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DELLAYER:") )
     {
         const char *pszLayerName = pszSQLCommand + 9;
 
@@ -698,7 +698,7 @@ OGRLayer * OGROCIDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Special case VALLAYER: command.                                 */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand,"VALLAYER:",9) )
+    if( STARTS_WITH_CI(pszSQLCommand, "VALLAYER:") )
     {
         const char *pszLayerName = pszSQLCommand + 9;
 
@@ -712,7 +712,7 @@ OGRLayer * OGROCIDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Just execute simple command.                                    */
 /* -------------------------------------------------------------------- */
-    if( !EQUALN(pszSQLCommand,"SELECT",6) )
+    if( !STARTS_WITH_CI(pszSQLCommand, "SELECT") )
     {
         OGROCIStatement oCommand( poSession );
 
@@ -996,7 +996,7 @@ int OGROCIDataSource::FetchSRSId( OGRSpatialReference * poSRS )
 OGRLayer *OGROCIDataSource::GetLayerByName( const char *pszName )
 
 {
-    OGROCILayer *poLayer;
+    OGROCILayer *poLayer = NULL;
     int  i, count;
 
     if ( !pszName )

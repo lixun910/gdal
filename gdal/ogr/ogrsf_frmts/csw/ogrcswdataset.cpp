@@ -75,6 +75,8 @@ class OGRCSWLayer : public OGRLayer
     virtual int                 TestCapability( const char * ) { return FALSE; }
 
     virtual void                SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
     virtual OGRErr              SetAttributeFilter( const char * );
 };
 
@@ -250,7 +252,7 @@ void OGRCSWLayer::ResetReading()
 
 OGRFeature* OGRCSWLayer::GetNextFeature()
 {
-    while(TRUE)
+    while( true )
     {
         if (nFeatureRead == nPagingStartIndex + nFeaturesInCurrentPage)
         {
@@ -592,9 +594,9 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
                     CPLString osSRS = CPLGetXMLValue(psBBox, "crs", "");
                     OGRGeometry* poGeom = GML2OGRGeometry_XMLNode( psBBox,
                                                           FALSE,
-                                                          0, 0, FALSE, TRUE,
-                                                          FALSE );
-                    int bLatLongOrder = TRUE;
+                                                          0, 0, false, true,
+                                                          false );
+                    bool bLatLongOrder = true;
                     if( osSRS.size() )
                         bLatLongOrder = GML_IsSRSLatLongOrder(osSRS);
                     if( bLatLongOrder && CSLTestBoolean(
@@ -606,7 +608,7 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
                 psIter->psNext = psNext;
 
                 poFeature->SetField(0, pszXML);
-                poLyr->CreateFeature(poFeature);
+                CPL_IGNORE_RET_VAL(poLyr->CreateFeature(poFeature));
                 CPLFree(pszXML);
                 delete poFeature;
             }
@@ -901,7 +903,7 @@ int OGRCSWDataSource::Open( const char * pszFilename,
     if( pszBaseURL == NULL )
     {
         pszBaseURL = pszFilename;
-        if (EQUALN(pszFilename, "CSW:", 4))
+        if (STARTS_WITH_CI(pszFilename, "CSW:"))
             pszBaseURL += 4;
         if( pszBaseURL[0] == '\0' )
         {
@@ -922,9 +924,9 @@ int OGRCSWDataSource::Open( const char * pszFilename,
         osOutputSchema = "http://www.opengis.net/cat/csw/2.0.2";
     nMaxRecords = atoi(CSLFetchNameValueDef(papszOpenOptions, "MAX_RECORDS", "500"));
 
-    if (strncmp(osBaseURL, "http://", 7) != 0 &&
-        strncmp(osBaseURL, "https://", 8) != 0 &&
-        strncmp(osBaseURL, "/vsimem/", strlen("/vsimem/")) != 0)
+    if (!STARTS_WITH(osBaseURL, "http://") &&
+        !STARTS_WITH(osBaseURL, "https://") &&
+        !STARTS_WITH(osBaseURL, "/vsimem/"))
         return FALSE;
 
     CPLHTTPResult* psResult = SendGetCapabilities();
@@ -1016,7 +1018,7 @@ CPLHTTPResult* OGRCSWDataSource::HTTPFetch( const char* pszURL, const char* pszP
 static int OGRCSWDriverIdentify( GDALOpenInfo* poOpenInfo )
 
 {
-    return EQUALN(poOpenInfo->pszFilename, "CSW:", 4);
+    return STARTS_WITH_CI(poOpenInfo->pszFilename, "CSW:");
 }
 
 /************************************************************************/

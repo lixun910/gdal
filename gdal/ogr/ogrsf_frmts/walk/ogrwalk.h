@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGRWALK_H_INCLUDED
-#define _OGRWALK_H_INCLUDED
+#ifndef OGRWALK_H_INCLUDED
+#define OGRWALK_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "cpl_odbc.h"
@@ -128,6 +128,8 @@ public:
     virtual int         TestCapability( const char * );
 
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 };
 
 /************************************************************************/
@@ -150,7 +152,8 @@ class OGRWalkSelectLayer : public OGRWalkLayer
 
     virtual void        ResetReading();
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
-
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 };
 
 /************************************************************************/
@@ -208,4 +211,4 @@ public:
 
 void RegisterOGRWalk();
 
-#endif /* ndef _OGRWALK_H_INCLUDED */
+#endif /* ndef OGRWALK_H_INCLUDED */

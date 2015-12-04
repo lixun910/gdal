@@ -2,24 +2,24 @@
 # -*- coding: utf-8 -*-
 #******************************************************************************
 #  $Id$
-# 
+#
 #  Project:  GDAL
 #  Purpose:  Validate JPEG2000 file structure
 #  Author:   Even Rouault, <even dot rouault at spatialys dot com>
-# 
+#
 #******************************************************************************
 #  Copyright (c) 2015, European Union (European Environment Agency)
-# 
+#
 #  Permission is hereby granted, free of charge, to any person obtaining a
 #  copy of this software and associated documentation files (the "Software"),
 #  to deal in the Software without restriction, including without limitation
 #  the rights to use, copy, modify, merge, publish, distribute, sublicense,
 #  and/or sell copies of the Software, and to permit persons to whom the
 #  Software is furnished to do so, subject to the following conditions:
-# 
+#
 #  The above copyright notice and this permission notice shall be included
 #  in all copies or substantial portions of the Software.
-# 
+#
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 #  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -291,7 +291,7 @@ def check_geojp2_gmljp2_consistency(filename, error_report):
             if abs(geojp2_gt[i] - gmljp2_gt[i] > 1e-8):
                 diff = True
         if diff:
-            error_report.EmitError('GENERAL', 'Inconsistant geotransform between GeoJP2 (%s) and GMLJP2 (%s)' % (str(geojp2_gt), str(gmljp2_gt)))
+            error_report.EmitError('GENERAL', 'Inconsistent geotransform between GeoJP2 (%s) and GMLJP2 (%s)' % (str(geojp2_gt), str(gmljp2_gt)))
 
     geojp2_sr = osr.SpatialReference()
     geojp2_sr.ImportFromWkt(geojp2_wkt)
@@ -303,7 +303,7 @@ def check_geojp2_gmljp2_consistency(filename, error_report):
         geojp2_proj4 = geojp2_sr.ExportToProj4()
         gmljp2_proj4 = gmljp2_sr.ExportToProj4()
         if geojp2_proj4 != gmljp2_proj4:
-            error_report.EmitError('GENERAL', 'Inconsistant SRS between GeoJP2 (wkt=%s, proj4=%s) and GMLJP2 (wkt=%s, proj4=%s)' % (geojp2_wkt, geojp2_proj4, gmljp2_wkt, gmljp2_proj4))
+            error_report.EmitError('GENERAL', 'Inconsistent SRS between GeoJP2 (wkt=%s, proj4=%s) and GMLJP2 (wkt=%s, proj4=%s)' % (geojp2_wkt, geojp2_proj4, gmljp2_wkt, gmljp2_proj4))
 
 
 # Check consistency of georeferencing of OrthoimageCoverage with the one embedded in the JPEG2000 file
@@ -363,7 +363,7 @@ def check_oi_rg_consistency(filename, serialized_oi_rg, error_report):
             if abs(oi_gt[i] - gt[i] > 1e-8):
                 diff = True
         if diff:
-            error_report.EmitError('INSPIRE_TG', 'Inconsistant geotransform between OrthoImagery (%s) and GMLJP2/GeoJP2 (%s)' % (str(oi_gt), str(gt)), conformance_class = 'A.8.8')
+            error_report.EmitError('INSPIRE_TG', 'Inconsistent geotransform between OrthoImagery (%s) and GMLJP2/GeoJP2 (%s)' % (str(oi_gt), str(gt)), conformance_class = 'A.8.8')
 
     sr = osr.SpatialReference()
     sr.ImportFromWkt(wkt)
@@ -375,7 +375,7 @@ def check_oi_rg_consistency(filename, serialized_oi_rg, error_report):
         proj4 = sr.ExportToProj4()
         oi_proj4 = oi_sr.ExportToProj4()
         if proj4 != oi_proj4:
-            error_report.EmitError('INSPIRE_TG', 'Inconsistant SRS between OrthoImagery (wkt=%s, proj4=%s) and GMLJP2/GeoJP2 (wkt=%s, proj4=%s)' % (wkt, proj4, oi_wkt, oi_proj4), conformance_class = 'A.8.8')
+            error_report.EmitError('INSPIRE_TG', 'Inconsistent SRS between OrthoImagery (wkt=%s, proj4=%s) and GMLJP2/GeoJP2 (wkt=%s, proj4=%s)' % (wkt, proj4, oi_wkt, oi_proj4), conformance_class = 'A.8.8')
 
 def validate(filename, oidoc, inspire_tg, expected_gmljp2, ogc_schemas_location, datatype = 'imagery', error_report = None):
 
@@ -450,7 +450,7 @@ def validate(filename, oidoc, inspire_tg, expected_gmljp2, ogc_schemas_location,
                 if h != '1':
                     error_report.EmitError('GeoJP2', 'GeoTIFF should have height of 1 pixel, not %s' % str(h))
 
-        # Check that information of GeoJP2 and GMLJP2 are consistant
+        # Check that information of GeoJP2 and GMLJP2 are consistent
         if geotiff_found and gmljp2_found:
             check_geojp2_gmljp2_consistency(filename, error_report)
 
@@ -1080,7 +1080,8 @@ def validate(filename, oidoc, inspire_tg, expected_gmljp2, ogc_schemas_location,
                             if count_fields != Csiz:
                                 error_report.EmitError('INSPIRE_TG', 'count(OrthoImageryCoverage.rangeType.field)(=%d) != Csiz(=%d) ' % (count_fields, Csiz), conformance_class = 'A.8.6')
                             else:
-                                # Check consistency of each channel bit-deph with the corresponding rangeType.field
+                                # Check consistency of each channel bit-depth
+                                # with the corresponding rangeType.field.
                                 for i in range(Csiz):
                                     if tab_Ssiz[i] >= 128:
                                         tab_Ssiz[i] -= 128
@@ -1133,7 +1134,10 @@ def validate(filename, oidoc, inspire_tg, expected_gmljp2, ogc_schemas_location,
             for i in range(SPcod_NumDecompositions+1):
                 SPcod_Precincts = get_field_val(cod, 'SPcod_Precincts%d' % i)
                 if SPcod_Precincts is not None and (Scod & 1) == 0:
-                    error_report.EmitWarning('GENERAL', 'User-defined precincts %d found but SPcod_transformation dit not advertize it' % i)
+                    error_report.EmitWarning(
+                        'GENERAL',
+                        'User-defined precincts %d found but '
+                        'SPcod_transformation did not advertize it' % i)
                 elif SPcod_Precincts is None and (Scod & 1) != 0:
                     error_report.EmitWarning('GENERAL', 'No user-defined precincts %d defined but SPcod_transformation advertized it' % i)
                 elif SPcod_Precincts is None and inspire_tg:

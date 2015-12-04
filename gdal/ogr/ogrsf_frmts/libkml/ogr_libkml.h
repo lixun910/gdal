@@ -32,9 +32,7 @@
 
 #include "ogrsf_frmts.h"
 
-#include <kml/engine.h>
-#include <kml/dom.h>
-
+#include "libkml_headers.h"
 
 using kmldom::KmlFactory;
 using kmldom::KmlPtr;
@@ -122,7 +120,8 @@ class OGRLIBKMLLayer:public OGRLayer
     GIntBig                   GetFeatureCount ( int bForce = TRUE );
     OGRErr                    GetExtent ( OGREnvelope * psExtent,
                                           int bForce = TRUE );
-
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     //const char               *GetInfo ( const char * );
 

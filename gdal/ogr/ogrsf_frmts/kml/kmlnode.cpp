@@ -110,16 +110,17 @@ Coordinate* ParseCoordinate(std::string const& text)
 /*                         KMLNode methods                              */
 /************************************************************************/
 
-KMLNode::KMLNode()
+KMLNode::KMLNode() :
+    poParent_(NULL),
+    nLevel_(0),
+    eType_(Unknown),
+    b25D_(FALSE),
+    nLayerNumber_(-1),
+    nNumFeatures_(-1)
 {
-    poParent_ = NULL;
     pvpoChildren_ = new std::vector<KMLNode*>;
     pvsContent_ = new std::vector<std::string>;
     pvoAttributes_ = new std::vector<Attribute*>;
-    eType_ = Unknown;
-    nLayerNumber_ = -1;
-    b25D_ = FALSE;
-    nNumFeatures_ = -1;
 }
 
 KMLNode::~KMLNode()
@@ -233,7 +234,7 @@ int KMLNode::classify(KML* poKML, int nRecLevel)
         {
             const char* pszCoord = (*pvsContent_)[nCountP].c_str();
             int nComma = 0;
-            while(TRUE)
+            while( true )
             {
                 pszCoord = strchr(pszCoord, ',');
                 if (pszCoord)
@@ -707,7 +708,7 @@ Feature* KMLNode::getFeature(std::size_t nNum, int& nLastAsked, int &nLastCount)
         }
     }
 
-    nLastAsked = nNum;
+    nLastAsked = static_cast<int>(nNum);
     nLastCount = nCount;
 
     if(poFeat == NULL)

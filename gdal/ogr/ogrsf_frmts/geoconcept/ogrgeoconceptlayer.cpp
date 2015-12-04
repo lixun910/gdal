@@ -52,13 +52,13 @@ OGRGeoconceptLayer::OGRGeoconceptLayer()
 OGRGeoconceptLayer::~OGRGeoconceptLayer()
 
 {
-  CPLDebug( "GEOCONCEPT",
-            "%ld features on layer %s.",
-            GetSubTypeNbFeatures_GCIO(_gcFeature),
-            _poFeatureDefn->GetName());
-
   if( _poFeatureDefn )
   {
+    CPLDebug( "GEOCONCEPT",
+                "%ld features on layer %s.",
+                GetSubTypeNbFeatures_GCIO(_gcFeature),
+                _poFeatureDefn->GetName());
+
     _poFeatureDefn->Release();
   }
 
@@ -132,6 +132,9 @@ OGRErr OGRGeoconceptLayer::Open( GCSubType* Subclass )
       SetSubTypeFeatureDefn_GCIO(_gcFeature, (OGRFeatureDefnH) _poFeatureDefn);
       _poFeatureDefn->Reference();
     }
+    
+    if( _poFeatureDefn->GetGeomFieldCount() > 0 )
+        _poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(GetSpatialRef());
 
     return OGRERR_NONE;
 }
@@ -328,11 +331,6 @@ OGRErr OGRGeoconceptLayer::ICreateFeature( OGRFeature* poFeature )
       nbGeom= ((OGRGeometryCollection*)poGeom)->getNumGeometries();
       isSingle= FALSE;
       break;
-    case wkbUnknown               :
-    case wkbGeometryCollection    :
-    case wkbGeometryCollection25D :
-    case wkbNone                  :
-    case wkbLinearRing            :
     default                       :
       nbGeom= 0;
       isSingle= FALSE;
@@ -643,8 +641,16 @@ void OGRGeoconceptLayer::SetSpatialRef( OGRSpatialReference *poSpatialRef )
     if( !poSpatialRef ) return;
 
     poSRS= poSpatialRef->Clone();
-    if( !(hGXT= GetSubTypeGCHandle_GCIO(_gcFeature)) ) return;
-    if( !(Meta= GetGCMeta_GCIO(hGXT)) ) return;
+    if( !(hGXT= GetSubTypeGCHandle_GCIO(_gcFeature)) )
+    {
+        delete poSRS;
+        return;
+    }
+    if( !(Meta= GetGCMeta_GCIO(hGXT)) )
+    {
+        delete poSRS;
+        return;
+    }
     os= GetMetaSysCoord_GCIO(Meta);
     ns= OGRSpatialReference2SysCoord_GCSRS((OGRSpatialReferenceH)poSRS);
 
@@ -658,6 +664,8 @@ void OGRGeoconceptLayer::SetSpatialRef( OGRSpatialReference *poSpatialRef )
     {
       CPLError( CE_Warning, CPLE_AppDefined,
                 "Can't change SRS on Geoconcept layers.\n" );
+      DestroySysCoord_GCSRS( &ns );
+      delete poSRS;
       return;
     }
 

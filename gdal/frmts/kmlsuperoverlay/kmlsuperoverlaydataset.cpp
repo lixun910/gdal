@@ -51,7 +51,7 @@ using namespace std;
 /************************************************************************/
 /*                           GenerateTiles()                            */
 /************************************************************************/
-void GenerateTiles(std::string filename,
+static void GenerateTiles(std::string filename,
                    CPL_UNUSED int zoom,
                    int rxsize,
                    int rysize,
@@ -75,7 +75,7 @@ void GenerateTiles(std::string filename,
    
     poTmpDataset = poMemDriver->Create("", dxsize, dysize, bands, GDT_Byte, NULL);
    
-    if (isJpegDriver == false)//Jpeg dataset only has one or three bands
+    if (!isJpegDriver)//Jpeg dataset only has one or three bands
     {
         if (bands < 4)//add transparency to files with one band or three bands
         {
@@ -84,11 +84,11 @@ void GenerateTiles(std::string filename,
         }
     }
 
-    int rowOffset = rysize/dysize;
-    int loopCount = rysize/rowOffset;
+    const int rowOffset = rysize/dysize;
+    const int loopCount = rysize/rowOffset;
     for (int row = 0; row < loopCount; row++)
     {
-        if (isJpegDriver == false)
+        if (!isJpegDriver)
         {
             for (int i = 0; i < dxsize; i++)
             {
@@ -99,36 +99,24 @@ void GenerateTiles(std::string filename,
         for (int band = 1; band <= bands; band++)
         {
             GDALRasterBand* poBand = poSrcDs->GetRasterBand(band);
-
             int hasNoData = 0;
-            bool isSigned = false;
-            double noDataValue = poBand->GetNoDataValue(&hasNoData);
+            const double noDataValue = poBand->GetNoDataValue(&hasNoData);
             const char* pixelType = poBand->GetMetadataItem("PIXELTYPE", "IMAGE_STRUCTURE");
-            if (pixelType)
-            {
-                if (strcmp(pixelType, "SIGNEDBYTE") == 0)
-                {
-                    isSigned = true; 
-                }
-            }
+            const bool isSigned = ( pixelType && (strcmp(pixelType, "SIGNEDBYTE") == 0) );
 
             int yOffset = ry + row * rowOffset;
-            bool bReadFailed = false;
-            if (poBand)
-            {
-                CPLErr errTest = 
-                    poBand->RasterIO( GF_Read, rx, yOffset, rxsize, rowOffset, pafScanline, dxsize, 1, GDT_Byte, 0, 0, NULL);
+            CPLErr errTest =
+                poBand->RasterIO( GF_Read, rx, yOffset, rxsize, rowOffset, pafScanline, dxsize, 1, GDT_Byte, 0, 0, NULL);
 
-                if ( errTest == CE_Failure )
-                {
-                    hasNoData = 1;
-                    bReadFailed = true;
-                }
+            const bool bReadFailed = ( errTest == CE_Failure );
+            if ( bReadFailed )
+            {
+                hasNoData = 1;
             }
 
 
             //fill the true or false for hadnoData array if the source data has nodata value
-            if (isJpegDriver == false)
+            if (!isJpegDriver)
             {
                 if (hasNoData == 1)
                 {
@@ -140,7 +128,7 @@ void GenerateTiles(std::string filename,
                         {
                             tmpv -= 128;
                         }
-                        if (tmpv == noDataValue || bReadFailed == true)
+                        if (tmpv == noDataValue || bReadFailed)
                         {
                             hadnoData[j] = true;
                         }
@@ -148,22 +136,22 @@ void GenerateTiles(std::string filename,
                 }
             }
 
-            if (bReadFailed == false)
+            if (!bReadFailed)
             {
                 GDALRasterBand* poBandtmp = poTmpDataset->GetRasterBand(band);
-                poBandtmp->RasterIO(GF_Write, 0, row, dxsize, 1, pafScanline, dxsize, 1, GDT_Byte, 
-                                    0, 0, NULL);
+                CPL_IGNORE_RET_VAL( poBandtmp->RasterIO(GF_Write, 0, row, dxsize, 1, pafScanline, dxsize, 1, GDT_Byte,
+                                    0, 0, NULL) );
             }
-        } 
+        }
 
         //fill the values for alpha band
-        if (isJpegDriver == false)
+        if (!isJpegDriver)
         {
             if (alphaBand)
             {
                 for (int i = 0; i < dxsize; i++)
                 {
-                    if (hadnoData[i] == true)
+                    if (hadnoData[i])
                     {
                         pafScanline[i] = 0;
                     }
@@ -171,10 +159,10 @@ void GenerateTiles(std::string filename,
                     {
                         pafScanline[i] = 255;
                     }
-                }    
+                }
 
-                alphaBand->RasterIO(GF_Write, 0, row, dxsize, 1, pafScanline, dxsize, 1, GDT_Byte, 
-                                    0, 0, NULL);
+                CPL_IGNORE_RET_VAL( alphaBand->RasterIO(GF_Write, 0, row, dxsize, 1, pafScanline, dxsize, 1, GDT_Byte,
+                                    0, 0, NULL) );
             }
         }
     }
@@ -632,7 +620,7 @@ GDALDataset *KmlSuperOverlayCreateCopy( const char * pszFilename,
         }
     }
 
-    bool fixAntiMeridian = CSLFetchBoolean( papszOptions, "FIX_ANTIMERIDIAN", FALSE );
+    bool fixAntiMeridian = CPL_TO_BOOL(CSLFetchBoolean( papszOptions, "FIX_ANTIMERIDIAN", FALSE ));
     if ( fixAntiMeridian && east < west )
     {
         east += 360;
@@ -865,7 +853,7 @@ static CPLString KMLRemoveSlash(const char* pszPathIn)
 {
     char* pszPath = CPLStrdup(pszPathIn);
 
-    while(TRUE)
+    while( true )
     {
         char* pszSlashDotDot = strstr(pszPath, "/../");
         if (pszSlashDotDot == NULL || pszSlashDotDot == pszPath)
@@ -931,9 +919,9 @@ int KmlSuperOverlayReadDataset::CloseDependentDatasets()
     int bRet = FALSE;
     if( poDSIcon != NULL )
     {
-        CPLString osFilename(poDSIcon->GetDescription());
+        CPLString l_osFilename(poDSIcon->GetDescription());
         delete poDSIcon;
-        VSIUnlink(osFilename);
+        VSIUnlink(l_osFilename);
         poDSIcon = NULL;
         bRet = TRUE;
     }
@@ -992,11 +980,11 @@ CPLErr KmlSuperOverlayReadDataset::GetGeoTransform( double * padfGeoTransform )
 /*                        KmlSuperOverlayRasterBand()                   */
 /************************************************************************/
 
-KmlSuperOverlayRasterBand::KmlSuperOverlayRasterBand(KmlSuperOverlayReadDataset* poDS,
-                                                     CPL_UNUSED int nBand)
+KmlSuperOverlayRasterBand::KmlSuperOverlayRasterBand(KmlSuperOverlayReadDataset* poDSIn,
+                                                     int)
 {
-    nRasterXSize = poDS->nRasterXSize;
-    nRasterYSize = poDS->nRasterYSize;
+    nRasterXSize = poDSIn->nRasterXSize;
+    nRasterYSize = poDSIn->nRasterYSize;
     eDataType = GDT_Byte;
     nBlockXSize = 256;
     nBlockYSize = 256;
@@ -1186,13 +1174,13 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
                     dfRequestYMin < adfExtents[3] && dfRequestYMax > adfExtents[1] )
                 {
                     CPLString osSubFilename;
-                    if( strncmp(pszHref, "http", 4) == 0)
+                    if( STARTS_WITH(pszHref, "http"))
                         osSubFilename = CPLSPrintf("/vsicurl_streaming/%s", pszHref);
                     else
                     {
                         const char* pszBaseFilename = osFilename.c_str();
                         if( EQUAL(CPLGetExtension(pszBaseFilename), "kmz") &&
-                            strncmp(pszBaseFilename, "/vsizip/", 8) != 0 )
+                            !STARTS_WITH(pszBaseFilename, "/vsizip/") )
                         {
                             osSubFilename = "/vsizip/";
                             osSubFilename += CPLGetPath(pszBaseFilename);
@@ -1210,68 +1198,69 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
                     if( EQUAL(CPLGetExtension(osSubFilename), "kml") )
                     {
                         KmlSuperOverlayReadDataset* poRoot = poParent ? poParent : this;
-                        LinkedDataset* psLink = poRoot->oMapChildren[osSubFilename];
-                        if( psLink == NULL )
+                        LinkedDataset* psLinkDS = poRoot->oMapChildren[osSubFilename];
+                        if( psLinkDS == NULL )
                         {
                             if( poRoot->oMapChildren.size() == 64 )
                             {
-                                psLink = poRoot->psLastLink;
-                                CPLAssert(psLink);
-                                poRoot->oMapChildren.erase(psLink->osSubFilename);
-                                GDALClose(psLink->poDS);
-                                if( psLink->psPrev != NULL )
+                                psLinkDS = poRoot->psLastLink;
+                                CPLAssert(psLinkDS);
+                                poRoot->oMapChildren.erase(psLinkDS->osSubFilename);
+                                GDALClose(psLinkDS->poDS);
+                                if( psLinkDS->psPrev != NULL )
                                 {
-                                    poRoot->psLastLink = psLink->psPrev;
-                                    psLink->psPrev->psNext = NULL;
+                                    poRoot->psLastLink = psLinkDS->psPrev;
+                                    psLinkDS->psPrev->psNext = NULL;
                                 }
                                 else
                                 {
-                                    CPLAssert(psLink == poRoot->psFirstLink);
+                                    CPLAssert(psLinkDS == poRoot->psFirstLink);
                                     poRoot->psFirstLink = poRoot->psLastLink = NULL;
                                 }
                             }
                             else
-                                psLink = new LinkedDataset();
+                                psLinkDS = new LinkedDataset();
 
-                            poRoot->oMapChildren[osSubFilename] = psLink;
+                            poRoot->oMapChildren[osSubFilename] = psLinkDS;
                             poSubImageDS = (KmlSuperOverlayReadDataset*)
                                 KmlSuperOverlayReadDataset::Open(osSubFilename, poRoot);
                             if( poSubImageDS )
                                 poSubImageDS->MarkAsShared();
                             else
-                                CPLDebug("KMLSuperOverlay", "Cannt open %s", osSubFilename.c_str());
-                            psLink->osSubFilename = osSubFilename;
-                            psLink->poDS = poSubImageDS;
-                            psLink->psPrev = NULL;
-                            psLink->psNext = poRoot->psFirstLink;
+                                CPLDebug( "KMLSuperOverlay", "Cannot open %s",
+                                          osSubFilename.c_str() );
+                            psLinkDS->osSubFilename = osSubFilename;
+                            psLinkDS->poDS = poSubImageDS;
+                            psLinkDS->psPrev = NULL;
+                            psLinkDS->psNext = poRoot->psFirstLink;
                             if( poRoot->psFirstLink != NULL )
                             {
                                 CPLAssert(poRoot->psFirstLink->psPrev == NULL);
-                                poRoot->psFirstLink->psPrev = psLink;
+                                poRoot->psFirstLink->psPrev = psLinkDS;
                             }
                             else
-                                poRoot->psLastLink = psLink;
-                            poRoot->psFirstLink = psLink;
+                                poRoot->psLastLink = psLinkDS;
+                            poRoot->psFirstLink = psLinkDS;
                         }
                         else
                         {
-                            poSubImageDS = psLink->poDS;
-                            if( psLink != poRoot->psFirstLink )
+                            poSubImageDS = psLinkDS->poDS;
+                            if( psLinkDS != poRoot->psFirstLink )
                             {
-                                if( psLink == poRoot->psLastLink )
+                                if( psLinkDS == poRoot->psLastLink )
                                 {
-                                    poRoot->psLastLink = psLink->psPrev;
+                                    poRoot->psLastLink = psLinkDS->psPrev;
                                     CPLAssert(poRoot->psLastLink != NULL );
                                     poRoot->psLastLink->psNext = NULL;
                                 }
                                 else
-                                    psLink->psNext->psPrev = psLink->psPrev;
-                                CPLAssert( psLink->psPrev != NULL );
-                                psLink->psPrev->psNext = psLink->psNext;
-                                psLink->psPrev = NULL;
-                                poRoot->psFirstLink->psPrev = psLink;
-                                psLink->psNext = poRoot->psFirstLink;
-                                poRoot->psFirstLink = psLink;
+                                    psLinkDS->psNext->psPrev = psLinkDS->psPrev;
+                                CPLAssert( psLinkDS->psPrev != NULL );
+                                psLinkDS->psPrev->psNext = psLinkDS->psNext;
+                                psLinkDS->psPrev = NULL;
+                                poRoot->psFirstLink->psPrev = psLinkDS;
+                                psLinkDS->psNext = poRoot->psFirstLink;
+                                poRoot->psFirstLink = psLinkDS;
                             }
                         }
                     }
@@ -1407,8 +1396,9 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
 
     GDALProgressFunc  pfnProgressGlobal = psExtraArg->pfnProgress;
     void             *pProgressDataGlobal = psExtraArg->pProgressData;
+    CPLErr eErr = CE_None;
 
-    for(int iBandIdx = 0; iBandIdx < nBandCount; iBandIdx++ )
+    for(int iBandIdx = 0; iBandIdx < nBandCount && eErr == CE_None; iBandIdx++ )
     {
         int nBand = panBandMap[iBandIdx];
 
@@ -1418,7 +1408,8 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
             for(int j = 0; j < nBufYSize; j ++ )
             {
                 GDALCopyWords( &nVal, GDT_Byte, 0,
-                            ((GByte*) pData) + j * nLineSpace + iBandIdx * nBandSpace, eBufType, nPixelSpace,
+                            ((GByte*) pData) + j * nLineSpace + iBandIdx * nBandSpace, eBufType,
+                            static_cast<int>(nPixelSpace),
                             nBufXSize );
             }
             continue;
@@ -1442,7 +1433,7 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
                                       pfnProgressGlobal,
                                       pProgressDataGlobal );
 
-        poDSIcon->GetRasterBand(nIconBand)->RasterIO( eRWFlag,
+        eErr = poDSIcon->GetRasterBand(nIconBand)->RasterIO( eRWFlag,
                                                       nReqXOff,
                                                       nReqYOff,
                                                       nReqXSize,
@@ -1458,7 +1449,7 @@ CPLErr KmlSuperOverlayReadDataset::IRasterIO( GDALRWFlag eRWFlag,
     psExtraArg->pfnProgress = pfnProgressGlobal;
     psExtraArg->pProgressData = pProgressDataGlobal;
 
-    return CE_None;
+    return eErr;
 
 }
 
@@ -1598,7 +1589,7 @@ GDALDataset* KmlSuperOverlayLoadIcon(const char* pszBaseFilename, const char* ps
     }
 
     CPLString osSubFilename;
-    if( strncmp(pszIcon, "http", 4) == 0)
+    if( STARTS_WITH(pszIcon, "http"))
         osSubFilename = CPLSPrintf("/vsicurl_streaming/%s", pszIcon);
     else
     {
@@ -1661,7 +1652,7 @@ static void KmlSuperOverlayComputeDepth(CPLString osFilename,
             if( EQUAL(pszExt, "kml") )
             {
                 CPLString osSubFilename;
-                if( strncmp(pszHref, "http", 4) == 0)
+                if( STARTS_WITH(pszHref, "http"))
                     osSubFilename = CPLSPrintf("/vsicurl_streaming/%s", pszHref);
                 else
                 {
@@ -1925,13 +1916,13 @@ void KmlSingleDocRasterDataset::BuildOverviews()
 /*                      KmlSingleDocRasterRasterBand()                  */
 /************************************************************************/
 
-KmlSingleDocRasterRasterBand::KmlSingleDocRasterRasterBand(KmlSingleDocRasterDataset* poDS,
-                                                           int nBand)
+KmlSingleDocRasterRasterBand::KmlSingleDocRasterRasterBand(KmlSingleDocRasterDataset* poDSIn,
+                                                           int nBandIn)
 {
-    this->poDS = poDS;
-    this->nBand = nBand;
-    nBlockXSize = poDS->nTileSize;
-    nBlockYSize = poDS->nTileSize;
+    this->poDS = poDSIn;
+    this->nBand = nBandIn;
+    nBlockXSize = poDSIn->nTileSize;
+    nBlockYSize = poDSIn->nTileSize;
     eDataType = GDT_Byte;
 }
 
@@ -2008,13 +1999,13 @@ CPLErr KmlSingleDocRasterRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                         if( poEntry != NULL )
                         {
                             if( nBand == 1 )
-                                ((GByte*) pImage)[j * nBlockXSize + i] = poEntry->c1;
+                                ((GByte*) pImage)[j * nBlockXSize + i] = static_cast<GByte>(poEntry->c1);
                             else if( nBand == 2 )
-                                ((GByte*) pImage)[j * nBlockXSize + i] = poEntry->c2;
+                                ((GByte*) pImage)[j * nBlockXSize + i] = static_cast<GByte>(poEntry->c2);
                             else if( nBand == 3 )
-                                ((GByte*) pImage)[j * nBlockXSize + i] = poEntry->c3;
+                                ((GByte*) pImage)[j * nBlockXSize + i] = static_cast<GByte>(poEntry->c3);
                             else
-                                ((GByte*) pImage)[j * nBlockXSize + i] = poEntry->c4;
+                                ((GByte*) pImage)[j * nBlockXSize + i] = static_cast<GByte>(poEntry->c4);
                         }
                     }
                 }
@@ -2108,7 +2099,7 @@ static void KmlSingleDocCollectTiles(CPLXMLNode* psNode,
         int level, j, i;
         char szExt[4];
         const char* pszHref = CPLGetXMLValue(psNode, "", "");
-        if( strncmp(pszHref, "http", 4) == 0 )
+        if( STARTS_WITH(pszHref, "http") )
         {
             osURLBase = CPLGetPath(pszHref);
         }
@@ -2271,7 +2262,7 @@ GDALDataset *KmlSuperOverlayReadDataset::Open(const char* pszFilename,
     const char* pszExt = CPLGetExtension(pszFilename);
     if( EQUAL(pszExt, "kmz") )
     {
-        if( strncmp(pszFilename, "/vsizip/", 8) != 0 )
+        if( !STARTS_WITH(pszFilename, "/vsizip/") )
             osFilename = CPLSPrintf("/vsizip/%s", pszFilename);
         char** papszFiles = CPLReadDir(osFilename);
         if( papszFiles == NULL )
@@ -2331,7 +2322,7 @@ GDALDataset *KmlSuperOverlayReadDataset::Open(const char* pszFilename,
         }
 
         CPLString osSubFilename;
-        if( strncmp(pszHref, "http", 4) == 0)
+        if( STARTS_WITH(pszHref, "http"))
             osSubFilename = CPLSPrintf("/vsicurl_streaming/%s", pszHref);
         else
         {

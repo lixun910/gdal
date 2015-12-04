@@ -92,7 +92,7 @@ static GDALDataset *OGRSelafinDriverCreate( const char * pszName,
     // Parse options
     const char *pszTemp=CSLFetchNameValue(papszOptions,"TITLE");
     char pszTitle[81];
-    long pnDate[6]={-1,0};
+    int pnDate[6]={-1,0};
     if (pszTemp!=0) strncpy(pszTitle,pszTemp,72); else memset(pszTitle,' ',72);
     pszTemp=CSLFetchNameValue(papszOptions,"DATE");
     if (pszTemp!=0) {
@@ -127,7 +127,7 @@ static GDALDataset *OGRSelafinDriverCreate( const char * pszName,
     strncpy(pszTitle+72,"SERAPHIN",9);
     bool bError=false;
     if (Selafin::write_string(fp,pszTitle,80)==0) bError=true;
-    long pnTemp[10]={0};
+    int pnTemp[10]={0};
     if (Selafin::write_intarray(fp,pnTemp,2)==0) bError=true;
     if (pnDate[0]>=0) pnTemp[9]=1;
     if (Selafin::write_intarray(fp,pnTemp,10)==0) bError=true;
@@ -182,7 +182,7 @@ void RegisterOGRSelafin() {
         poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>"
 "  <Option name='TITLE' type='string' description='Title of the datasource, stored in the Selafin file. The title must not hold more than 72 characters.'/>"
-"  <Option name='DATE' type='string' description='Starting date of the simulation. Each layer in a Selafin file is characterized by a date, counted in seconds since a reference date. This option allows to provide the reference date. The format of this field must be YYYY-MM-DD_hh:mm:ss'/>"
+"  <Option name='DATE' type='string' description='Starting date of the simulation. Each layer in a Selafin file is characterized by a date, counted in seconds since a reference date. This option allows providing the reference date. The format of this field must be YYYY-MM-DD_hh:mm:ss'/>"
 "</CreationOptionList>");
         poDriver->SetMetadataItem( GDAL_DS_LAYER_CREATIONOPTIONLIST,
 "<LayerCreationOptionList>"

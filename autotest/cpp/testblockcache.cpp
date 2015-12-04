@@ -93,7 +93,7 @@ static Resource* psGlobalResourceLast = NULL;
 #define MYRAND_MAX 32767
 int myrand_r(unsigned long* pseed) {
     *pseed = *pseed * 1103515245 + 12345;
-    return((unsigned)(*pseed/65536) % (MYRAND_MAX+1));
+    return((unsigned)((*pseed/65536UL) % (MYRAND_MAX+1)));
 }
 
 static void Check(GByte* pBuffer, int nXSize, int nYSize, int nBands,
@@ -106,8 +106,9 @@ static void Check(GByte* pBuffer, int nXSize, int nYSize, int nBands,
             for(int iX=0;iX<nXWin;iX++)
             {
                 unsigned long seed = iBand * nXSize * nYSize + (iY + nYOff) * nXSize + iX + nXOff;
-                GByte expected = (GByte)myrand_r(&seed);
+                GByte expected = (GByte)(myrand_r(&seed) & 0xff);
                 assert( pBuffer[iBand * nXWin * nYWin + iY * nXWin + iX] == expected );
+                (void)expected;
             }
         }
     }
@@ -116,11 +117,15 @@ static void Check(GByte* pBuffer, int nXSize, int nYSize, int nBands,
 static void ReadRaster(GDALDataset* poDS, int nXSize, int nYSize, int nBands,
                        GByte* pBuffer, int nXOff, int nYOff, int nXWin, int nYWin)
 {
-    poDS->RasterIO(GF_Read, nXOff, nYOff, nXWin, nYWin,
+    CPL_IGNORE_RET_VAL(poDS->RasterIO(GF_Read, nXOff, nYOff, nXWin, nYWin,
                     pBuffer, nXWin, nYWin,
                     GDT_Byte,
                     nBands, NULL,
-                    0, 0, 0);
+                    0, 0, 0
+#ifdef GDAL_COMPILATION
+                    , NULL
+#endif
+                    ));
     if( bCheck )
     {
         Check(pBuffer, nXSize, nYSize, nBands,
@@ -202,7 +207,7 @@ static void ThreadFuncDedicatedDataset(void* _psThreadDescription)
     CPLFree(pBuffer);
 }
 
-static void ThreadFuncWithMigration(void* _unused)
+static void ThreadFuncWithMigration(void* /* _unused */)
 {
     Request* psRequest;
     while( (psRequest = GetNextRequest(psGlobalRequestList)) != NULL )
@@ -438,14 +443,18 @@ int main(int argc, char* argv[])
                     for(int iBand=0;iBand<nBands;iBand++)
                     {
                         unsigned long seed = iBand * nXSize * nYSize + iY * nXSize + iX;
-                        pabyLine[iBand * nXSize + iX] = (GByte)myrand_r(&seed);
+                        pabyLine[iBand * nXSize + iX] = (GByte)(myrand_r(&seed) & 0xff);
                     }
                 }
-                poDS->RasterIO(GF_Write, 0, iY, nXSize, 1,
+                CPL_IGNORE_RET_VAL(poDS->RasterIO(GF_Write, 0, iY, nXSize, 1,
                                pabyLine, nXSize, 1,
                                GDT_Byte,
                                nBands, NULL,
-                               0, 0, 0);
+                               0, 0, 0
+#ifdef GDAL_COMPILATION
+                               , NULL
+#endif
+                               ));
             }
             VSIFree(pabyLine);
         }
@@ -572,4 +581,3 @@ int main(int argc, char* argv[])
 
     return 0;
 }
-

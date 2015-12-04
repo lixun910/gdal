@@ -41,20 +41,19 @@ CPL_CVSID("$Id$");
 /************************************************************************/
 
 TigerFileBase::TigerFileBase( const TigerRecordInfo *psRTInfoIn,
-                              const char            *m_pszFileCodeIn )
-
-{
-    pszShortModule = NULL;
-    pszModule = NULL;
-    fpPrimary = NULL;
-    poFeatureDefn = NULL;
-    nFeatures = 0;
-    nVersionCode = 0;
-    nVersion = TIGER_Unknown;
-
-    psRTInfo = psRTInfoIn;
-    m_pszFileCode = m_pszFileCodeIn;
-}
+                              const char            *m_pszFileCodeIn ) :
+    poDS(NULL),
+    pszModule(NULL),
+    pszShortModule(NULL),
+    fpPrimary(NULL),
+    poFeatureDefn(NULL),
+    nFeatures(0),
+    nRecordLength(0),
+    nVersionCode(0),
+    nVersion(TIGER_Unknown),
+    psRTInfo(psRTInfoIn),
+    m_pszFileCode(m_pszFileCodeIn)
+{ }
 
 /************************************************************************/
 /*                           ~TigerFileBase()                           */
@@ -218,20 +217,23 @@ void TigerFileBase::EstablishFeatureCount()
 /*      (including line terminators).  Get the total file size, and     */
 /*      divide by this length to get the presumed number of records.    */
 /* -------------------------------------------------------------------- */
-    long        nFileSize;
+    vsi_l_offset        nFileSize;
     
     VSIFSeekL( fpPrimary, 0, SEEK_END );
     nFileSize = VSIFTellL( fpPrimary );
 
-    if( (nFileSize % nRecordLength) != 0 )
+    if( (nFileSize % (vsi_l_offset)nRecordLength) != 0 )
     {
         CPLError( CE_Warning, CPLE_FileIO,
                   "TigerFileBase::EstablishFeatureCount(): "
                   "File length %d doesn't divide by record length %d.\n",
                   (int) nFileSize, (int) nRecordLength );
     }
-
-    nFeatures = nFileSize / nRecordLength;
+    
+    if( nFileSize / (vsi_l_offset)nRecordLength > (vsi_l_offset)INT_MAX )
+        nFeatures = INT_MAX;
+    else
+        nFeatures = static_cast<int>(nFileSize / (vsi_l_offset)nRecordLength);
 }
 
 /************************************************************************/

@@ -225,18 +225,26 @@ def test_gdal_rasterize_4():
         gdaltest.post_reason('did not get expected nodata value')
         return 'fail'
 
-    if ds.RasterXSize != 121 or ds.RasterYSize != 121:
+    # Allow output to grow by 1/2 cell, as per #6058
+    if ds.RasterXSize != 122 or ds.RasterYSize != 122:
         gdaltest.post_reason('did not get expected dimensions')
         return 'fail'
 
     gt_ref = ds_ref.GetGeoTransform()
     gt = ds.GetGeoTransform()
-    for i in range(6):
-        if (abs(gt[i]-gt_ref[i])>1e-6):
-            gdaltest.post_reason('did not get expected geotransform')
-            print(gt)
-            print(gt_ref)
-            return 'fail'
+    if abs(gt[1] - gt_ref[1]) > 1e-6 or abs(gt[5] - gt_ref[5]) > 1e-6:
+        gdaltest.post_reason('did not get expected geotransform(dx/dy)')
+        print(gt)
+        print(gt_ref)
+        return 'fail'
+
+    # Allow output to grow by 1/2 cell, as per #6058
+    if abs(gt[0] + (gt[1] / 2) - gt_ref[0]) > 1e-6 or \
+       abs(gt[3] + (gt[5] / 2) - gt_ref[3]) > 1e-6 :
+        gdaltest.post_reason('did not get expected geotransform')
+        print(gt)
+        print(gt_ref)
+        return 'fail'
 
     wkt = ds.GetProjectionRef()
     if wkt.find("WGS_1984") == -1:
@@ -301,6 +309,126 @@ def test_gdal_rasterize_5():
 
     return 'success'
 
+###############################################################################
+# Test on the fly reprojection of input data
+
+def test_gdal_rasterize_6():
+
+    if test_cli_utilities.get_gdal_rasterize_path() is None:
+        return 'skip'
+
+    f = open('tmp/test_gdal_rasterize_6.csv', 'wb')
+    f.write("""WKT,Value
+"POLYGON((2 49,2 50,3 50,3 49,2 49))",255
+""".encode('ascii'))
+    f.close()
+    
+    f = open('tmp/test_gdal_rasterize_6.prj', 'wb')
+    f.write("""EPSG:4326""".encode('ascii'))
+    f.close()
+    
+    ds = gdal.GetDriverByName('GTiff').Create('tmp/test_gdal_rasterize_6.tif', 100, 100)
+    ds.SetGeoTransform([200000,(400000-200000)/100,0,6500000,0,-(6500000-6200000)/100])
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(3857)
+    ds.SetProjection(sr.ExportToWkt())
+    ds = None
+
+    gdaltest.runexternal(test_cli_utilities.get_gdal_rasterize_path() + ' -l test_gdal_rasterize_6 tmp/test_gdal_rasterize_6.csv tmp/test_gdal_rasterize_6.tif -a Value')
+
+    ds = gdal.Open('tmp/test_gdal_rasterize_6.tif')
+    if ds.GetRasterBand(1).Checksum() != 39190:
+        gdaltest.post_reason('did not get expected checksum')
+        print(ds.GetRasterBand(1).Checksum())
+        return 'fail'
+
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Test SQLITE dialect in SQL
+
+def test_gdal_rasterize_7():
+
+    try:
+        from osgeo import gdalnumeric
+        gdalnumeric.zeros
+    except:
+        return 'skip'
+
+    if test_cli_utilities.get_gdal_rasterize_path() is None:
+        return 'skip'
+
+    drv = ogr.GetDriverByName('SQLite')
+    if drv is None:
+        return 'skip'
+    gdal.PushErrorHandler('CPLQuietErrorHandler')
+    ds = drv.CreateDataSource('/vsimem/foo.db', options = ['SPATIALITE=YES'])
+    if ds is None:
+        return 'skip'
+    ds = None
+    gdal.Unlink('/vsimem/foo.db')
+    gdal.PopErrorHandler()
+
+    f = open('tmp/test_gdal_rasterize_7.csv', 'wb')
+    x = (0, 0, 50, 50, 25)
+    y = (0, 50, 0, 50, 25)
+    f.write('WKT,Value\n'.encode('ascii'))
+    for i in range(len(x)):
+        r = 'POINT(%d %d),1\n' % (x[i], y[i])
+        f.write(r.encode('ascii'))
+
+    f.close()
+
+    cmds = '''tmp/test_gdal_rasterize_7.csv
+              tmp/test_gdal_rasterize_7.tif
+              -init 0 -burn 1
+              -sql "SELECT ST_Buffer(GEOMETRY, 2) FROM test_gdal_rasterize_7"
+              -dialect sqlite -tr 1 1 -te -1 -1 51 51'''
+
+    gdaltest.runexternal(test_cli_utilities.get_gdal_rasterize_path() + ' ' + cmds)
+
+    ds = gdal.Open('tmp/test_gdal_rasterize_7.tif')
+    data = ds.GetRasterBand(1).ReadAsArray()
+    if data.sum() <= 5:
+        gdaltest.post_reason('Only rasterized 5 pixels or less.')
+        return 'fail'
+
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Make sure we create output that encompasses all the input points on a point
+# layer, #6058.
+
+def test_gdal_rasterize_8():
+
+    if test_cli_utilities.get_gdal_rasterize_path() is None:
+        return 'skip'
+
+    f = open('tmp/test_gdal_rasterize_8.csv', 'wb')
+    f.write('WKT,Value\n'.encode('ascii'))
+    f.write('"LINESTRING (0 0, 5 5, 10 0, 10 10)",1'.encode('ascii'))
+    f.close()
+
+    cmds = '''tmp/test_gdal_rasterize_8.csv tmp/test_gdal_rasterize_8.tif -init 0 -burn 1 -tr 1 1'''
+
+    gdaltest.runexternal(test_cli_utilities.get_gdal_rasterize_path() + ' ' + cmds)
+
+    ds = gdal.Open('tmp/test_gdal_rasterize_8.tif')
+    cs = ds.GetRasterBand(1).Checksum()
+    if cs != 21:
+        gdaltest.post_reason('Did not rasterize line data properly')
+        print(cs)
+        return 'fail'
+
+    ds = None
+
+    return 'success'
+
+
 ###########################################
 def test_gdal_rasterize_cleanup():
 
@@ -319,6 +447,18 @@ def test_gdal_rasterize_cleanup():
     os.unlink('tmp/test_gdal_rasterize_5.csv')
     os.unlink('tmp/test_gdal_rasterize_5.vrt')
 
+    gdal.GetDriverByName('GTiff').Delete( 'tmp/test_gdal_rasterize_6.tif' )
+    os.unlink('tmp/test_gdal_rasterize_6.csv')
+    os.unlink('tmp/test_gdal_rasterize_6.prj')
+
+    if os.path.exists('tmp/test_gdal_rasterize_7.tif'):
+        gdal.GetDriverByName('GTiff').Delete( 'tmp/test_gdal_rasterize_7.tif' )
+    if os.path.exists('tmp/test_gdal_rasterize_7.csv'):
+        os.unlink('tmp/test_gdal_rasterize_7.csv')
+
+    gdal.GetDriverByName('GTiff').Delete( 'tmp/test_gdal_rasterize_8.tif' )
+    os.unlink('tmp/test_gdal_rasterize_8.csv')
+
     return 'success'
 
 gdaltest_list = [
@@ -327,6 +467,9 @@ gdaltest_list = [
     test_gdal_rasterize_3,
     test_gdal_rasterize_4,
     test_gdal_rasterize_5,
+    test_gdal_rasterize_6,
+    test_gdal_rasterize_7,
+    test_gdal_rasterize_8,
     test_gdal_rasterize_cleanup
     ]
 

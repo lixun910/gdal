@@ -102,4 +102,3 @@ CPLErr CPL_DLL CPL_STDCALL VRTAddFuncSource( VRTSourcedRasterBandH,
 CPL_C_END
 
 #endif /* GDAL_VRT_H_INCLUDED */
-

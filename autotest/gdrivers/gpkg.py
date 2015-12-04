@@ -2019,8 +2019,9 @@ def gpkg_20():
         return 'fail'
     out_ds = None
     os.remove('tmp/tmp.gpkg')
-    
-    # Without padding, with small tiles (<=256x256), but espcially less than 256 colors
+
+    # Without padding, with small tiles (<=256x256), but especially less
+    # than 256 colors.
     ds = gdal.GetDriverByName('MEM').Create('',50,50,3)
     ds.SetGeoTransform
     ds.GetRasterBand(1).Fill(1)
@@ -2532,7 +2533,7 @@ def gpkg_26():
     os.remove('tmp/tmp.gpkg')
 
     ds = gdaltest.gpkg_dr.Create('tmp/tmp.gpkg', 1, 1, 1, options = ['TILING_SCHEME=GoogleCRS84Quad'])
-    # Test that implict SRS registration works
+    # Test that implicit SRS registration works.
     if ds.GetProjectionRef().find('4326') < 0:
         gdaltest.post_reason('fail')
         return 'fail'

@@ -106,9 +106,9 @@ void* GDALCreateSimilarTPSTransformer( void *hTransformArg, double dfRatioX, dou
  *
  * The thin plate spline transformer produces exact transformation
  * at all control points and smoothly varying transformations between
- * control points with greatest influence from local control points. 
- * It is suitable for for many applications not well modelled by polynomial
- * transformations. 
+ * control points with greatest influence from local control points.
+ * It is suitable for for many applications not well modeled by polynomial
+ * transformations.
  *
  * Creating the TPS transformer involves solving systems of linear equations
  * related to the number of control points involved.  This solution is
@@ -126,7 +126,7 @@ void* GDALCreateSimilarTPSTransformer( void *hTransformArg, double dfRatioX, dou
  * @param nGCPCount the number of GCPs in pasGCPList.
  * @param pasGCPList an array of GCPs to be used as input.
  * @param bReversed set it to TRUE to compute the reversed transformation.
- * 
+ *
  * @return the transform argument or NULL if creation fails. 
  */
 
@@ -180,15 +180,21 @@ void *GDALCreateTPSTransformerInt( int nGCPCount, const GDAL_GCP *pasGCPList,
         afXY[0] = pasGCPList[iGCP].dfGCPX;
         afXY[1] = pasGCPList[iGCP].dfGCPY;
 
+        bool bOK = true;
         if( bReversed )
         {
-            psInfo->poReverse->add_point( afPL[0], afPL[1], afXY );
-            psInfo->poForward->add_point( afXY[0], afXY[1], afPL );
+            bOK &= psInfo->poReverse->add_point( afPL[0], afPL[1], afXY );
+            bOK &= psInfo->poForward->add_point( afXY[0], afXY[1], afPL );
         }
         else
         {
-            psInfo->poForward->add_point( afPL[0], afPL[1], afXY );
-            psInfo->poReverse->add_point( afXY[0], afXY[1], afPL );
+            bOK &= psInfo->poForward->add_point( afPL[0], afPL[1], afXY );
+            bOK &= psInfo->poReverse->add_point( afXY[0], afXY[1], afPL );
+        }
+        if( !bOK )
+        {
+            GDALDestroyTPSTransformer(psInfo);
+            return NULL;
         }
     }
 

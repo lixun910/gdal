@@ -40,7 +40,7 @@ from osgeo import gdal
 # verify that we can load Numeric python, and find the Numpy driver.
 
 def numpy_rw_1():
-	
+
     gdaltest.numpy_drv = None
     try:
         from osgeo import gdalnumeric
@@ -48,18 +48,13 @@ def numpy_rw_1():
     except:
         return 'skip'
 
-    try:
-        import _gdal
-        _gdal.GDALRegister_NUMPY()  # only needed for old style bindings.
-        gdal.AllRegister()
-    except:
-        pass
+    gdal.AllRegister()
 
     gdaltest.numpy_drv = gdal.GetDriverByName( 'NUMPY' )
     if gdaltest.numpy_drv is None:
         gdaltest.post_reason( 'NUMPY driver not found!' )
         return 'fail'
-    
+
     return 'success'
 
 ###############################################################################
@@ -441,16 +436,19 @@ def numpy_rw_13():
     ar = numpy.empty([1, 2], dtype = numpy.int64)
     try:
         ds.GetRasterBand(1).ReadAsArray( buf_obj = ar )
-        gdaltest.post_reason('expected "ValueError: array does not have corresponding GDAL data type"')
+        gdaltest.post_reason('expected "ValueError: array does not have '
+                             'corresponding GDAL data type"')
         return 'fail'
     except:
         pass
 
-    # Try call with inconsistant parameters
+    # Try call with inconsistent parameters.
     ar = numpy.empty([1, 2], dtype = numpy.uint8)
     try:
-        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 2, buf_ysize = 2 )
-        gdaltest.post_reason('expected "Specified buf_ysize not consistant with buffer shape"')
+        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 2,
+                                         buf_ysize = 2 )
+        gdaltest.post_reason('expected "Specified buf_ysize not consistent '
+                             'with buffer shape"')
         return 'fail'
     except:
         pass
@@ -458,26 +456,32 @@ def numpy_rw_13():
     # Same with 3 dimensions
     ar = numpy.empty([1, 1, 2], dtype = numpy.uint8)
     try:
-        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 2, buf_ysize = 2 )
-        gdaltest.post_reason('expected "Specified buf_ysize not consistant with buffer shape"')
+        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 2,
+                                         buf_ysize = 2 )
+        gdaltest.post_reason('expected "Specified buf_ysize not consistent '
+                             'with buffer shape"')
         return 'fail'
     except:
         pass
 
-    # Try call with inconsistant parameters
+    # Try call with inconsistent parameters.
     ar = numpy.empty([1, 2], dtype = numpy.uint8)
     try:
-        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 1, buf_ysize = 1 )
-        gdaltest.post_reason('expected "Specified buf_xsize not consistant with buffer shape"')
+        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_xsize = 1,
+                                         buf_ysize = 1 )
+        gdaltest.post_reason('expected "Specified buf_xsize not consistent '
+                             'with buffer shape"')
         return 'fail'
     except:
         pass
-    
+
     # Inconsistent data type
     ar = numpy.empty([1, 2], dtype = numpy.uint8)
     try:
-        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar, buf_type = gdal.GDT_Int16 )
-        gdaltest.post_reason('expected "Specified buf_type not consistant with array type"')
+        ds.GetRasterBand(1).ReadAsArray( buf_obj = ar,
+                                         buf_type = gdal.GDT_Int16 )
+        gdaltest.post_reason('expected "Specified buf_type not consistent '
+                             'with array type"')
         return 'fail'
     except:
         pass
@@ -531,16 +535,18 @@ def numpy_rw_13():
     ar = numpy.empty([3, 1, 2], dtype = numpy.int64)
     try:
         ds.ReadAsArray( buf_obj = ar )
-        gdaltest.post_reason('expected "ValueError: array does not have corresponding GDAL data type"')
+        gdaltest.post_reason('expected "ValueError: array does not have '
+                             'corresponding GDAL data type"')
         return 'fail'
     except:
         pass
 
-    # Try call with inconsistant parameters
+    # Try call with inconsistent parameters.
     ar = numpy.empty([3, 1, 2], dtype = numpy.uint8)
     try:
         ds.ReadAsArray( buf_obj = ar, buf_xsize = 2, buf_ysize = 2 )
-        gdaltest.post_reason('expected "Specified buf_ysize not consistant with buffer shape"')
+        gdaltest.post_reason('expected "Specified buf_ysize not consistent '
+                             'with buffer shape"')
         return 'fail'
     except:
         pass
@@ -549,25 +555,27 @@ def numpy_rw_13():
     ar = numpy.empty([1, 2], dtype = numpy.uint8)
     try:
         ds.ReadAsArray( buf_obj = ar )
-        gdaltest.post_reason('expected "ValueError: Array should have 3 dimensions"')
+        gdaltest.post_reason('expected "ValueError: Array should have 3 '
+                             'dimensions"')
         return 'fail'
     except:
         pass
 
-    # Try call with inconsistant parameters
+    # Try call with inconsistent parameters
     ar = numpy.empty([3, 1, 2], dtype = numpy.uint8)
     try:
         ds.ReadAsArray( buf_obj = ar, buf_xsize = 1, buf_ysize = 1 )
-        gdaltest.post_reason('expected "Specified buf_xsize not consistant with buffer shape"')
+        gdaltest.post_reason('expected "Specified buf_xsize not consistent '
+                             'with buffer shape"')
         return 'fail'
     except:
         pass
-    
+
     # Inconsistent data type
     ar = numpy.empty([3, 1, 2], dtype = numpy.uint8)
     try:
         ds.ReadAsArray( buf_obj = ar, buf_type = gdal.GDT_Int16 )
-        gdaltest.post_reason('expected "Specified buf_type not consistant with array type"')
+        gdaltest.post_reason('expected "Specified buf_type not consistent with array type"')
         return 'fail'
     except:
         pass
@@ -580,7 +588,7 @@ def numpy_rw_13():
         return 'fail'
     except:
         pass
-    
+
     # This one should be OK !
     ar = numpy.zeros([3, 1, 2], dtype = numpy.uint8)
     ds.ReadAsArray( buf_obj = ar, buf_xsize = 2, buf_ysize = 1, buf_type = gdal.GDT_Byte )
@@ -766,4 +774,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

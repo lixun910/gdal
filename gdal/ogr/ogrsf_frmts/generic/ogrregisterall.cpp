@@ -265,6 +265,9 @@ void OGRRegisterAllInternal()
 #ifdef CARTODB_ENABLED
     RegisterOGRCartoDB();
 #endif
+#ifdef AMIGOCLOUD_ENABLED
+    RegisterOGRAmigoCloud();
+#endif
 #ifdef SXF_ENABLED
     RegisterOGRSXF();
 #endif
@@ -279,6 +282,12 @@ void OGRRegisterAllInternal()
 #endif
 #ifdef CSW_ENABLED
     RegisterOGRCSW();
+#endif
+#ifdef MONGODB_ENABLED
+    RegisterOGRMongoDB();
+#endif
+#ifdef IDF_ENABLED
+    RegisterOGRIDF();
 #endif
 
 /* Put TIGER and AVCBIN at end since they need poOpenInfo->GetSiblingFiles() */

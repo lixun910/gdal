@@ -31,7 +31,7 @@
 #include <ogr_geometry.h>
 #include "gdal.h"
 
-#include <kml/dom.h>
+#include "libkml_headers.h"
 
 using kmldom::KmlFactory;
 using kmldom::PlacemarkPtr;
@@ -58,6 +58,7 @@ using kmldom::ImagePyramidPtr;
 #include "ogrlibkmlgeometry.h"
 #include "ogrlibkmlfield.h"
 #include "ogrlibkmlfeaturestyle.h"
+#include "ogrlibkmlfeature.h"
 
 static CameraPtr feat2kmlcamera( const struct fieldconfig& oFC,
                                  int iHeading,
@@ -117,7 +118,7 @@ static CPLString OGRLIBKMLReplaceLevelXYInURL(const char* pszURL,
                                               int level, int x, int y)
 {
     CPLString osRet(pszURL);
-    int nPos = osRet.find("$[level]");
+    size_t nPos = osRet.find("$[level]");
     osRet = osRet.substr(0, nPos) + CPLSPrintf("%d", level) + osRet.substr(nPos + strlen("$[level]"));
     nPos = osRet.find("$[x]");
     osRet = osRet.substr(0, nPos) + CPLSPrintf("%d", x) + osRet.substr(nPos + strlen("$[x]"));
@@ -154,7 +155,7 @@ static void OGRLIBKMLGetMaxDimensions(const char* pszURL,
     int nMaxLevel = 0;
     *panMaxWidth = 0;
     *panMaxHeight = 0;
-    while( TRUE )
+    while( true )
     {
         CPLString osURL = OGRLIBKMLReplaceLevelXYInURL(pszURL, nMaxLevel, 0, 0);
         if( strstr(osURL, ".kmz/") )
@@ -398,10 +399,10 @@ FeaturePtr feat2kml (
         int iFlyToView = poOgrFeat->GetFieldIndex(oFC.networklink_flytoview_field);
 
         if( iRefreshVisibility >= 0 && poOgrFeat->IsFieldSet(iRefreshVisibility) )
-            poKmlNetworkLink->set_refreshvisibility(poOgrFeat->GetFieldAsInteger(iRefreshVisibility));
+            poKmlNetworkLink->set_refreshvisibility(CPL_TO_BOOL(poOgrFeat->GetFieldAsInteger(iRefreshVisibility)));
 
         if( iFlyToView >= 0 && poOgrFeat->IsFieldSet(iFlyToView) )
-            poKmlNetworkLink->set_flytoview(poOgrFeat->GetFieldAsInteger(iFlyToView));
+            poKmlNetworkLink->set_flytoview(CPL_TO_BOOL(poOgrFeat->GetFieldAsInteger(iFlyToView)));
 
         LinkPtr poKmlLink = poKmlFactory->CreateLink (  );
         poKmlLink->set_href( poOgrFeat->GetFieldAsString( iNetworkLink ) );
@@ -577,8 +578,8 @@ FeaturePtr feat2kml (
         {
             VSILFILE* fp;
             int bIsURL = FALSE;
-            if( EQUALN(pszURL, "http://", strlen("http://")) ||
-                EQUALN(pszURL, "https://", strlen("https://")) )
+            if( STARTS_WITH_CI(pszURL, "http://") ||
+                STARTS_WITH_CI(pszURL, "https://") )
             {
                 bIsURL = TRUE;
                 fp = VSIFOpenL(CPLSPrintf("/vsicurl/%s", pszURL), "rb");
@@ -617,7 +618,7 @@ FeaturePtr feat2kml (
                                 AliasPtr alias = poKmlFactory->CreateAlias();
                                 if( bIsURL && CPLIsFilenameRelative(osImage) )
                                 {
-                                    if( strncmp(pszURL, "http", 4) == 0 )
+                                    if( STARTS_WITH(pszURL, "http") )
                                         alias->set_targethref(CPLSPrintf("%s/%s", CPLGetPath(pszURL), osImage.c_str()));
                                     else
                                         alias->set_targethref(CPLFormFilename(CPLGetPath(pszURL), osImage, NULL));

@@ -60,7 +60,7 @@ void DDFField::Initialize( DDFFieldDefn *poDefnIn, const char * pachDataIn,
  * subfields is written to the given debugging file handle.  Note that
  * field definition information (ala DDFFieldDefn) isn't written.
  *
- * @param fp The standard io file handle to write to.  ie. stderr
+ * @param fp The standard IO file handle to write to.  i.e. stderr
  */
 
 void DDFField::Dump( FILE * fp )
@@ -165,15 +165,15 @@ const char *DDFField::GetSubfieldData( DDFSubfieldDefn *poSFDefn,
         {
             int nBytesConsumed;
             DDFSubfieldDefn * poThisSFDefn = poDefn->GetSubfield( iSF );
-            
+
             if( poThisSFDefn == poSFDefn && iSubfieldIndex == 0 )
             {
                 if( pnMaxBytes != NULL )
                     *pnMaxBytes = nDataSize - iOffset;
-                
+
                 return pachData + iOffset;
             }
-            
+
             poThisSFDefn->GetDataLength( pachData+iOffset, nDataSize - iOffset,
                                          &nBytesConsumed);
             iOffset += nBytesConsumed;
@@ -191,14 +191,14 @@ const char *DDFField::GetSubfieldData( DDFSubfieldDefn *poSFDefn,
 /************************************************************************/
 
 /**
- * How many times do the subfields of this record repeat?  This    
+ * How many times do the subfields of this record repeat?  This
  * will always be one for non-repeating fields.
  *
  * @return The number of times that the subfields of this record occur
  * in this record.  This will be one for non-repeating fields.
  *
  * @see <a href="example.html">8211view example program</a>
- * for demonstation of handling repeated fields properly.
+ * for a demonstration of handling repeated fields properly.
  */
 
 int DDFField::GetRepeatCount()
@@ -208,7 +208,7 @@ int DDFField::GetRepeatCount()
         return 1;
 
 /* -------------------------------------------------------------------- */
-/*      The occurance count depends on how many copies of this          */
+/*      The occurrence count depends on how many copies of this         */
 /*      field's list of subfields can fit into the data space.          */
 /* -------------------------------------------------------------------- */
     if( poDefn->GetFixedWidth() )
@@ -226,8 +226,8 @@ int DDFField::GetRepeatCount()
 /*      much value for testing.                                         */
 /* -------------------------------------------------------------------- */
     int         iOffset = 0, iRepeatCount = 1;
-    
-    while( TRUE )
+
+    while( true )
     {
         for( int iSF = 0; iSF < poDefn->GetSubfieldCount(); iSF++ )
         {

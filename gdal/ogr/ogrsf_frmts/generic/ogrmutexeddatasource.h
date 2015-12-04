@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGRMUTEXEDDATASOURCELAYER_H_INCLUDED
-#define _OGRMUTEXEDDATASOURCELAYER_H_INCLUDED
+#ifndef OGRMUTEXEDDATASOURCELAYER_H_INCLUDED
+#define OGRMUTEXEDDATASOURCELAYER_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "cpl_multiproc.h"
@@ -39,8 +39,8 @@
  *  with a mutex.
  *  If the passed mutex is NULL, then no locking will be done.
  *
- *  Note that the constructors and destructors are not explictely protected
- *  by the mutex*
+ *  Note that the constructors and destructors are not explicitly protected
+ *  by the mutex.
  */
 class CPL_DLL OGRMutexedDataSource : public OGRDataSource
 {
@@ -110,4 +110,4 @@ class CPL_DLL OGRMutexedDataSource : public OGRDataSource
                                          const char * pszDomain = "" );
 };
 
-#endif // _OGRMUTEXEDDATASOURCELAYER_H_INCLUDED
+#endif // OGRMUTEXEDDATASOURCELAYER_H_INCLUDED

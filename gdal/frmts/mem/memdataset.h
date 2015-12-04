@@ -58,6 +58,12 @@ class CPL_DLL MEMDataset : public GDALDataset
     GDAL_GCP    *pasGCPs;
     CPLString    osGCPProjection;
 
+#if 0
+  protected:
+    virtual int                 EnterReadWrite(GDALRWFlag eRWFlag);
+    virtual void                LeaveReadWrite();
+#endif
+
   public:
                  MEMDataset();
     virtual      ~MEMDataset();
@@ -87,7 +93,7 @@ class CPL_DLL MEMDataset : public GDALDataset
                                GSpacing nLineSpaceBuf,
                                GSpacing nBandSpaceBuf,
                                GDALRasterIOExtraArg* psExtraArg);
-    
+
     static GDALDataset *Open( GDALOpenInfo * );
     static GDALDataset *Create( const char * pszFilename,
                                 int nXSize, int nYSize, int nBands,
@@ -116,7 +122,7 @@ class CPL_DLL MEMRasterBand : public GDALPamRasterBand
 
     char           *pszUnitType;
     char           **papszCategoryNames;
-    
+
     double         dfOffset;
     double         dfScale;
 
@@ -140,6 +146,7 @@ class CPL_DLL MEMRasterBand : public GDALPamRasterBand
                                   GDALRasterIOExtraArg* psExtraArg );
     virtual double GetNoDataValue( int *pbSuccess = NULL );
     virtual CPLErr SetNoDataValue( double );
+    virtual CPLErr DeleteNoDataValue();
 
     virtual GDALColorInterp GetColorInterpretation();
     virtual GDALColorTable *GetColorTable();
@@ -170,4 +177,3 @@ class CPL_DLL MEMRasterBand : public GDALPamRasterBand
 };
 
 #endif /* ndef MEMDATASET_H_INCLUDED */
-

@@ -45,7 +45,7 @@
 
 #ifndef POLYGONIZE_AREAS
 #  if defined(__GNUC_PREREQ)
-#    warning Interlis 1 Area polygonizing disabled. Needs GEOS >= 3.1.0
+//#    warning Interlis 1 Area polygonizing disabled. Needs GEOS >= 3.1.0
 #  endif
 #endif
 
@@ -138,7 +138,7 @@ int ILI1Reader::ReadFeatures() {
     char *topic = NULL;
     int ret = TRUE;
 
-    while (ret && (tokens = ReadParseLine()))
+    while (ret && (tokens = ReadParseLine()) != NULL)
     {
       firsttok = tokens[0];
       if (EQUAL(firsttok, "SCNT"))
@@ -148,7 +148,7 @@ int ILI1Reader::ReadFeatures() {
         {
           pszLine = CPLReadLine( fpItf );
         }
-        while (pszLine && !EQUALN(pszLine, "////", 4));
+        while (pszLine && !STARTS_WITH_CI(pszLine, "////"));
         ret = (pszLine != NULL);
       }
       else if (EQUAL(firsttok, "MOTR"))
@@ -158,7 +158,7 @@ int ILI1Reader::ReadFeatures() {
         {
           pszLine = CPLReadLine( fpItf );
         }
-        while (pszLine && !EQUALN(pszLine, "////", 4));
+        while (pszLine && !STARTS_WITH_CI(pszLine, "////"));
         ret = (pszLine != NULL);
       }
       else if (EQUAL(firsttok, "MTID"))
@@ -232,7 +232,7 @@ int ILI1Reader::ReadTable(CPL_UNUSED const char *layername) {
     OGRFeatureDefn *featureDef = curLayer->GetLayerDefn();
     OGRFeature *feature = NULL;
 
-    while (ret && (tokens = ReadParseLine()))
+    while (ret && (tokens = ReadParseLine()) != NULL)
     {
       firsttok = CSLGetField(tokens, 0);
       if (EQUAL(firsttok, "OBJE"))
@@ -391,7 +391,7 @@ void ILI1Reader::ReadGeom(char **stgeom, int geomIdx, OGRwkbGeometryType eType, 
     ogrLine->addPoint(&ogrPoint);
 
     //Parse geometry
-    while (!end && (tokens = ReadParseLine()))
+    while (!end && (tokens = ReadParseLine()) != NULL)
     {
       firsttok = CSLGetField(tokens, 0);
       if (EQUAL(firsttok, "LIPT"))

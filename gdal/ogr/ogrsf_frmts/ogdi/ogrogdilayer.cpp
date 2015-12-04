@@ -215,7 +215,7 @@ OGRFeature *OGROGDILayer::GetNextFeature()
         ResetReading();
     }
 
-    while( TRUE )
+    while( true )
     {
         poFeature = GetNextRawFeature();
         if( poFeature == NULL )
@@ -456,7 +456,7 @@ GIntBig OGROGDILayer::GetFeatureCount( int bForce )
 {
     if( m_nTotalShapeCount == -1)
     {
-        m_nTotalShapeCount = OGRLayer::GetFeatureCount( bForce );
+        m_nTotalShapeCount = static_cast<int>(OGRLayer::GetFeatureCount( bForce ));
     }
 
     return m_nTotalShapeCount;
@@ -587,6 +587,7 @@ void OGROGDILayer::BuildFeatureDefn()
           case Smallint:
           case Integer:
             oField.SetType( OFTInteger );
+            // TODO: Fix spelling - lenght -> length
             if( oaf->oa.oa_val[i].lenght > 0 )
                 oField.SetWidth( oaf->oa.oa_val[i].lenght );
             else
@@ -637,7 +638,3 @@ void OGROGDILayer::BuildFeatureDefn()
     }
     
 }
-
-
-
-

@@ -52,7 +52,7 @@ int SearchCSVForWKT( const char *pszFileCSV, const char *pszTarget );
 /*                               Usage()                                */
 /************************************************************************/
 
-void Usage(const char* pszErrorMsg = NULL)
+static void Usage(const char* pszErrorMsg = NULL)
 
 {
     printf( "\nUsage: gdalsrsinfo [options] srs_def\n"
@@ -133,6 +133,7 @@ int main( int argc, char ** argv )
         {
             printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
                    argv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            CSLDestroy( argv );
             return 0;
         }
         else if( EQUAL(argv[i], "-h") || EQUAL(argv[i], "--help") )
@@ -162,6 +163,7 @@ int main( int argc, char ** argv )
     }
 
     /* Search for SRS */
+    /* coverity[tainted_data] */
     bGotSRS = FindSRS( pszInput, oSRS );
 
     CPLDebug( "gdalsrsinfo", 
@@ -268,7 +270,7 @@ int FindSRS( const char *pszInput, OGRSpatialReference &oSRS )
     const char    *pszProjection = NULL;
     CPLErrorHandler oErrorHandler = NULL;
     int bIsFile = FALSE;
-    OGRErr eErr = CE_None;
+    OGRErr eErr = OGRERR_NONE;
     int bDebug  = FALSE;
 
     /* temporarily suppress error messages we may get from xOpen() */
@@ -285,9 +287,7 @@ int FindSRS( const char *pszInput, OGRSpatialReference &oSRS )
     } 
        
     /* try to open with GDAL */
-    if( strncmp(pszInput, "http://spatialreference.org/",
-                strlen("http://spatialreference.org/")) != 0 )
-    {
+    if( !STARTS_WITH(pszInput, "http://spatialreference.org/") )    {
         CPLDebug( "gdalsrsinfo", "trying to open with GDAL" );
         poGDALDS = (GDALDataset *) GDALOpenEx( pszInput, 0, NULL, NULL, NULL );
     }
@@ -296,7 +296,7 @@ int FindSRS( const char *pszInput, OGRSpatialReference &oSRS )
         if( pszProjection != NULL && pszProjection[0] != '\0' )
         {
             char* pszProjectionTmp = (char*) pszProjection;
-            if( oSRS.importFromWkt( &pszProjectionTmp ) == CE_None ) {
+            if( oSRS.importFromWkt( &pszProjectionTmp ) == OGRERR_NONE ) {
                 CPLDebug( "gdalsrsinfo", "got SRS from GDAL" );
                 bGotSRS = TRUE;
             }
@@ -546,7 +546,7 @@ int SearchCSVForWKT( const char *pszFileCSV, const char *pszTarget )
             continue;
             /* do nothing */;
 
-        // else if( EQUALN(pszLine,"include ",8) )
+        // else if( STARTS_WITH_CI(pszLine, "include ") )
         // {
         //     eErr = importFromDict( pszLine + 8, pszCode );
         //     if( eErr != OGRERR_UNSUPPORTED_SRS )
@@ -559,7 +559,7 @@ int SearchCSVForWKT( const char *pszFileCSV, const char *pszTarget )
         pszTemp = strstr(pszLine,",");
         if (pszTemp)
         {
-            nPos = pszTemp - pszLine;
+            nPos = static_cast<int>(pszTemp - pszLine);
 
             if ( nPos == 0 )
                 continue;

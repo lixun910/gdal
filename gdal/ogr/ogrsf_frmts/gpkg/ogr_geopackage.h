@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_GEOPACKAGE_H_INCLUDED
-#define _OGR_GEOPACKAGE_H_INCLUDED
+#ifndef OGR_GEOPACKAGE_H_INCLUDED
+#define OGR_GEOPACKAGE_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "ogr_sqlite.h"
@@ -191,7 +191,7 @@ class GDALGeoPackageDataset : public OGRSQLiteBaseDataSource
         int                     HasMetadataTables();
         int                     CreateMetadataTables();
         const char*             CheckMetadataDomain( const char* pszDomain );
-        void                    WriteMetadata(CPLXMLNode* psXMLNode, /* will be destroyed by the method /*/
+        void                    WriteMetadata(CPLXMLNode* psXMLNode, /* will be destroyed by the method */
                                               const char* pszTableName);
         CPLErr                  FlushMetadata();
 
@@ -229,7 +229,7 @@ class GDALGeoPackageDataset : public OGRSQLiteBaseDataSource
                                     GDALDataType eDT,
                                     char **papszOptions );
         OGRLayer*           GetLayer( int iLayer );
-        int                 DeleteLayer( int iLayer );
+        OGRErr              DeleteLayer( int iLayer );
         OGRLayer*           ICreateLayer( const char * pszLayerName,
                                          OGRSpatialReference * poSpatialRef,
                                          OGRwkbGeometryType eGType,
@@ -399,6 +399,9 @@ class OGRGeoPackageTableLayer : public OGRGeoPackageLayer
     OGRErr              ISetFeature( OGRFeature *poFeature );
     OGRErr              DeleteFeature(GIntBig nFID);
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRGeoPackageLayer::SetSpatialFilter(iGeomField, poGeom); }
+
     OGRErr              SetAttributeFilter( const char *pszQuery );
     OGRErr              SyncToDisk();
     OGRFeature*         GetNextFeature();
@@ -408,8 +411,8 @@ class OGRGeoPackageTableLayer : public OGRGeoPackageLayer
     OGRErr              RollbackTransaction();
     GIntBig             GetFeatureCount( int );
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
-    
-    // void                SetSpatialFilter( int iGeomField, OGRGeometry * poGeomIn );
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRGeoPackageLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     OGRErr              ReadTableDefinition(int bIsSpatial);
     void                SetCreationParameters( OGRwkbGeometryType eGType,
@@ -519,4 +522,4 @@ class OGRGeoPackageSelectLayer : public OGRGeoPackageLayer, public IOGRSQLiteSel
 };
 
 
-#endif /* _OGR_GEOPACKAGE_H_INCLUDED */
+#endif /* OGR_GEOPACKAGE_H_INCLUDED */

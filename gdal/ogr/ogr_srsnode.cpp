@@ -155,9 +155,6 @@ OGR_SRSNode *OGR_SRSNode::GetNode( const char * pszName )
 
 {
     int  i;
-
-    if( this == NULL )
-        return NULL;
     
     if( nChildren > 0 && EQUAL(pszName,pszValue) )
         return this;
@@ -287,17 +284,17 @@ void OGR_SRSNode::DestroyChild( int iChild )
  * Note that the node value must match pszValue with the exception of
  * case.  The comparison is case insensitive.
  *
- * @param pszValue the node value being searched for.
+ * @param pszValueIn the node value being searched for.
  *
  * @return the child index, or -1 on failure. 
  */
 
-int OGR_SRSNode::FindChild( const char * pszValue ) const
+int OGR_SRSNode::FindChild( const char * pszValueIn ) const
 
 {
     for( int i = 0; i < nChildren; i++ )
     {
-        if( EQUAL(papoChildNodes[i]->pszValue,pszValue) )
+        if( EQUAL(papoChildNodes[i]->pszValue,pszValueIn) )
             return i;
     }
 
@@ -424,7 +421,7 @@ OGRErr OGR_SRSNode::exportToWkt( char ** ppszResult ) const
 
 {
     char        **papszChildrenWkt = NULL;
-    int         nLength = strlen(pszValue)+4;
+    size_t      nLength = strlen(pszValue)+4;
     int         i;
 
 /* -------------------------------------------------------------------- */
@@ -486,7 +483,7 @@ OGRErr OGR_SRSNode::exportToPrettyWkt( char ** ppszResult, int nDepth ) const
 
 {
     char        **papszChildrenWkt = NULL;
-    int         nLength = strlen(pszValue)+4;
+    size_t      nLength = strlen(pszValue)+4;
     int         i;
 
 /* -------------------------------------------------------------------- */
@@ -586,7 +583,7 @@ OGRErr OGR_SRSNode::importFromWkt( char ** ppszInput, int nRecLevel, int* pnNode
 
 {
     const char  *pszInput = *ppszInput;
-    int         bInQuotedString = FALSE;
+    bool bInQuotedString = false;
 
     /* Sanity checks */
     if( nRecLevel == 10 )
@@ -798,7 +795,7 @@ OGRErr OGR_SRSNode::applyRemapper( const char *pszNode,
     }
 
 /* -------------------------------------------------------------------- */
-/*      Are the the target node?                                        */
+/*      Is this the target node?                                        */
 /* -------------------------------------------------------------------- */
     if( pszNode != NULL )
         bChildOfHit = EQUAL(pszValue,pszNode);
@@ -814,7 +811,7 @@ OGRErr OGR_SRSNode::applyRemapper( const char *pszNode,
 
     return OGRERR_NONE;
 }
-                                   
+
 /************************************************************************/
 /*                             StripNodes()                             */
 /************************************************************************/
@@ -822,7 +819,7 @@ OGRErr OGR_SRSNode::applyRemapper( const char *pszNode,
 /**
  * Strip child nodes matching name.
  *
- * Removes any decendent nodes of this node that match the given name. 
+ * Removes any descendant nodes of this node that match the given name.
  * Of course children of removed nodes are also discarded.
  *
  * @param pszName the name for nodes that should be removed.
@@ -937,11 +934,12 @@ OGRErr OGR_SRSNode::FixupOrdering()
 /*      Sort - Note we don't try to do anything with the first child    */
 /*      which we assume is a name string.                               */
 /* -------------------------------------------------------------------- */
-    int j, bChange = TRUE;
+    int j;
+    bool bChange = true;
 
     for( i = 1; bChange && i < GetChildCount()-1; i++ )
     {
-        bChange = FALSE;
+        bChange = false;
         for( j = 1; j < GetChildCount()-i; j++ )
         {
             if( panChildKey[j] == -1 || panChildKey[j+1] == -1 )
@@ -950,16 +948,14 @@ OGRErr OGR_SRSNode::FixupOrdering()
             if( panChildKey[j] > panChildKey[j+1] )
             {
                 OGR_SRSNode *poTemp = papoChildNodes[j];
-                int          nKeyTemp = panChildKey[j];
-
                 papoChildNodes[j] = papoChildNodes[j+1];
                 papoChildNodes[j+1] = poTemp;
 
-                nKeyTemp = panChildKey[j];
+                int nKeyTemp = panChildKey[j];
                 panChildKey[j] = panChildKey[j+1];
                 panChildKey[j+1] = nKeyTemp;
 
-                bChange = TRUE;
+                bChange = true;
             }
         }
     }
@@ -968,5 +964,3 @@ OGRErr OGR_SRSNode::FixupOrdering()
 
     return OGRERR_NONE;
 }
-
-

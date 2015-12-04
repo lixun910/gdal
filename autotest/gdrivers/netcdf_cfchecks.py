@@ -5,7 +5,7 @@
 # Project:  GDAL/OGR Test Suite
 # Purpose:  Test NetCDF driver CF compliance.
 # Author:   Etienne Tourigny <etourigny.dev at gmail dot com>
-# 
+#
 ###############################################################################
 # No copyright in original script...  apparently under BSD licence
 # original can be found at http://pypi.python.org/pypi/cfchecker
@@ -23,7 +23,7 @@
 #
 # Date: September 2011
 #
-# File Revision: 
+# File Revision:
 #
 # CF Checker Version: 2.0.4-gdal
 #
@@ -32,14 +32,14 @@
 
 Description:
  The cfchecker checks NetCDF files for compliance to the CF standard.
- 
+
 Options:
  -a or --area_types:
        the location of the CF area types table (xml)
-       
+
  -s or --cf_standard_names:
        the location of the CF standard name table (xml)
-       
+
  -u or --udunits:
        the location of the udunits.dat file
 
@@ -236,7 +236,8 @@ def chkDerivedName(name):
 # Checking class
 #======================
 class CFChecker:
-    
+
+  # TODO: coards -> coords
   def __init__(self, uploader=None, useFileName="yes", badc=None, coards=None, cfStandardNamesXML=None, cfAreaTypesXML=None, udunitsDat=None, version=Versions[-1]):
       self.uploader = uploader
       self.useFileName = useFileName
@@ -267,7 +268,7 @@ class CFChecker:
     else:
         print("CHECKING NetCDF FILE:",file)
     print("=====================")
-    
+
     # Check for valid filename
     if not fileSuffix.match(file):
         print("ERROR (2.1): Filename must have .nc suffix")
@@ -275,7 +276,7 @@ class CFChecker:
 
     # Initialize udunits-2 package
     # (Temporarily ignore messages to std error stream to prevent "Definition override" warnings
-    # being dislayed see Trac #50)
+    # being displayed see Trac #50)
     # Use ctypes callback functions to declare ut_error_message_handler (uemh)
     # Don't fully understand why this works!  Solution supplied by ctypes-mailing-list. 19.01.10
     uemh = ctypes.CFUNCTYPE(ctypes.c_int,ctypes.c_char_p)
@@ -394,7 +395,7 @@ class CFChecker:
         if not self.chkCellMethods(var): rc=0
 
         if not self.chkCellMeasures(var): rc=0
-        
+
         if not self.chkFormulaTerms(var,allCoordVars): rc=0
 
         if not self.chkCompressAttr(var): rc=0
@@ -413,14 +414,16 @@ class CFChecker:
             if not self.chkGridMappingVar(var) : rc=0
 
         if var in axes:
-            # Check var is a FileAxis.  If not then there may be a problem with its declaration.
-            # I.e. Multi-dimensional coordinate var with a dimension of the same name
-            # or an axis that hasn't been identified through the coordinates attribute
-            # CRM035 (17.04.07)
-            if not (isinstance(self.f[var], FileAxis) or isinstance(self.f[var], FileAuxAxis1D)):
-                print("WARNING (5): Possible incorrect declaration of a coordinate variable.")
+            # Check var is a FileAxis.  If not then there may be a problem with
+            # its declaration. i.e. Multi-dimensional coordinate var with a
+            # dimension of the same name or an axis that hasn't been identified
+            # through the coordinates attribute CRM035 (17.04.07)
+            if not (isinstance(self.f[var], FileAxis)
+                    or isinstance(self.f[var], FileAuxAxis1D)):
+                print("WARNING (5): Possible incorrect declaration of a "
+                      "coordinate variable.")
                 self.warn = self.warn+1
-            else:    
+            else:
                 if self.f[var].isTime():
                     if not self.chkTimeVariableAttributes(var): rc=0
 
@@ -636,7 +639,7 @@ class CFChecker:
 ##                 self.err = self.err+1
 
         #------------------------
-        # Auxilliary Coord Checks
+        # Auxiliary Coord Checks
         #------------------------
         if self.f[var].attributes.has_key('coordinates'):
             # Check syntax of 'coordinates' attribute
@@ -650,7 +653,7 @@ class CFChecker:
 
                         auxCoordVars.append(dataVar)
 
-                        # Is the auxillary coordinate var actually a label?
+                        # Is the auxiliary coordinate var actually a label?
                         if self.f[dataVar].dtype.char == 'c':
                             # Label variable
                             num_dimensions = len(self.f[dataVar].getAxisIds())
@@ -720,10 +723,10 @@ class CFChecker:
                 else:
                     print("ERROR (7.1): bounds attribute referencing non-existent variable:",bounds)
                     self.err = self.err+1
-                    
-            # Check that points specified by a coordinate or auxilliary coordinate
-            # variable should lie within, or on the boundary, of the cells specified by
-            # the associated boundary variable.
+
+            # Check that points specified by a coordinate or auxiliary
+            # coordinate variable should lie within, or on the boundary, of the
+            # cells specified by the associated boundary variable.
             if bounds in variables:
                 # Is boundary variable 2 dimensional?  If so can check that points
                 # lie within, or on the boundary.
@@ -1807,7 +1810,7 @@ class CFChecker:
   #------------------------------------
       """Check validity of axis attribute"""
       var=self.f[varName]
-      
+
       if var.attributes.has_key('axis'):
           if not re.match('^(X|Y|Z|T)$',var.attributes['axis'],re.I):
               print("ERROR (4): Invalid value for axis attribute")
@@ -1815,10 +1818,11 @@ class CFChecker:
               return 0
 
           if self.version >= 1.1 and varName in self.auxCoordVars:
-              print("ERROR (4): Axis attribute is not allowed for auxillary coordinate variables.")
+              print("ERROR (4): Axis attribute is not allowed for auxiliary "
+                    "coordinate variables.")
               self.err = self.err+1
               return 0
-          
+
           # Check that axis attribute is consistent with the coordinate type
           # deduced from units and positive.
           if hasattr(var,'positive'): 

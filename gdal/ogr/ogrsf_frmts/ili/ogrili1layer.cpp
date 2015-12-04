@@ -156,8 +156,8 @@ OGRFeature *OGRILI1Layer::GetFeatureRef( long nFID )
 
 GIntBig OGRILI1Layer::GetFeatureCount( int bForce )
 {
-    if (m_poFilterGeom == NULL && m_poAttrQuery == NULL &&
-        1 /*poAreaLineLayer == NULL*/)
+    if (m_poFilterGeom == NULL && m_poAttrQuery == NULL
+        /* && poAreaLineLayer == NULL*/)
     {
         return nFeatures;
     }
@@ -492,15 +492,20 @@ void OGRILI1Layer::JoinSurfaceLayer( OGRILI1Layer* poSurfaceLineLayer, int nSurf
     poSurfaceLineLayer = 0;
 }
 
-OGRMultiPolygon* OGRILI1Layer::Polygonize( OGRGeometryCollection* poLines, bool fix_crossing_lines )
+OGRMultiPolygon* OGRILI1Layer::Polygonize( OGRGeometryCollection* poLines,
+                                           bool
+                                           #if defined(HAVE_GEOS)
+                                            fix_crossing_lines
+                                           #endif
+                                           )
 {
-    OGRMultiPolygon *poPolygon = new OGRMultiPolygon();
-
-    if (poLines->getNumGeometries() == 0) return poPolygon;
+    if (poLines->getNumGeometries() == 0)
+    {
+        return new OGRMultiPolygon();
+    }
 
 #if defined(HAVE_GEOS)
     GEOSGeom *ahInGeoms = NULL;
-    int       i = 0;
     OGRGeometryCollection *poNoncrossingLines = poLines;
     GEOSGeom hResultGeom = NULL;
     OGRGeometry *poMP = NULL;
@@ -509,21 +514,33 @@ OGRMultiPolygon* OGRILI1Layer::Polygonize( OGRGeometryCollection* poLines, bool 
     {
         CPLDebug( "OGR_ILI", "Fixing crossing lines");
         //A union of the geometry collection with one line fixes invalid geometries
-        poNoncrossingLines = (OGRGeometryCollection*)poLines->Union(poLines->getGeometryRef(0));
-        CPLDebug( "OGR_ILI", "Fixed lines: %d", poNoncrossingLines->getNumGeometries()-poLines->getNumGeometries());
+        OGRGeometry* poUnion = poLines->Union(poLines->getGeometryRef(0));
+        if( poUnion != NULL )
+        {
+            if( wkbFlatten(poUnion->getGeometryType()) == wkbGeometryCollection ||
+                wkbFlatten(poUnion->getGeometryType()) == wkbMultiLineString )
+            {
+                poNoncrossingLines = dynamic_cast<OGRGeometryCollection*>(poUnion);
+                CPLDebug( "OGR_ILI", "Fixed lines: %d", poNoncrossingLines->getNumGeometries()-poLines->getNumGeometries());
+            }
+            else
+            {
+                delete poUnion;
+            }
+        }
     }
-    
+
     GEOSContextHandle_t hGEOSCtxt = OGRGeometry::createGEOSContext();
 
     ahInGeoms = (GEOSGeom *) CPLCalloc(sizeof(void*),poNoncrossingLines->getNumGeometries());
-    for( i = 0; i < poNoncrossingLines->getNumGeometries(); i++ )
+    for( int i = 0; i < poNoncrossingLines->getNumGeometries(); i++ )
           ahInGeoms[i] = poNoncrossingLines->getGeometryRef(i)->exportToGEOS(hGEOSCtxt);
 
     hResultGeom = GEOSPolygonize_r( hGEOSCtxt,
                                     ahInGeoms,
                                    poNoncrossingLines->getNumGeometries() );
 
-    for( i = 0; i < poNoncrossingLines->getNumGeometries(); i++ )
+    for( int i = 0; i < poNoncrossingLines->getNumGeometries(); i++ )
         GEOSGeom_destroy_r( hGEOSCtxt, ahInGeoms[i] );
     CPLFree( ahInGeoms );
     if (poNoncrossingLines != poLines) delete poNoncrossingLines;
@@ -531,7 +548,7 @@ OGRMultiPolygon* OGRILI1Layer::Polygonize( OGRGeometryCollection* poLines, bool 
     if( hResultGeom == NULL )
     {
         OGRGeometry::freeGEOSContext( hGEOSCtxt );
-        return NULL;
+        return new OGRMultiPolygon();
     }
 
     poMP = OGRGeometryFactory::createFromGEOS( hGEOSCtxt, hResultGeom );
@@ -539,15 +556,30 @@ OGRMultiPolygon* OGRILI1Layer::Polygonize( OGRGeometryCollection* poLines, bool 
     GEOSGeom_destroy_r( hGEOSCtxt, hResultGeom );
     OGRGeometry::freeGEOSContext( hGEOSCtxt );
 
-    return (OGRMultiPolygon *) poMP;
-
+    poMP = OGRGeometryFactory::forceToMultiPolygon( poMP );
+    if( poMP && wkbFlatten(poMP->getGeometryType()) == wkbMultiPolygon )
+        return dynamic_cast<OGRMultiPolygon *>(poMP);
+    else
+    {
+        delete poMP;
+        return new OGRMultiPolygon();
+    }
+#else
+    return new OGRMultiPolygon();
 #endif
-
-    return poPolygon;
 }
 
 
-void OGRILI1Layer::PolygonizeAreaLayer( OGRILI1Layer* poAreaLineLayer, int nAreaFieldIndex, int nPointFieldIndex )
+void OGRILI1Layer::PolygonizeAreaLayer( OGRILI1Layer* poAreaLineLayer,
+                                        int 
+#if defined(HAVE_GEOS)
+                                            nAreaFieldIndex
+#endif
+                                        , int
+#if defined(HAVE_GEOS)
+                                            nPointFieldIndex
+#endif
+                                        )
 {
     //add all lines from poAreaLineLayer to collection
     OGRGeometryCollection *gc = new OGRGeometryCollection();

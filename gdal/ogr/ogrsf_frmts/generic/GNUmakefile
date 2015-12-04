@@ -9,7 +9,7 @@ OBJ	=	ogrsfdriverregistrar.o ogrlayer.o ogrdatasource.o \
 		ogrmutexedlayer.o ogrmutexeddatasource.o \
 		ogremulatedtransaction.o
 
-CXXFLAGS :=     $(CXXFLAGS) -DINST_DATA=\"$(INST_DATA)\"
+CXXFLAGS :=     $(CXXFLAGS) $(SHADOW_WFLAGS) -DINST_DATA=\"$(INST_DATA)\"
 
 ifeq ($(OGR_ENABLED),yes)
 
@@ -54,7 +54,8 @@ BASEFORMATS = \
 	-DOPENFILEGDB_ENABLED \
 	-DWASP_ENABLED \
 	-DSELAFIN_ENABLED \
-	-DJML_ENABLED
+	-DJML_ENABLED \
+	-DIDF_ENABLED
 
 CXXFLAGS :=     $(CXXFLAGS) $(BASEFORMATS)
 
@@ -212,7 +213,15 @@ CXXFLAGS :=	$(CXXFLAGS) -DCARTODB_ENABLED
 endif
 
 ifeq ($(CURL_SETTING),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DAMIGOCLOUD_ENABLED
+endif
+
+ifeq ($(CURL_SETTING),yes)
 CXXFLAGS :=	$(CXXFLAGS) -DPLSCENES_ENABLED
+endif
+
+ifeq ($(HAVE_MONGODB),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DMONGODB_ENABLED
 endif
 
 endif

@@ -125,6 +125,9 @@ int  DitherRGB2PCT ( GDALRasterBandShadow *red,
 /*                           ReprojectImage()                           */
 /************************************************************************/
 %apply Pointer NONNULL {GDALDatasetShadow *src_ds, GDALDatasetShadow *dst_ds};
+#ifndef SWIGJAVA
+%feature( "kwargs" ) ReprojectImage;
+#endif
 %inline %{
 CPLErr  ReprojectImage ( GDALDatasetShadow *src_ds,
                          GDALDatasetShadow *dst_ds,
@@ -134,9 +137,17 @@ CPLErr  ReprojectImage ( GDALDatasetShadow *src_ds,
                          double WarpMemoryLimit=0.0,
                          double maxerror = 0.0,
 			 GDALProgressFunc callback = NULL,
-                     	 void* callback_data=NULL) {
+                     	 void* callback_data=NULL,
+                         char** options = NULL ) {
 
     CPLErrorReset();
+
+    GDALWarpOptions* psOptions = NULL;
+    if( options != NULL )
+    {
+        psOptions = GDALCreateWarpOptions();
+        psOptions->papszWarpOptions = CSLDuplicate(options);
+    }
 
     CPLErr err = GDALReprojectImage( src_ds,
                                      src_wkt,
@@ -147,8 +158,11 @@ CPLErr  ReprojectImage ( GDALDatasetShadow *src_ds,
                                      maxerror,
                                      callback,
                                      callback_data,
-                                     NULL);
-    
+                                     psOptions);
+
+    if( psOptions != NULL )
+        GDALDestroyWarpOptions(psOptions);
+
     return err;
 }
 %} 
@@ -293,6 +307,26 @@ int  Polygonize( GDALRasterBandShadow *srcBand,
                            options, callback, callback_data );
 }
 %} 
+
+#ifndef SWIGJAVA
+%feature( "kwargs" ) FPolygonize;
+#endif
+%inline %{
+int  FPolygonize( GDALRasterBandShadow *srcBand,
+                 GDALRasterBandShadow *maskBand,
+                 OGRLayerShadow *outLayer, 
+                 int iPixValField,
+                 char **options = NULL,
+                 GDALProgressFunc callback=NULL,
+                 void* callback_data=NULL) {
+
+    CPLErrorReset();
+
+    return GDALFPolygonize( srcBand, maskBand, outLayer, iPixValField,
+                           options, callback, callback_data );
+}
+%} 
+
 %clear GDALRasterBandShadow *srcBand, OGRLayerShadow *outLayer;
 
 /************************************************************************/
@@ -533,6 +567,30 @@ GDALDatasetShadow *AutoCreateWarpedVRT( GDALDatasetShadow *src_ds,
 }
 %}
 %clear GDALDatasetShadow *src_ds;
+
+/************************************************************************/
+/*                        CreatePansharpenedVRT()                       */
+/************************************************************************/
+
+%newobject CreatePansharpenedVRT;
+#ifndef SWIGCSHARP
+%apply (int object_list_count, GDALRasterBandShadow **poObjects) {(int nInputSpectralBands, GDALRasterBandShadow **ahInputSpectralBands)};
+#endif /* SWIGCSHARP */
+%apply Pointer NONNULL { GDALRasterBandShadow* panchroBand };
+
+%inline %{
+GDALDatasetShadow*  CreatePansharpenedVRT( const char* pszXML,
+                            GDALRasterBandShadow* panchroBand,
+                            int nInputSpectralBands,
+                            GDALRasterBandShadow** ahInputSpectralBands )
+{
+    CPLErrorReset();
+
+    return (GDALDatasetShadow*)GDALCreatePansharpenedVRT( pszXML, panchroBand,
+                                      nInputSpectralBands, ahInputSpectralBands );
+}
+%}
+%clear GDALRasterBandShadow* panchroBand;
 
 /************************************************************************/
 /*                             Transformer                              */

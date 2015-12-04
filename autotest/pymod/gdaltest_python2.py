@@ -64,8 +64,7 @@ def urlescape(url):
         pass
     return url
 
-def gdalurlopen(url):
-    timeout = 10
+def gdalurlopen(url, timeout = 10):
     old_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(timeout)
 
@@ -178,7 +177,7 @@ def runexternal(cmd, strin = None, check_memleak = True, display_live_on_parent_
         val = os.environ['TRAVIS_BRANCH']
     else:
         val = ''
-    if val.find('trunk_mingw') < 0:
+    if val.find('mingw') < 0:
         has_subprocess = False
         try:
             import subprocess
@@ -259,7 +258,7 @@ def runexternal_out_and_err(cmd, check_memleak = True):
         val = os.environ['TRAVIS_BRANCH']
     else:
         val = ''
-    if val.find('trunk_mingw') < 0:
+    if val.find('mingw') < 0:
         has_subprocess = False
         try:
             import subprocess

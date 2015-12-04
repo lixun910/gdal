@@ -120,6 +120,7 @@ int main( int nArgc, char ** papszArgv )
         {
             printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
                    papszArgv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            CSLDestroy( papszArgv );
             return 0;
         }
         else if( EQUAL(papszArgv[iArg],"--help") )
@@ -144,8 +145,6 @@ int main( int nArgc, char ** papszArgv )
             {
                 printf( "Unrecognizable band number (%s).\n", papszArgv[iArg+1] );
                 Usage();
-                GDALDestroyDriverManager();
-                exit( 2 );
             }
             iArg++;
 
@@ -195,7 +194,7 @@ int main( int nArgc, char ** papszArgv )
     }
 
     if( hDataset == NULL )
-        hDataset = GDALOpenEx( pszFilename, GDAL_OF_RASTER, NULL, papszOpenOptions, NULL );
+        hDataset = GDALOpenEx( pszFilename, GDAL_OF_RASTER | GDAL_OF_VERBOSE_ERROR, NULL, papszOpenOptions, NULL );
 
     CSLDestroy(papszOpenOptions);
     papszOpenOptions = NULL;

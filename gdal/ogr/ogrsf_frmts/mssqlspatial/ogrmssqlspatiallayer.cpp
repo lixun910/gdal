@@ -141,16 +141,41 @@ CPLErr OGRMSSQLSpatialLayer::BuildFeatureDefn( const char *pszLayerName,
 
         if( pszFIDColumn != NULL)
         {
-		    if (EQUAL(poStmt->GetColName(iCol), pszFIDColumn) )
+            if (EQUAL(poStmt->GetColName(iCol), pszFIDColumn) )
             {
-                if (EQUALN(poStmt->GetColTypeName( iCol ), "bigint", 6))
-                    SetMetadataItem(OLMD_FID64, "YES");
-            
-                if ( EQUAL(poStmt->GetColTypeName( iCol ), "int identity") ||
-                     EQUAL(poStmt->GetColTypeName( iCol ), "bigint identity"))
-                    bIsIdentityFid = TRUE;
-                /* skip FID */
-                continue;
+                bool bIntegerFID = false;
+                switch( CPLODBCStatement::GetTypeMapping(poStmt->GetColType(iCol)) )
+                {
+                    case SQL_C_SSHORT:
+                    case SQL_C_USHORT:
+                    case SQL_C_SLONG:
+                    case SQL_C_ULONG:
+                    case SQL_C_SBIGINT:
+                    case SQL_C_UBIGINT:
+                        bIntegerFID = true;
+                        break;
+                    default:
+                        break;
+                }
+                if( !bIntegerFID )
+                {
+                    CPLDebug("MSSQL", "Ignoring FID column %s as it is of non integer type",
+                             pszFIDColumn);
+                    CPLFree(pszFIDColumn);
+                    pszFIDColumn = NULL;
+                }
+                else
+                {
+                    if (STARTS_WITH_CI(poStmt->GetColTypeName( iCol ), "bigint"))
+                        SetMetadataItem(OLMD_FID64, "YES");
+
+                    if ( EQUAL(poStmt->GetColTypeName( iCol ), "int identity") ||
+                        EQUAL(poStmt->GetColTypeName( iCol ), "bigint identity"))
+                        bIsIdentityFid = TRUE;
+
+                    /* skip FID */
+                    continue;
+                }
             }
         }
         else
@@ -225,17 +250,18 @@ CPLErr OGRMSSQLSpatialLayer::BuildFeatureDefn( const char *pszLayerName,
             /* process default value specification */
             if ( EQUAL(poStmt->GetColColumnDef(iCol), "(getdate())") )
                 oField.SetDefault( "CURRENT_TIMESTAMP" );
-            else if ( EQUALN(poStmt->GetColColumnDef(iCol), "(CONVERT([time],getdate(),0))", 25) )
+            else if ( STARTS_WITH_CI(poStmt->GetColColumnDef(iCol), "(CONVERT([time],getdate()") )
                 oField.SetDefault( "CURRENT_TIME" );
-            else if ( EQUALN(poStmt->GetColColumnDef(iCol), "(CONVERT([date],getdate(),0))", 25) )
+            else if ( STARTS_WITH_CI(poStmt->GetColColumnDef(iCol), "(CONVERT([date],getdate()") )
                 oField.SetDefault( "CURRENT_DATE" );
             else
             {
                 char* pszDefault = CPLStrdup(poStmt->GetColColumnDef(iCol));
-                int nLen = strlen(pszDefault);
+                int nLen = static_cast<int>(strlen(pszDefault));
                 if (nLen >= 1 && pszDefault[0] == '(' && pszDefault[nLen-1] == ')')
                 {
-                    /* all default values are encapsulated in backets by MSSQL server */
+                    // All default values are encapsulated in brackets
+                    // by MSSQL server.
                     if (nLen >= 4 && pszDefault[1] == '(' && pszDefault[nLen-2] == ')')
                     {
                         /* for numeric values double brackets are used */
@@ -298,7 +324,7 @@ void OGRMSSQLSpatialLayer::ResetReading()
 OGRFeature *OGRMSSQLSpatialLayer::GetNextFeature()
 
 {
-    while( TRUE )
+    while( true )
     {
         OGRFeature      *poFeature;
 

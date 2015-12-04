@@ -38,7 +38,7 @@ CPL_C_START
 void	GDALRegister_PALSARJaxa(void);
 CPL_C_END
 
-#if defined(WIN32) || defined(WIN32CE)
+#if defined(WIN32)
 #define SEP_STRING "\\"
 #else
 #define SEP_STRING "/"
@@ -140,7 +140,8 @@ CPL_C_END
 enum eFileType {
 	level_11 = 0,
 	level_15,
-    level_10
+        level_10,
+        level_unknown = 999,
 };
 
 enum ePolarization {
@@ -176,18 +177,18 @@ public:
     static void ReadMetadata( PALSARJaxaDataset *poDS, VSILFILE *fp );
 };
 
-PALSARJaxaDataset::PALSARJaxaDataset()
-{
-    pasGCPList = NULL;
-    nGCPCount = 0;
-}
+PALSARJaxaDataset::PALSARJaxaDataset() :
+    pasGCPList(NULL),
+    nGCPCount(0),
+    nFileType(level_unknown)
+{ }
 
 PALSARJaxaDataset::~PALSARJaxaDataset()
 {
-    if( nGCPCount > 0 ) 
+    if( nGCPCount > 0 )
     {
-        GDALDeinitGCPs( nGCPCount, pasGCPList ); 
-        CPLFree( pasGCPList ); 
+        GDALDeinitGCPs( nGCPCount, pasGCPList );
+        CPLFree( pasGCPList );
     }
 }
 
@@ -206,6 +207,7 @@ class PALSARJaxaRasterBand : public GDALRasterBand {
     int nBitsPerSample;
     int nSamplesPerGroup;
     int nRecordSize;
+
 public:
     PALSARJaxaRasterBand( PALSARJaxaDataset *poDS, int nBand, VSILFILE *fp );
     ~PALSARJaxaRasterBand();
@@ -217,10 +219,13 @@ public:
 /*                         PALSARJaxaRasterBand()                       */
 /************************************************************************/
 
-PALSARJaxaRasterBand::PALSARJaxaRasterBand( PALSARJaxaDataset *poDS, 
-	int nBand, VSILFILE *fp )
+PALSARJaxaRasterBand::PALSARJaxaRasterBand( PALSARJaxaDataset *poDSIn,
+                                            int nBandIn, VSILFILE *fpIn ) :
+    nPolarization(hh)
 {
-    this->fp = fp;
+    poDS = poDSIn;
+    nBand = nBandIn;
+    this->fp = fpIn;
 
     /* Read image options record to determine the type of data */
     VSIFSeekL( fp, BITS_PER_SAMPLE_OFFSET, SEEK_SET );
@@ -242,19 +247,23 @@ PALSARJaxaRasterBand::PALSARJaxaRasterBand( PALSARJaxaDataset *poDS,
         nFileType = level_15;
     }
 
-    poDS->nFileType = nFileType;
+    poDSIn->nFileType = nFileType;
 
     /* Read number of range/azimuth lines */
     VSIFSeekL( fp, NUMBER_LINES_OFFSET, SEEK_SET );
     READ_CHAR_VAL( nRasterYSize, NUMBER_LINES_LENGTH, fp );
     VSIFSeekL( fp, SAR_DATA_RECORD_LENGTH_OFFSET, SEEK_SET );
     READ_CHAR_VAL( nRecordSize, SAR_DATA_RECORD_LENGTH_LENGTH, fp );
-    nRasterXSize = (nRecordSize -
+    int nDenom = ((nBitsPerSample / 8) * nSamplesPerGroup);
+    if( nDenom == 0 )
+        nRasterXSize = 0;
+    else
+        nRasterXSize = (nRecordSize -
                     (nFileType != level_15 ? SIG_DAT_REC_OFFSET : PROC_DAT_REC_OFFSET))
-        / ((nBitsPerSample / 8) * nSamplesPerGroup);
+        / nDenom;
 
-    poDS->nRasterXSize = nRasterXSize;
-    poDS->nRasterYSize = nRasterYSize;
+    poDSIn->nRasterXSize = nRasterXSize;
+    poDSIn->nRasterYSize = nRasterYSize;
 
     /* Polarization */
     switch (nBand) {
@@ -274,15 +283,16 @@ PALSARJaxaRasterBand::PALSARJaxaRasterBand( PALSARJaxaDataset *poDS,
         nPolarization = vv;
         SetMetadataItem( "POLARIMETRIC_INTERP", "VV" );
         break;
+      // TODO: What about the default?
     }
-	
+
     /* size of block we can read */
     nBlockXSize = nRasterXSize;
     nBlockYSize = 1;
 
     /* set the file pointer to the first SAR data record */
     VSIFSeekL( fp, IMAGE_OPT_DESC_LENGTH, SEEK_SET );
-}	
+}
 
 /************************************************************************/
 /*                        ~PALSARJaxaRasterBand()                       */
@@ -474,9 +484,8 @@ int PALSARJaxaDataset::Identify( GDALOpenInfo *poOpenInfo ) {
         return 0;
 
     /* First, check that this is a PALSAR image indeed */
-    if ( !EQUALN((char *)(poOpenInfo->pabyHeader + 60),"AL", 2) 
-         || !EQUALN(CPLGetBasename((char *)(poOpenInfo->pszFilename)) + 4, 
-                    "ALPSR", 5) )
+    if ( !STARTS_WITH_CI((char *)(poOpenInfo->pabyHeader + 60), "AL") 
+         || !STARTS_WITH_CI(CPLGetBasename((char *)(poOpenInfo->pszFilename)) + 4, "ALPSR") )
     {
         return 0;
     }

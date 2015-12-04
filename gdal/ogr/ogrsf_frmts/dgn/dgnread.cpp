@@ -101,8 +101,10 @@ int DGNLoadRawElement( DGNInfo *psDGN, int *pnType, int *pnLevel )
 /* -------------------------------------------------------------------- */
 /*      Read the rest of the element data into the working buffer.      */
 /* -------------------------------------------------------------------- */
-    CPLAssert( nWords * 2 + 4 <= (int) sizeof(psDGN->abyElem) );
+    if( nWords * 2 + 4 > (int) sizeof(psDGN->abyElem) )
+        return FALSE;
 
+    /* coverity[tainted_data] */
     if( (int) VSIFRead( psDGN->abyElem + 4, 2, nWords, psDGN->fp ) != nWords )
         return FALSE;
 
@@ -333,9 +335,9 @@ static DGNElemCore *DGNProcessElement( DGNInfo *psDGN, int nType, int nLevel )
                   psCell->rotation = acos(a / sqrt(a2 + c2));
 
               if (b <= 0)
-                  psCell->rotation = psCell->rotation * 180 / PI;
+                  psCell->rotation = psCell->rotation * 180 / M_PI;
               else
-                  psCell->rotation = 360 - psCell->rotation * 180 / PI;
+                  psCell->rotation = 360 - psCell->rotation * 180 / M_PI;
               }
           }
           else
@@ -881,7 +883,7 @@ static DGNElemCore *DGNProcessElement( DGNInfo *psDGN, int nType, int nLevel )
           DGNParseCore( psDGN, psElement );
 
           // Read B-Spline surface header
-          psSpline->desc_words = DGN_INT32(psDGN->abyElem + 36);
+          psSpline->desc_words = static_cast<long>(DGN_INT32(psDGN->abyElem + 36));
           psSpline->curve_type = psDGN->abyElem[41];
 
           // U
@@ -912,7 +914,7 @@ static DGNElemCore *DGNProcessElement( DGNInfo *psDGN, int nType, int nLevel )
           DGNParseCore( psDGN, psElement );
 
           // Read B-Spline curve header
-          psSpline->desc_words = DGN_INT32(psDGN->abyElem + 36);
+          psSpline->desc_words = static_cast<long>(DGN_INT32(psDGN->abyElem + 36));
 
           // flags
           psSpline->order = (psDGN->abyElem[40] & 0x0f) + 2;
@@ -1011,7 +1013,7 @@ static DGNElemCore *DGNProcessElement( DGNInfo *psDGN, int nType, int nLevel )
 /* -------------------------------------------------------------------- */
     psElement->element_id = psDGN->next_element_id - 1;
 
-    psElement->offset = VSIFTell( psDGN->fp ) - psDGN->nElemBytes;
+    psElement->offset = static_cast<int>(VSIFTell( psDGN->fp )) - psDGN->nElemBytes;
     psElement->size = psDGN->nElemBytes;
 
     return psElement;
@@ -1051,16 +1053,16 @@ DGNElemCore *DGNReadElement( DGNHandle hDGN )
 /*      filter is in effect, loop until we get something within our     */
 /*      spatial constraints.                                            */
 /* -------------------------------------------------------------------- */
-    do { 
+    do {
         bInsideFilter = TRUE;
 
         if( !DGNLoadRawElement( psDGN, &nType, &nLevel ) )
             return NULL;
-        
+
         if( psDGN->has_spatial_filter )
         {
             GUInt32     nXMin, nXMax, nYMin, nYMax;
-            
+
             if( !psDGN->sf_converted_to_uor )
                 DGNSpatialFilterToUOR( psDGN );
 
@@ -1068,7 +1070,7 @@ DGNElemCore *DGNReadElement( DGNHandle hDGN )
                                    &nXMin, &nYMin, NULL,
                                    &nXMax, &nYMax, NULL ) )
             {
-                /* If we don't have spatial characterists for the element
+                /* If we don't have spatial characteristics for the element
                    we will pass it through. */
                 bInsideFilter = TRUE;
             }
@@ -1249,8 +1251,9 @@ static DGNElemCore *DGNParseTagSet( DGNInfo * psDGN )
 {
     DGNElemCore *psElement;
     DGNElemTagSet *psTagSet;
-    int          nDataOffset, iTag;
-            
+    size_t      nDataOffset;
+    int         iTag;
+
     psTagSet = (DGNElemTagSet *) CPLCalloc(sizeof(DGNElemTagSet),1);
     psElement = (DGNElemCore *) psTagSet;
     psElement->stype = DGNST_TAG_SET;
@@ -1291,7 +1294,7 @@ static DGNElemCore *DGNParseTagSet( DGNInfo * psDGN )
     {
         DGNTagDef *tagDef = psTagSet->tagList + iTag;
 
-        CPLAssert( nDataOffset < psDGN->nElemBytes );
+        CPLAssert( nDataOffset < static_cast<size_t>(psDGN->nElemBytes) );
 
         /* collect tag name. */
         tagDef->name = CPLStrdup( (char *) psDGN->abyElem + nDataOffset );
@@ -1364,13 +1367,13 @@ static DGNElemCore *DGNParseTCB( DGNInfo * psDGN )
     else
         psTCB->dimension = 2;
           
-    psTCB->subunits_per_master = DGN_INT32( psDGN->abyElem + 1112 );
+    psTCB->subunits_per_master = static_cast<long>(DGN_INT32( psDGN->abyElem + 1112 ));
 
     psTCB->master_units[0] = (char) psDGN->abyElem[1120];
     psTCB->master_units[1] = (char) psDGN->abyElem[1121];
     psTCB->master_units[2] = '\0';
 
-    psTCB->uor_per_subunit = DGN_INT32( psDGN->abyElem + 1116 );
+    psTCB->uor_per_subunit = static_cast<long>(DGN_INT32( psDGN->abyElem + 1116 ));
 
     psTCB->sub_units[0] = (char) psDGN->abyElem[1122];
     psTCB->sub_units[1] = (char) psDGN->abyElem[1123];
@@ -1443,7 +1446,7 @@ static DGNElemCore *DGNParseTCB( DGNInfo * psDGN )
         memcpy( &(psView->conversion), pabyRawView + 106, sizeof(double) );
         DGN2IEEEDouble( &(psView->conversion) );
 
-        psView->activez = DGN_INT32( pabyRawView + 114 );
+        psView->activez = static_cast<unsigned long>(DGN_INT32( pabyRawView + 114 ));
     }
 
     return psElement;
@@ -1632,23 +1635,23 @@ int DGNLoadTCB( DGNHandle hDGN )
  *
  * This function will return an array with brief information about every
  * element in a DGN file.  It requires one pass through the entire file to
- * generate (this is not repeated on subsequent calls). 
+ * generate (this is not repeated on subsequent calls).
  *
- * The returned array of DGNElementInfo structures contain the level, type, 
+ * The returned array of DGNElementInfo structures contain the level, type,
  * stype, and other flags for each element in the file.  This can facilitate
  * application level code representing the number of elements of various types
- * effeciently. 
+ * efficiently.
  *
  * Note that while building the index requires one pass through the whole file,
- * it does not generally request much processing for each element. 
+ * it does not generally request much processing for each element.
  *
  * @param hDGN the file to get an index for.
- * @param pnElementCount the integer to put the total element count into. 
+ * @param pnElementCount the integer to put the total element count into.
  *
- * @return a pointer to an internal array of DGNElementInfo structures (there 
+ * @return a pointer to an internal array of DGNElementInfo structures (there
  * will be *pnElementCount entries in the array), or NULL on failure.  The
  * returned array should not be modified or freed, and will last only as long
- * as the DGN file remains open. 
+ * as the DGN file remains open.
  */
 
 const DGNElementInfo *DGNGetElementIndex( DGNHandle hDGN, int *pnElementCount )
@@ -1660,7 +1663,7 @@ const DGNElementInfo *DGNGetElementIndex( DGNHandle hDGN, int *pnElementCount )
 
     if( pnElementCount != NULL )
         *pnElementCount = psDGN->element_count;
-    
+
     return psDGN->element_index;
 }
 

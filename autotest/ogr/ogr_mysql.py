@@ -56,9 +56,8 @@ def ogr_mysql_1():
     try:
         ogr.GetDriverByName( 'MySQL' )
     except:
-#        print 'no driver'
         return 'skip'
-    
+
     try:
         gdaltest.mysql_ds = ogr.Open( 'MYSQL:autotest', update = 1 )
     except:
@@ -67,7 +66,6 @@ def ogr_mysql_1():
     if gdaltest.mysql_ds is not None:
         return 'success'
     else:
-#        print 'no dataset'
         return 'skip'
 
 ###############################################################################
@@ -294,7 +292,7 @@ def ogr_mysql_6():
         return 'fail'
 
     if sql_lyr.GetNextFeature() != None:
-        gdaltest.post_reason( 'GetNextFeature() didn not return None' )
+        gdaltest.post_reason( 'GetNextFeature() did not return None' )
         return 'fail'
 
     gdaltest.mysql_ds.ReleaseResultSet( sql_lyr )
@@ -303,7 +301,7 @@ def ogr_mysql_6():
         return 'success'
     else:
         return 'fail'
-    
+
 ###############################################################################
 # Test spatial filtering. 
 
@@ -313,7 +311,7 @@ def ogr_mysql_7():
         return 'skip'
 
     gdaltest.mysql_lyr.SetAttributeFilter( None )
-    
+
     geom = ogr.CreateGeometryFromWkt( \
         'LINESTRING(479505 4763195,480526 4762819)' )
     gdaltest.mysql_lyr.SetSpatialFilter( geom )
@@ -536,9 +534,9 @@ def ogr_mysql_17():
         layer = gdaltest.mysql_ds.GetLayerByName( 'JunkTableName' )
     except:
         layer = None
-        
+
     if layer is not None:
-        gdaltest.post_reason( 'got layer for non-existant table!' )
+        gdaltest.post_reason( 'got layer for non-existent table!' )
         return 'fail'
 
     if count != gdaltest.mysql_ds.GetLayerCount():
@@ -955,7 +953,8 @@ def ogr_mysql_cleanup():
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE tpoly' )
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE `select`' )
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE tablewithspatialindex' )
-    gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE tablewithoutspatialindex' )
+    with gdaltest.error_handler():
+        gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE tablewithoutspatialindex' )
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE geometry_columns' )
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE spatial_ref_sys' )
     gdaltest.mysql_ds.ExecuteSQL( 'DROP TABLE ogr_mysql_72' )
@@ -1004,4 +1003,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

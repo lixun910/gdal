@@ -58,13 +58,13 @@ def have_proj480():
         return have_proj480_flag
 
     handle = None
-    for name in ["libproj.so", "proj.dll",  "libproj-0.dll", "libproj.dylib"]:
+    for name in ["libproj.so", "proj.dll",  "libproj-0.dll", "libproj-10.dll", "cygproj-10.dll", "libproj.dylib"]:
         try:
             handle = ctypes.cdll.LoadLibrary(name)
         except:
             pass
     if handle is None:
-        print('cannot load libproj.so, proj.dll, libproj-0.dll or libproj.dylib')
+        print('cannot load libproj.so, proj.dll, libproj-0.dll, libproj-10.dll, cygproj-10.dll or libproj.dylib')
         have_proj480_flag = False
         return have_proj480_flag
 
@@ -86,12 +86,12 @@ def have_proj480():
         return have_proj480_flag
 
 ###############################################################################
-# Test the the +k_0 flag works as well as +k when consuming PROJ.4 format.
+# Test the +k_0 flag works as well as +k when consuming PROJ.4 format.
 # This is from Bugzilla bug 355.
 #
 
 def osr_proj4_1():
-    
+
     srs = osr.SpatialReference()
     srs.ImportFromProj4( '+proj=tmerc +lat_0=53.5000000000 +lon_0=-8.0000000000 +k_0=1.0000350000 +x_0=200000.0000000000 +y_0=250000.0000000000 +a=6377340.189000 +rf=299.324965 +towgs84=482.530,-130.596,564.557,-1.042,-0.214,-0.631,8.15' )
 
@@ -241,12 +241,11 @@ def osr_proj4_6():
         DATUM["WGS_1984",
             SPHEROID["WGS 84",6378137,298.257223563,
                 AUTHORITY["EPSG","7030"]],
-            TOWGS84[0,0,0,0,0,0,0],
             AUTHORITY["EPSG","6326"]],
         PRIMEM["Greenwich",0,
             AUTHORITY["EPSG","8901"]],
         UNIT["degree",0.0174532925199433,
-            AUTHORITY["EPSG","9108"]],
+            AUTHORITY["EPSG","9122"]],
         AUTHORITY["EPSG","4326"]],
     PROJECTION["Mercator_2SP"],
     PARAMETER["standard_parallel_1",46.1333331],
@@ -258,8 +257,8 @@ def osr_proj4_6():
     srs.SetFromUserInput( proj4 )
     wkt = srs.ExportToPrettyWkt()
     if wkt != expect_wkt:
-        print('Got:   ',wkt)
-        print('Expect:',expect_wkt)
+        print('Got:   %s' % wkt)
+        print('Expect:%s' % expect_wkt)
         gdaltest.post_reason( 'did not get expected mercator_2sp result.' )
         return 'fail'
 
@@ -284,7 +283,7 @@ def osr_proj4_7():
         return 'fail'
 
     srs.ImportFromProj4( proj4 )
-    
+
     expected = """PROJCS["unnamed",
     GEOGCS["GRS 67(IUGG 1967)",
         DATUM["unknown",
@@ -301,21 +300,20 @@ def osr_proj4_7():
     PARAMETER["false_easting",650000],
     PARAMETER["false_northing",200000],
     UNIT["Meter",1]]"""
-    
+
     srs_expected = osr.SpatialReference( wkt = expected )
     if not srs.IsSame(srs_expected):
         gdaltest.post_reason( 'did not get expected wkt.' )
         print( 'Got: %s' % srs.ExportToPrettyWkt() )
         return 'fail'
-    
+
     return 'success'
 
 ###############################################################################
-# Check EPSG:3857, confirm google mercator hackery.
-#
+# Check EPSG:3857, confirm Google Mercator hackery.
 
 def osr_proj4_8():
-    
+
     srs = osr.SpatialReference()
     srs.ImportFromEPSG( 3857 )
 
@@ -342,7 +340,7 @@ def osr_proj4_8():
 #
 
 def osr_proj4_9():
-    
+
     srs = osr.SpatialReference()
     srs.ImportFromEPSG( 4267 )
 
@@ -365,11 +363,11 @@ def osr_proj4_9():
     return 'success'
 
 ###############################################################################
-# Does geocentric work ok?
+# Does geocentric work okay?
 #
 
 def osr_proj4_10():
-    
+
     srs = osr.SpatialReference()
     srs.ImportFromProj4( '+proj=geocent +ellps=WGS84 +towgs84=0,0,0 ' )
 
@@ -495,7 +493,6 @@ def osr_proj4_12():
     DATUM["WGS_1984",
         SPHEROID["WGS 84",6378137,298.257223563,
             AUTHORITY["EPSG","7030"]],
-        TOWGS84[0,0,0,0,0,0,0],
         AUTHORITY["EPSG","6326"]],
     PRIMEM["Greenwich",0,
         AUTHORITY["EPSG","8901"]],
@@ -557,12 +554,11 @@ def osr_proj4_14():
         DATUM["WGS_1984",
             SPHEROID["WGS 84",6378137,298.257223563,
                 AUTHORITY["EPSG","7030"]],
-            TOWGS84[0,0,0,0,0,0,0],
             AUTHORITY["EPSG","6326"]],
         PRIMEM["Greenwich",0,
             AUTHORITY["EPSG","8901"]],
         UNIT["degree",0.0174532925199433,
-            AUTHORITY["EPSG","9108"]],
+            AUTHORITY["EPSG","9122"]],
         AUTHORITY["EPSG","4326"]],
     PROJECTION["Transverse_Mercator"],
     PARAMETER["latitude_of_origin",0],
@@ -733,7 +729,7 @@ def osr_proj4_19():
     srs = osr.SpatialReference()
     srs.ImportFromProj4( "+proj=longlat +datum=WGS84 +nadgrids=@null" )
 
-    if srs.ExportToWkt() != 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],TOWGS84[0,0,0,0,0,0,0],EXTENSION["PROJ4_GRIDS","@null"],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9108"]],AUTHORITY["EPSG","4326"]]':
+    if srs.ExportToWkt() != 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],EXTENSION["PROJ4_GRIDS","@null"],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]':
         gdaltest.post_reason( 'fail' )
         print(srs.ExportToWkt())
         return 'fail'
@@ -796,4 +792,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

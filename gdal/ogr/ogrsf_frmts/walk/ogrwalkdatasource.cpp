@@ -34,13 +34,12 @@
 /*                         OGRWalkDataSource()                          */
 /************************************************************************/
 
-OGRWalkDataSource::OGRWalkDataSource()
-
-{
-    pszName = NULL;
-    papoLayers = NULL;
-    nLayers = 0;
-}
+OGRWalkDataSource::OGRWalkDataSource() :
+    pszName(NULL),
+    papoLayers(NULL),
+    nLayers(0),
+    bDSUpdate(FALSE)
+{ }
 
 /************************************************************************/
 /*                        ~OGRWalkDataSource()                          */
@@ -49,14 +48,11 @@ OGRWalkDataSource::OGRWalkDataSource()
 OGRWalkDataSource::~OGRWalkDataSource()
 
 {
-    int i;
-
     CPLFree( pszName );
 
-    for( i = 0; i < nLayers; i++ )
+    for( int i = 0; i < nLayers; i++ )
     {
         CPLAssert( NULL != papoLayers[i] );
-
         delete papoLayers[i];
     }
 
@@ -76,7 +72,7 @@ int OGRWalkDataSource::Open( const char * pszNewName, int bUpdate )
 /* -------------------------------------------------------------------- */
     char *pszDSN;
 
-    if( EQUALN(pszNewName,"WALK:",5) )
+    if( STARTS_WITH_CI(pszNewName, "WALK:") )
         pszDSN = CPLStrdup( pszNewName + 5 );
     else
     {
@@ -124,7 +120,7 @@ int OGRWalkDataSource::Open( const char * pszNewName, int bUpdate )
 
     while( oStmt.Fetch() )
     {
-        int i, iNew = apapszGeomColumns.size();
+        int i, iNew = static_cast<int>(apapszGeomColumns.size());
         char **papszRecord = NULL;
         
         for( i = 1; i < 7; i++ )

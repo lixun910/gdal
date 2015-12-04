@@ -45,9 +45,6 @@
  * Revision 1.22  2008-07-21 16:04:58  dmorissette
  * Fixed const char * warnings with GCC 4.3 (GDAL ticket #2325)
  *
- * Revision 1.21  2006/12/01 16:53:15  dmorissette
- * Wrapped <mbctype.h> stuff with !defined(WIN32CE) (done by mloskot in OGR)
- *
  * Revision 1.20  2005/08/07 21:02:14  fwarmerdam
  * avoid warnings about testing for characters > 255.
  *
@@ -118,7 +115,7 @@
 #include <math.h>       /* sin()/cos() */
 #include <ctype.h>      /* toupper()/tolower() */
 
-#if defined(_WIN32) && !defined(unix) && !defined(WIN32CE)
+#if defined(_WIN32) && !defined(unix)
 #  include <mbctype.h>  /* Multibyte chars stuff */
 #endif
 
@@ -149,7 +146,7 @@ int TABGenerateArc(OGRLineString *poLine, int numPoints,
 
     // Adjust angles to go counterclockwise
     if (dEndAngle < dStartAngle)
-        dEndAngle += 2.0*PI;
+        dEndAngle += 2.0*M_PI;
 
     dAngleStep = (dEndAngle-dStartAngle)/(numPoints-1.0);
 
@@ -161,8 +158,8 @@ int TABGenerateArc(OGRLineString *poLine, int numPoints,
         poLine->addPoint(dX, dY);
     }
 
-    // Complete the arc with the last EndAngle, to make sure that 
-    // the arc is correcly close.
+    // Complete the arc with the last EndAngle, to make sure that
+    // the arc is correctly closed.
 
     dX = dCenterX + dXRadius*cos(dAngle);
     dY = dCenterY + dYRadius*sin(dAngle);
@@ -202,7 +199,11 @@ int TABCloseRing(OGRLineString *poRing)
  * This function works on the original buffer and returns a reference to it.
  * It does nothing on Windows systems where filenames are not case sensitive.
  **********************************************************************/
-GBool TABAdjustCaseSensitiveFilename(char *pszFname)
+static GBool TABAdjustCaseSensitiveFilename(char *
+#ifndef _WIN32
+                                            pszFname
+#endif
+                                            )
 {
 
 #ifdef _WIN32
@@ -233,7 +234,7 @@ GBool TABAdjustCaseSensitiveFilename(char *pszFname)
      * go backwards until we find a portion of the path that is valid.
      *----------------------------------------------------------------*/
     pszTmpPath = CPLStrdup(pszFname);
-    nTotalLen = strlen(pszTmpPath);
+    nTotalLen = static_cast<int>(strlen(pszTmpPath));
     iTmpPtr = nTotalLen;
     bValidPath = FALSE;
 
@@ -359,7 +360,7 @@ GBool TABAdjustFilenameExtension(char *pszFname)
     /*-----------------------------------------------------------------
      * Try using uppercase extension (we assume that fname contains a '.')
      *----------------------------------------------------------------*/
-    for(i = strlen(pszFname)-1; i >= 0 && pszFname[i] != '.'; i--)
+    for(i = static_cast<int>(strlen(pszFname))-1; i >= 0 && pszFname[i] != '.'; i--)
     {
         pszFname[i] = (char)toupper(pszFname[i]);
     }
@@ -372,7 +373,7 @@ GBool TABAdjustFilenameExtension(char *pszFname)
     /*-----------------------------------------------------------------
      * Try using lowercase extension
      *----------------------------------------------------------------*/
-    for(i = strlen(pszFname)-1; i >= 0 && pszFname[i] != '.'; i--)
+    for(i = static_cast<int>(strlen(pszFname))-1; i >= 0 && pszFname[i] != '.'; i--)
     {
         pszFname[i] = (char)tolower(pszFname[i]);
     }
@@ -380,7 +381,7 @@ GBool TABAdjustFilenameExtension(char *pszFname)
     if (VSIStatL(pszFname, &sStatBuf) == 0)
     {
         return TRUE;
-    }     
+    }
 
     /*-----------------------------------------------------------------
      * None of the extensions worked!  
@@ -397,7 +398,7 @@ GBool TABAdjustFilenameExtension(char *pszFname)
  * Extract the basename part of a complete file path.
  *
  * Returns a newly allocated string without the leading path (dirs) and
- * the extenstion.  The returned string should be freed using CPLFree().
+ * the extension.  The returned string should be freed using CPLFree().
  **********************************************************************/
 char *TABGetBasename(const char *pszFname)
 {
@@ -420,7 +421,7 @@ char *TABGetBasename(const char *pszFname)
      *----------------------------------------------------------------*/
     char *pszBasename = CPLStrdup(pszTmp);
     int i;
-    for(i=strlen(pszBasename)-1; i >= 0; i-- )
+    for(i=static_cast<int>(strlen(pszBasename))-1; i >= 0; i-- )
     {
         if (pszBasename[i] == '.')
         {
@@ -620,12 +621,12 @@ char *TABCleanFieldName(const char *pszSrcName)
     if (strlen(pszNewName) > 31)
     {
         pszNewName[31] = '\0';
-        CPLError(CE_Warning, TAB_WarningInvalidFieldName,
+        CPLError(CE_Warning, (CPLErrorNum)TAB_WarningInvalidFieldName,
                  "Field name '%s' is longer than the max of 31 characters. "
                  "'%s' will be used instead.", pszSrcName, pszNewName);
     }
 
-#if defined(_WIN32) && !defined(unix) && !defined(WIN32CE)
+#if defined(_WIN32) && !defined(unix)
     /*-----------------------------------------------------------------
      * On Windows, check if we're using a double-byte codepage, and
      * if so then just keep the field name as is... 
@@ -671,7 +672,7 @@ char *TABCleanFieldName(const char *pszSrcName)
 
     if (numInvalidChars > 0)
     {
-        CPLError(CE_Warning, TAB_WarningInvalidFieldName,
+        CPLError(CE_Warning, (CPLErrorNum)TAB_WarningInvalidFieldName,
                  "Field name '%s' contains invalid characters. "
                  "'%s' will be used instead.", pszSrcName, pszNewName);
     }
@@ -760,4 +761,3 @@ int TABUnitIdFromString(const char *pszName)
 
     return -1;
 }
-

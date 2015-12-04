@@ -1,4 +1,4 @@
-# generated automatically by aclocal 1.11.1 -*- Autoconf -*-
+# generated automatically by aclocal 1.11 -*- Autoconf -*-
 
 # Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 # 2005, 2006, 2007, 2008, 2009  Free Software Foundation, Inc.
@@ -13,6 +13,7 @@
 
 m4_include([m4/acinclude.m4])
 m4_include([m4/ax_cflags_warn_all.m4])
+m4_include([m4/ax_check_compile_flag.m4])
 m4_include([m4/ax_lib_expat.m4])
 m4_include([m4/ax_lib_libkml.m4])
 m4_include([m4/ax_lib_sqlite3.m4])
@@ -28,3 +29,4 @@ m4_include([m4/ltoptions.m4])
 m4_include([m4/ltsugar.m4])
 m4_include([m4/ltversion.m4])
 m4_include([m4/lt~obsolete.m4])
+m4_include([m4/pkg.m4])

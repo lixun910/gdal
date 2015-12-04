@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_DODS_H_INCLUDED
-#define _OGR_DODS_H_INCLUDED
+#ifndef OGR_DODS_H_INCLUDED
+#define OGR_DODS_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "cpl_error.h"
@@ -156,6 +156,8 @@ class OGRDODSLayer : public OGRLayer
     virtual int         TestCapability( const char * );
 
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 };
 
 /************************************************************************/
@@ -350,6 +352,6 @@ int  OGRDODSGetVarIndex( Sequence *poParent, string oVarName );
 int  OGRDODSIsFloatInvalid( const float * );
 int  OGRDODSIsDoubleInvalid( const double * );
 
-#endif /* ndef _OGR_DODS_H_INCLUDED */
+#endif /* ndef OGR_DODS_H_INCLUDED */
 
 

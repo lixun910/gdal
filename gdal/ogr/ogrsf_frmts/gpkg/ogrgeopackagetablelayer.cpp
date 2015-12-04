@@ -161,6 +161,12 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindParameters( OGRFeature *poFeature,
     if( bAddFID )
     {
         err = sqlite3_bind_int64(poStmt, nColCount++, poFeature->GetFID());
+        if ( err != SQLITE_OK )
+        {
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "failed to bind FID to statement");
+            return OGRERR_FAILURE;
+        }
     }
 
     /* Bind data values to the statement, here bind the blob for geometry */
@@ -174,7 +180,8 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindParameters( OGRFeature *poFeature,
         {
             size_t szWkb;
             pabyWkb = GPkgGeometryFromOGR(poGeom, m_iSrs, &szWkb);
-            err = sqlite3_bind_blob(poStmt, nColCount++, pabyWkb, szWkb, CPLFree);
+            err = sqlite3_bind_blob(poStmt, nColCount++, pabyWkb,
+                                    static_cast<int>(szWkb), CPLFree);
 
             // FIXME: in case the geometry is a GeometryCollection, we should
             // inspect its subgeometries to see if there's non-linear ones.
@@ -195,7 +202,8 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindParameters( OGRFeature *poFeature,
     }
 
     /* Bind the attributes using appropriate SQLite data types */
-    for( int i = 0; i < poFeatureDefn->GetFieldCount(); i++ )
+    err = SQLITE_OK;
+    for( int i = 0; err == SQLITE_OK && i < poFeatureDefn->GetFieldCount(); i++ )
     {
         if( i == m_iFIDAsRegularColumnIndex )
             continue;
@@ -298,8 +306,8 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindParameters( OGRFeature *poFeature,
                     }
                     err = sqlite3_bind_text(poStmt, nColCount++, pszVal, nValLengthBytes, SQLITE_TRANSIENT);
                     break;
-                }            
-            }            
+                }
+            }
         }
         else
         {
@@ -307,9 +315,9 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindParameters( OGRFeature *poFeature,
                 err = sqlite3_bind_null(poStmt, nColCount++);
         }
     }
-    
+
     *pnColCount = nColCount;
-    return OGRERR_NONE;
+    return (err == SQLITE_OK) ? OGRERR_NONE : OGRERR_FAILURE;
 }
 
 //----------------------------------------------------------------------
@@ -329,8 +337,8 @@ OGRErr OGRGeoPackageTableLayer::FeatureBindUpdateParameters( OGRFeature *poFeatu
         return err;
 
     /* Bind the FID to the "WHERE" clause */
-    err = sqlite3_bind_int64(poStmt, nColCount, poFeature->GetFID());    
-    if ( err != SQLITE_OK )
+    int sqlite_err = sqlite3_bind_int64(poStmt, nColCount, poFeature->GetFID());    
+    if ( sqlite_err != SQLITE_OK )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "failed to bind FID '" CPL_FRMT_GIB "' to statement", poFeature->GetFID());
@@ -734,7 +742,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(int bIsSpatial)
                     float fSecond;
                     if( oField.GetType() == OFTString &&
                         !EQUAL(pszDefault, "NULL") &&
-                        !EQUALN(pszDefault, "CURRENT_", strlen("CURRENT_")) &&
+                        !STARTS_WITH_CI(pszDefault, "CURRENT_") &&
                         pszDefault[0] != '(' &&
                         pszDefault[0] != '\'' &&
                         CPLGetValueType(pszDefault) == CPL_VALUE_STRING )
@@ -759,7 +767,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(int bIsSpatial)
                     }
                     else if( (oField.GetType() == OFTDate || oField.GetType() == OFTDateTime) &&
                              !EQUAL(pszDefault, "NULL") &&
-                             !EQUALN(pszDefault, "CURRENT_", strlen("CURRENT_")) &&
+                             !STARTS_WITH_CI(pszDefault, "CURRENT_") &&
                              pszDefault[0] != '(' &&
                              pszDefault[0] != '\'' &&
                              !(pszDefault[0] >= '0' && pszDefault[0] <= '9') &&
@@ -798,7 +806,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(int bIsSpatial)
                             OGRSQLiteEscape(m_pszFidColumn).c_str(),
                             m_pszTableName);
         sqlite3_stmt* hColStmt = NULL;
-        int rc = sqlite3_prepare( poDb, pszSQLStatic, strlen(pszSQLStatic), &hColStmt, NULL ); 
+        int rc = sqlite3_prepare( poDb, pszSQLStatic, -1, &hColStmt, NULL ); 
         if( rc == SQLITE_OK )
         {
             rc = sqlite3_step( hColStmt );
@@ -926,7 +934,7 @@ OGRErr OGRGeoPackageTableLayer::CreateField( OGRFieldDefn *poField,
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Wrong field type for %s",
                  oFieldDefn.GetNameRef());
-        return CE_Failure;
+        return OGRERR_FAILURE;
     }
 
     if( !m_bDeferredCreation )
@@ -1130,8 +1138,8 @@ OGRErr OGRGeoPackageTableLayer::ICreateFeature( OGRFeature *poFeature )
                 poFeature->GetFieldAsInteger64(m_iFIDAsRegularColumnIndex) != poFeature->GetFID() )
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
-                            "Inconsistant values of FID and field of same name");
-                return CE_Failure;
+                            "Inconsistent values of FID and field of same name");
+                return OGRERR_FAILURE;
             }
         }
     }
@@ -1208,8 +1216,8 @@ OGRErr OGRGeoPackageTableLayer::ICreateFeature( OGRFeature *poFeature )
     }
 
     /* Read the latest FID value */
-    GIntBig nFID;
-    if ( (nFID = sqlite3_last_insert_rowid(m_poDS->GetDB())) )
+    GIntBig nFID = sqlite3_last_insert_rowid(m_poDS->GetDB());
+    if( nFID )
     {
         poFeature->SetFID(nFID);
         if( m_iFIDAsRegularColumnIndex >= 0 )
@@ -1251,8 +1259,8 @@ OGRErr OGRGeoPackageTableLayer::ISetFeature( OGRFeature *poFeature )
             poFeature->GetFieldAsInteger64(m_iFIDAsRegularColumnIndex) != poFeature->GetFID() )
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                        "Inconsistant values of FID and field of same name");
-            return CE_Failure;
+                        "Inconsistent values of FID and field of same name");
+            return OGRERR_FAILURE;
         }
     }
 
@@ -2436,8 +2444,8 @@ OGRErr OGRGeoPackageTableLayer::RunDeferredCreationIfNecessary()
         if( pszDefault != NULL &&
             (!poFieldDefn->IsDefaultDriverSpecific() ||
              (pszDefault[0] == '(' && pszDefault[strlen(pszDefault)-1] == ')' &&
-             (EQUALN(pszDefault+1, "strftime", strlen("strftime")) ||
-              EQUALN(pszDefault+1, " strftime", strlen(" strftime"))))) )
+             (STARTS_WITH_CI(pszDefault+1, "strftime") ||
+              STARTS_WITH_CI(pszDefault+1, " strftime")))) )
         {
             osCommand += " DEFAULT ";
             OGRField sField;

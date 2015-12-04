@@ -39,25 +39,28 @@
 /*                          GMLFeatureClass()                           */
 /************************************************************************/
 
-GMLFeatureClass::GMLFeatureClass( const char *pszName )
-
+GMLFeatureClass::GMLFeatureClass( const char *pszName ) :
+    m_pszName(NULL),
+    m_pszElementName(NULL),
+    n_nNameLen(0),
+    n_nElementNameLen(0),
+    m_nPropertyCount(0),
+    m_papoProperty(NULL),
+    m_nGeometryPropertyCount(0),
+    m_papoGeometryProperty(NULL),
+    m_bSchemaLocked(false),
+    m_nFeatureCount(-1), // unknown
+    m_pszExtraInfo(NULL),
+    m_bHaveExtents(false),
+    m_dfXMin(0.0),
+    m_dfXMax(0.0),
+    m_dfYMin(0.0),
+    m_dfYMax(0.0),
+    m_pszSRSName(NULL),
+    m_bSRSNameConsistent(true)
 {
     m_pszName = CPLStrdup( pszName );
-    n_nNameLen = strlen( m_pszName );
-    m_pszElementName = NULL;
-    n_nElementNameLen = 0;
-    m_nPropertyCount = 0;
-    m_papoProperty = NULL;
-    m_nGeometryPropertyCount = 0;
-    m_papoGeometryProperty = NULL;
-    m_bSchemaLocked = FALSE;
-
-    m_pszExtraInfo = NULL;
-    m_bHaveExtents = FALSE;
-    m_nFeatureCount = -1; // unknown
-
-    m_pszSRSName = NULL;
-    m_bSRSNameConsistent = TRUE;
+    n_nNameLen = static_cast<int>(strlen( m_pszName ));
 }
 
 /************************************************************************/
@@ -244,15 +247,15 @@ void GMLFeatureClass::ClearGeometryProperties()
 /*                         HasFeatureProperties()                       */
 /************************************************************************/
 
-int GMLFeatureClass::HasFeatureProperties()
+bool GMLFeatureClass::HasFeatureProperties()
 {
     for( int i = 0; i < m_nPropertyCount; i++ )
     {
         if( m_papoProperty[i]->GetType() == GMLPT_FeatureProperty ||
             m_papoProperty[i]->GetType() == GMLPT_FeaturePropertyList )
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 /************************************************************************/
@@ -264,7 +267,7 @@ void GMLFeatureClass::SetElementName( const char *pszElementName )
 {
     CPLFree( m_pszElementName );
     m_pszElementName = CPLStrdup( pszElementName );
-    n_nElementNameLen = strlen(pszElementName);
+    n_nElementNameLen = static_cast<int>(strlen(pszElementName));
 }
 
 /************************************************************************/
@@ -350,14 +353,14 @@ void GMLFeatureClass::SetExtents( double dfXMin, double dfXMax,
     m_dfYMin = dfYMin;
     m_dfYMax = dfYMax;
 
-    m_bHaveExtents = TRUE;
+    m_bHaveExtents = true;
 }
 
 /************************************************************************/
 /*                             GetExtents()                             */
 /************************************************************************/
 
-int GMLFeatureClass::GetExtents( double *pdfXMin, double *pdfXMax, 
+bool GMLFeatureClass::GetExtents( double *pdfXMin, double *pdfXMax, 
                                  double *pdfYMin, double *pdfYMax )
 
 {
@@ -379,7 +382,7 @@ int GMLFeatureClass::GetExtents( double *pdfXMin, double *pdfXMax,
 void GMLFeatureClass::SetSRSName( const char* pszSRSName )
 
 {
-    m_bSRSNameConsistent = TRUE;
+    m_bSRSNameConsistent = true;
     CPLFree(m_pszSRSName);
     m_pszSRSName = (pszSRSName) ? CPLStrdup(pszSRSName) : NULL;
 }
@@ -415,7 +418,7 @@ void GMLFeatureClass::MergeSRSName( const char* pszSRSName )
 /*                         InitializeFromXML()                          */
 /************************************************************************/
 
-int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
+bool GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
 
 {
 /* -------------------------------------------------------------------- */
@@ -429,14 +432,14 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "GMLFeatureClass::InitializeFromXML() called on %s node!",
                   psRoot->pszValue );
-        return FALSE;
+        return false;
     }
 
     if( CPLGetXMLValue( psRoot, "Name", NULL ) == NULL )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "GMLFeatureClass has no <Name> element." );
-        return FALSE;
+        return false;
     }
 
 /* -------------------------------------------------------------------- */
@@ -444,7 +447,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
 /* -------------------------------------------------------------------- */
     CPLFree( m_pszName );
     m_pszName = CPLStrdup( CPLGetXMLValue( psRoot, "Name", NULL ) );
-    n_nNameLen = strlen(m_pszName);
+    n_nNameLen = static_cast<int>(strlen(m_pszName));
 
     SetElementName( CPLGetXMLValue( psRoot, "ElementPath", m_pszName ) );
 
@@ -453,10 +456,10 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
 /* -------------------------------------------------------------------- */
     CPLXMLNode *psThis;
 
-    int bHasValidGeometryName = FALSE;
-    int bHasValidGeometryElementPath = FALSE;
-    int bHasFoundGeomType = FALSE;
-    int bHasFoundGeomElements = FALSE;
+    bool bHasValidGeometryName = false;
+    bool bHasValidGeometryElementPath = false;
+    bool bHasFoundGeomType = false;
+    bool bHasFoundGeomElements = false;
     const char* pszGName = "";
     const char* pszGPath = "";
     int nGeomType = wkbUnknown;
@@ -469,7 +472,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
             const char *pszName = CPLGetXMLValue( psThis, "Name", "" );
             const char *pszElementPath = CPLGetXMLValue( psThis, "ElementPath", "" );
             const char *pszType = CPLGetXMLValue( psThis, "Type", NULL );
-            int bNullable = CSLTestBoolean(CPLGetXMLValue( psThis, "Nullable", "true") );
+            bool bNullable = CPL_TO_BOOL(CSLTestBoolean(CPLGetXMLValue( psThis, "Nullable", "true") ));
             nGeomType = wkbUnknown;
             if( pszType != NULL && !EQUAL(pszType, "0") )
             {
@@ -484,59 +487,57 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
                 else if( nGeomType == 0 )
                     nGeomType = OGRFromOGCGeomType(pszType);
             }
-            bHasFoundGeomElements = TRUE;
+            bHasFoundGeomElements = true;
             AddGeometryProperty( new GMLGeometryPropertyDefn( pszName, pszElementPath, nGeomType, -1, bNullable ) );
-            bHasValidGeometryName = FALSE;
-            bHasValidGeometryElementPath = FALSE;
-            bHasFoundGeomType = FALSE;
+            bHasValidGeometryName = false;
+            bHasValidGeometryElementPath = false;
+            bHasFoundGeomType = false;
         }
         else if( psThis->eType == CXT_Element &&
             strcmp(psThis->pszValue, "GeometryName") == 0 )
         {
-            bHasFoundGeomElements = TRUE;
+            bHasFoundGeomElements = true;
 
             if( bHasValidGeometryName )
             {
-                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, TRUE ) );
-                bHasValidGeometryName = FALSE;
-                bHasValidGeometryElementPath = FALSE;
-                bHasFoundGeomType = FALSE;
-                pszGName = "";
+                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, true ) );
+                bHasValidGeometryName = false;
+                bHasValidGeometryElementPath = false;
+                bHasFoundGeomType = false;
                 pszGPath = "";
                 nGeomType = wkbUnknown;
             }
             pszGName = CPLGetXMLValue( psThis, NULL, "" );
-            bHasValidGeometryName = TRUE;
+            bHasValidGeometryName = true;
         }
         else if( psThis->eType == CXT_Element &&
             strcmp(psThis->pszValue, "GeometryElementPath") == 0 )
         {
-            bHasFoundGeomElements = TRUE;
+            bHasFoundGeomElements = true;
 
             if( bHasValidGeometryElementPath )
             {
-                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, TRUE ) );
-                bHasValidGeometryName = FALSE;
-                bHasValidGeometryElementPath = FALSE;
-                bHasFoundGeomType = FALSE;
+                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, true ) );
+                bHasValidGeometryName = false;
+                bHasValidGeometryElementPath = false;
+                bHasFoundGeomType = false;
                 pszGName = "";
-                pszGPath = "";
                 nGeomType = wkbUnknown;
             }
             pszGPath = CPLGetXMLValue( psThis, NULL, "" );
-            bHasValidGeometryElementPath = TRUE;
+            bHasValidGeometryElementPath = true;
         }
         else if( psThis->eType == CXT_Element &&
                  strcmp(psThis->pszValue, "GeometryType") == 0 )
         {
-            bHasFoundGeomElements = TRUE;
+            bHasFoundGeomElements = true;
 
             if( bHasFoundGeomType )
             {
-                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, TRUE ) );
-                bHasValidGeometryName = FALSE;
-                bHasValidGeometryElementPath = FALSE;
-                bHasFoundGeomType = FALSE;
+                AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, true ) );
+                bHasValidGeometryName = false;
+                bHasValidGeometryElementPath = false;
+                bHasFoundGeomType = false;
                 pszGName = "";
                 pszGPath = "";
                 nGeomType = wkbUnknown;
@@ -549,8 +550,8 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
                 OGRwkbGeometryType nFlattenGeomType = wkbFlatten(nGeomType);
                 if( nGeomType == 100 || EQUAL(pszGeometryType, "NONE") )
                 {
-                    bHasValidGeometryElementPath = FALSE;
-                    bHasFoundGeomType = FALSE;
+                    bHasValidGeometryElementPath = false;
+                    bHasFoundGeomType = false;
                     break;
                 }
                 else if( nGeomType != 0 && !(nFlattenGeomType >= wkbPoint && nFlattenGeomType <= wkbMultiSurface) )
@@ -562,7 +563,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
                 else if( nGeomType == 0 )
                     nGeomType = OGRFromOGCGeomType(pszGeometryType);
             }
-            bHasFoundGeomType = TRUE;
+            bHasFoundGeomType = true;
         }
     }
 
@@ -571,7 +572,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
     /* a geometry field */
     if( bHasValidGeometryElementPath || bHasFoundGeomType || !bHasFoundGeomElements )
     {
-        AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, TRUE ) );
+        AddGeometryProperty( new GMLGeometryPropertyDefn( pszGName, pszGPath, nGeomType, -1, true ) );
     }
 
     SetSRSName( CPLGetXMLValue( psRoot, "SRSName", NULL ) );
@@ -617,7 +618,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
             const char *pszType = CPLGetXMLValue( psThis, "Type", "Untyped" );
             const char *pszSubType = CPLGetXMLValue( psThis, "Subtype", "" );
             const char *pszCondition = CPLGetXMLValue( psThis, "Condition", NULL );
-            int bNullable = CSLTestBoolean(CPLGetXMLValue( psThis, "Nullable", "true") );
+            bool bNullable = CPL_TO_BOOL(CSLTestBoolean(CPLGetXMLValue( psThis, "Nullable", "true") ));
             GMLPropertyDefn *poPDefn;
 
             if( pszName == NULL )
@@ -625,7 +626,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
                 CPLError( CE_Failure, CPLE_AppDefined, 
                           "GMLFeatureClass %s has a PropertyDefn without a <Name>..",
                           m_pszName );
-                return FALSE;
+                return false;
             }
 
             poPDefn = new GMLPropertyDefn( 
@@ -704,7 +705,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
                           "Unrecognised property type %s.", 
                           pszType );
                 delete poPDefn;
-                return FALSE;
+                return false;
             }
             if( pszCondition != NULL )
                 poPDefn->SetCondition(pszCondition);
@@ -713,7 +714,7 @@ int GMLFeatureClass::InitializeFromXML( CPLXMLNode *psRoot )
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 /************************************************************************/
@@ -945,4 +946,3 @@ CPLXMLNode *GMLFeatureClass::SerializeToXML()
 
     return psRoot;
 }
-

@@ -459,7 +459,7 @@ OGRGeometry *SHPReadOGRObject( SHPHandle hSHP, int iShape, SHPObject *psShape )
 /************************************************************************/
 /*                         SHPWriteOGRObject()                          */
 /************************************************************************/
-
+static
 OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
                           int bRewind)
 
@@ -490,7 +490,6 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
              || hSHP->nShapeType == SHPT_POINTZ )
     {
         SHPObject       *psShape;
-        OGRPoint        *poPoint = (OGRPoint *) poGeom;
         double          dfX, dfY, dfZ = 0;
 
         if( poGeom->getGeometryType() != wkbPoint
@@ -504,6 +503,7 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
             return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
         }
 
+        OGRPoint        *poPoint = (OGRPoint *) poGeom;
         dfX = poPoint->getX();
         dfY = poPoint->getY();
         dfZ = poPoint->getZ();
@@ -522,7 +522,6 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
              || hSHP->nShapeType == SHPT_MULTIPOINTM
              || hSHP->nShapeType == SHPT_MULTIPOINTZ )
     {
-        OGRMultiPoint   *poMP = (OGRMultiPoint *) poGeom;
         double          *padfX, *padfY, *padfZ;
         int             iPoint;
         SHPObject       *psShape;
@@ -537,6 +536,7 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
             return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
         }
 
+        OGRMultiPoint   *poMP = (OGRMultiPoint *) poGeom;
         padfX = (double *) CPLMalloc(sizeof(double)*poMP->getNumGeometries());
         padfY = (double *) CPLMalloc(sizeof(double)*poMP->getNumGeometries());
         padfZ = (double *) CPLCalloc(sizeof(double),poMP->getNumGeometries());
@@ -615,19 +615,18 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
              || hSHP->nShapeType == SHPT_ARCM
              || hSHP->nShapeType == SHPT_ARCZ )
     {
-        OGRMultiLineString *poML;
+        OGRGeometry     *poForcedGeom;
         double          *padfX=NULL, *padfY=NULL, *padfZ=NULL;
         int             iGeom, iPoint, nPointCount = 0;
         SHPObject       *psShape;
         int             *panRingStart;
         int             nParts = 0;
 
-        poML = (OGRMultiLineString *) 
-            OGRGeometryFactory::forceToMultiLineString( poGeom->clone() );
+        poForcedGeom = OGRGeometryFactory::forceToMultiLineString( poGeom->clone() );
 
-        if( wkbFlatten(poML->getGeometryType()) != wkbMultiLineString )
+        if( wkbFlatten(poForcedGeom->getGeometryType()) != wkbMultiLineString )
         {
-            delete poML;
+            delete poForcedGeom;
             CPLError( CE_Failure, CPLE_AppDefined,
                       "Attempt to write non-linestring (%s) geometry to "
                       "ARC type shapefile.",
@@ -635,6 +634,7 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
 
             return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
         }
+        OGRMultiLineString *poML = (OGRMultiLineString *)poForcedGeom;
 
         panRingStart = (int *) 
             CPLMalloc(sizeof(int) * poML->getNumGeometries());
@@ -697,17 +697,15 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
              || hSHP->nShapeType == SHPT_POLYGONM
              || hSHP->nShapeType == SHPT_POLYGONZ )
     {
-        OGRPolygon      *poPoly;
         OGRLinearRing   *poRing, **papoRings=NULL;
         double          *padfX=NULL, *padfY=NULL, *padfZ=NULL;
         int             iPoint, iRing, nRings, nVertex=0, *panRingStart;
-        SHPObject       *psShape;
 
         /* Collect list of rings */
 
         if( wkbFlatten(poGeom->getGeometryType()) == wkbPolygon )
         {
-            poPoly =  (OGRPolygon *) poGeom;
+            OGRPolygon* poPoly =  (OGRPolygon *) poGeom;
 
             if( poPoly->getExteriorRing() == NULL ||
                 poPoly->getExteriorRing()->IsEmpty() )
@@ -747,18 +745,19 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
             nRings = 0;
             for( iGeom=0; iGeom < poGC->getNumGeometries(); iGeom++ )
             {
-                poPoly =  (OGRPolygon *) poGC->getGeometryRef( iGeom );
+                OGRGeometry* poSubGeom = poGC->getGeometryRef( iGeom );
 
-                if( wkbFlatten(poPoly->getGeometryType()) != wkbPolygon )
+                if( wkbFlatten(poSubGeom->getGeometryType()) != wkbPolygon )
                 {
                     CPLFree( papoRings );
                     CPLError( CE_Failure, CPLE_AppDefined,
                               "Attempt to write non-polygon (%s) geometry to "
                               "POLYGON type shapefile.",
-                              poGeom->getGeometryName());
+                              poSubGeom->getGeometryName());
 
                     return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
                 }
+                OGRPolygon* poPoly =  (OGRPolygon *) poSubGeom;
 
                 /* Ignore POLYGON EMPTY */
                 if( poPoly->getExteriorRing() == NULL ||
@@ -844,7 +843,7 @@ OGRErr SHPWriteOGRObject( SHPHandle hSHP, int iShape, OGRGeometry *poGeom,
             }
         }
 
-        psShape = SHPCreateObject( hSHP->nShapeType, iShape, nRings,
+        SHPObject* psShape = SHPCreateObject( hSHP->nShapeType, iShape, nRings,
                                    panRingStart, NULL,
                                    nVertex, padfX, padfY, padfZ, NULL );
         if( bRewind )
@@ -915,8 +914,9 @@ OGRFeatureDefn *SHPReadOGRFeatureDefn( const char * pszName,
         {
             /* XXX - mloskot:
              * Shapefile date has following 8-chars long format: 20060101.
-             * OGR splits it as YYYY/MM/DD, so 2 additional characters are required.
-             * Is this correct assumtion? What about time part of date?
+             * OGR splits it as YYYY/MM/DD, so 2 additional characters are
+             * required.
+             * Is this a correct assumption? What about time part of date?
              * Shouldn't this format look as datetime: YYYY/MM/DD HH:MM:SS
              * with 4 additional characters?
              */
@@ -938,7 +938,7 @@ OGRFeatureDefn *SHPReadOGRFeatureDefn( const char * pszName,
 
         poDefn->AddFieldDefn( &oField );
     }
-    
+
     /* Do an optional past if requested and needed to demote Integer64->Integer */
     /* or Real->Integer64/Integer */
     if( nAdjustableFields && bAdjustType )
@@ -983,7 +983,7 @@ OGRFeatureDefn *SHPReadOGRFeatureDefn( const char * pszName,
                                             &nWidth, &nPrecision );
                            poDefn->GetFieldDefn(iField)->SetWidth(nWidth);*/
                        }
-                       else if( (GIntBig)(int)nVal != nVal )
+                       else if( !CPL_INT64_FITS_ON_INT32(nVal) )
                        {
                            poDefn->GetFieldDefn(iField)->SetType(OFTInteger64);
                            if( poDefn->GetFieldDefn(iField)->GetWidth() <= 18 )
@@ -1116,7 +1116,7 @@ OGRFeature *SHPReadOGRFeature( SHPHandle hSHP, DBFHandle hDBF,
 /*      Fetch feature attributes to OGRFeature fields.                  */
 /* -------------------------------------------------------------------- */
 
-    for( int iField = 0; iField < poDefn->GetFieldCount(); iField++ )
+    for( int iField = 0; hDBF != NULL && iField < poDefn->GetFieldCount(); iField++ )
     {
         OGRFieldDefn* poFieldDefn = poDefn->GetFieldDefn(iField);
         if (poFieldDefn->IsIgnored() )
@@ -1359,7 +1359,8 @@ OGRErr SHPWriteOGRFeature( SHPHandle hSHP, DBFHandle hDBF,
 
                 nStrLen = OGR_DBF_MAX_FIELD_WIDTH;
 
-                if(EQUAL(pszSHPEncoding, CPL_ENC_UTF8))
+                if(pszEncoded != NULL && /* to please Coverity */
+                   EQUAL(pszSHPEncoding, CPL_ENC_UTF8))
                 {
                     const char *p = pszStr + nStrLen;
                     int byteCount = nStrLen;
@@ -1403,7 +1404,7 @@ OGRErr SHPWriteOGRFeature( SHPHandle hSHP, DBFHandle hDBF,
               int nFieldWidth = poFieldDefn->GetWidth();
               sprintf(szFormat, "%%%d" CPL_FRMT_GB_WITHOUT_PREFIX "d", MIN(nFieldWidth, (int)sizeof(szValue)-1));
               sprintf(szValue, szFormat, poFeature->GetFieldAsInteger64(iField) );
-              int nStrLen = strlen(szValue);
+              int nStrLen = static_cast<int>(strlen(szValue));
               if( nStrLen > nFieldWidth )
               {
                   if (GrowField(hDBF, iField, poFieldDefn, nStrLen) != OGRERR_NONE)

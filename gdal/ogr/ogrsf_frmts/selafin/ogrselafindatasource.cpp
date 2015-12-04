@@ -63,7 +63,7 @@ void Range::setRange(const char *pszStr) {
     }
     const char *pszc=pszStr;
     char *psze;
-    long nMin,nMax;
+    int nMin,nMax;
     SelafinTypeDef eType;
     while (*pszc!=0 && *pszc!=']') {
         pszc++;
@@ -77,7 +77,7 @@ void Range::setRange(const char *pszStr) {
         if (*pszc==':') {
             nMin=0;
         } else {
-            nMin=strtol(pszc,&psze,10);
+            nMin=(int)strtol(pszc,&psze,10);
             if (*psze!=':' && *psze!=',' && *psze!=']') {
                 CPLError( CE_Warning, CPLE_IllegalArg, "Invalid range specified\n");
                 deleteList(poVals);
@@ -91,7 +91,7 @@ void Range::setRange(const char *pszStr) {
             if (*pszc==',' || *pszc==']') {
                 nMax=-1; 
             } else {
-                nMax=strtol(pszc,&psze,10);
+                nMax=(int)strtol(pszc,&psze,10);
                 if (*psze!=',' && *psze!=']') {
                     CPLError( CE_Warning, CPLE_IllegalArg, "Invalid range specified\n");
                     deleteList(poVals);
@@ -119,7 +119,7 @@ void Range::setRange(const char *pszStr) {
     }
 }
 
-bool Range::contains(SelafinTypeDef eType,long nValue) const {
+bool Range::contains(SelafinTypeDef eType,int nValue) const {
     if (poVals==0) return true;
     Range::List *poCur=poActual;
     while (poCur!=0) {
@@ -156,7 +156,7 @@ void Range::sortList(Range::List *&poList,Range::List *poEnd) {
     if (poBefore!=0) poList=poBefore;
 }
 
-void Range::setMaxValue(long nMaxValueP) {
+void Range::setMaxValue(int nMaxValueP) {
     nMaxValue=nMaxValueP;
     if (poVals==0) return;
     // We keep an internal private copy of the list where the range is "resolved", that is simplified to a union of disjoint intervals
@@ -164,7 +164,7 @@ void Range::setMaxValue(long nMaxValueP) {
     poActual=0;
     Range::List *pol=poVals;
     Range::List *poActualEnd=0;
-    long nMinT,nMaxT;
+    int nMinT,nMaxT;
     while (pol!=0) {
         if (pol->nMin<0) nMinT=pol->nMin+nMaxValue; else nMinT=pol->nMin;
         if (pol->nMin<0) pol->nMin=0;
@@ -212,14 +212,15 @@ size_t Range::getSize() const {
 /*                          OGRSelafinDataSource()                      */
 /************************************************************************/
 
-OGRSelafinDataSource::OGRSelafinDataSource() {
-    papoLayers = NULL;
-    nLayers = 0;
-    pszName = NULL;
-    poHeader=0;
-    pszLockName=0;
-    poSpatialRef=0;
-}
+OGRSelafinDataSource::OGRSelafinDataSource() :
+    pszName(NULL),
+    pszLockName(0),
+    papoLayers(NULL),
+    nLayers(0),
+    bUpdate(FALSE),
+    poHeader(0),
+    poSpatialRef(0)
+{ }
 
 /************************************************************************/
 /*                         ~OGRSelafinDataSource()                      */
@@ -274,7 +275,7 @@ int OGRSelafinDataSource::Open(const char * pszFilename, int bUpdateIn, int bCre
     bUpdate = bUpdateIn;
     if (bCreate && EQUAL(pszName, "/vsistdout/")) return TRUE;
     /* For writable /vsizip/, do nothing more */
-    if (bCreate && strncmp(pszName, "/vsizip/", 8) == 0) return TRUE;
+    if (bCreate && STARTS_WITH(pszName, "/vsizip/")) return TRUE;
     CPLString osFilename(pszName);
     CPLString osBaseFilename = CPLGetFilename(pszName);
     // Determine what sort of object this is.
@@ -285,7 +286,7 @@ int OGRSelafinDataSource::Open(const char * pszFilename, int bUpdateIn, int bCre
     if (VSI_ISREG(sStatBuf.st_mode)) return OpenTable( pszName );
 
     // Is this a single a ZIP file with only a Selafin file inside ?
-    if( strncmp(osFilename, "/vsizip/", 8) == 0 && VSI_ISREG(sStatBuf.st_mode) ) {
+    if( STARTS_WITH(osFilename, "/vsizip/") && VSI_ISREG(sStatBuf.st_mode) ) {
         char** papszFiles = VSIReadDir(osFilename);
         if (CSLCount(papszFiles) != 1) {
             CSLDestroy(papszFiles);
@@ -409,7 +410,7 @@ int OGRSelafinDataSource::OpenTable(const char * pszFilename) {
     // Get layer base name
     CPLString osBaseLayerName = CPLGetBasename(pszFilename);
     CPLString osExt = CPLGetExtension(pszFilename);
-    if( strncmp(pszFilename, "/vsigzip/", 9) == 0 && EQUAL(osExt, "gz") ) {
+    if( STARTS_WITH(pszFilename, "/vsigzip/") && EQUAL(osExt, "gz") ) {
         size_t nPos=std::string::npos;
         if (strlen(pszFilename)>3) nPos=osExt.find_last_of('.',strlen(pszFilename)-4);
         if (nPos!=std::string::npos) {
@@ -430,7 +431,7 @@ int OGRSelafinDataSource::OpenTable(const char * pszFilename) {
     if (poHeader->nEpsg!=0) {
         poSpatialRef=new OGRSpatialReference();
         if (poSpatialRef->importFromEPSG(poHeader->nEpsg)!=OGRERR_NONE) {
-            CPLError( CE_Warning, CPLE_AppDefined, "EPSG %li not found. Could not set datasource SRS.\n", poHeader->nEpsg);
+            CPLError( CE_Warning, CPLE_AppDefined, "EPSG %d not found. Could not set datasource SRS.\n", poHeader->nEpsg);
             delete poSpatialRef;
             poSpatialRef=0;
         }
@@ -439,13 +440,13 @@ int OGRSelafinDataSource::OpenTable(const char * pszFilename) {
     // Create two layers for each selected time step: one for points, the other for elements
     int nNewLayers;
     poRange.setMaxValue(poHeader->nSteps);
-    nNewLayers=poRange.getSize();
+    nNewLayers=static_cast<int>(poRange.getSize());
     if (EQUAL(pszFilename, "/vsistdin/")) osBaseLayerName = "layer";
     CPLString osLayerName;
     papoLayers = (OGRSelafinLayer **) CPLRealloc(papoLayers, sizeof(void*) * (nLayers+nNewLayers));
     for (size_t j=0;j<2;++j) {
         SelafinTypeDef eType=(j==0)?POINTS:ELEMENTS;
-        for (long i=0;i<poHeader->nSteps;++i) {
+        for (int i=0;i<poHeader->nSteps;++i) {
             if (poRange.contains(eType,i)) {
                 char szTemp[30];
                 double dfTime;
@@ -454,8 +455,9 @@ int OGRSelafinDataSource::OpenTable(const char * pszFilename) {
                     CPLError( CE_Failure, CPLE_OpenFailed, "Failed to open %s, wrong format.\n", pszFilename);
                     return FALSE;
                 }
-                if (poHeader->panStartDate==0) snprintf(szTemp,29,"%li",i); else {
-                    struct tm sDate={0};
+                if (poHeader->panStartDate==0) snprintf(szTemp,29,"%d",i); else {
+                    struct tm sDate;
+                    memset(&sDate, 0, sizeof(sDate));
                     sDate.tm_year=poHeader->panStartDate[0]-1900;
                     sDate.tm_mon=poHeader->panStartDate[1]-1;
                     sDate.tm_mday=poHeader->panStartDate[2];
@@ -501,8 +503,8 @@ OGRLayer *OGRSelafinDataSource::ICreateLayer( const char *pszLayerName, OGRSpati
         poSpatialRef=poSpatialRefP;
         poSpatialRef->Reference();
         const char* szEpsg=poSpatialRef->GetAttrValue("GEOGCS|AUTHORITY",1);
-        long nEpsg=0;
-        if (szEpsg!=0) nEpsg=strtol(szEpsg,0,10);
+        int nEpsg=0;
+        if (szEpsg!=0) nEpsg=(int)strtol(szEpsg,0,10);
         if (nEpsg==0) {
             CPLError(CE_Warning,CPLE_AppDefined,"Could not find EPSG code for SRS. The SRS won't be saved in the datasource.");
         } else {
@@ -519,8 +521,13 @@ OGRLayer *OGRSelafinDataSource::ICreateLayer( const char *pszLayerName, OGRSpati
         return NULL;
     }
     double *pdfValues=0;
-    if (poHeader->nPoints>0) pdfValues=(double*)VSIMalloc2(sizeof(double),poHeader->nPoints);
-    for (long i=0;i<poHeader->nVar;++i) {
+    if (poHeader->nPoints>0)
+    {
+        pdfValues=(double*)VSI_MALLOC2_VERBOSE(sizeof(double),poHeader->nPoints);
+        if( pdfValues == NULL )
+            return NULL;
+    }
+    for (int i=0;i<poHeader->nVar;++i) {
         if (Selafin::write_floatarray(poHeader->fp,pdfValues,poHeader->nPoints)==0) {
             CPLError( CE_Failure, CPLE_FileIO, "Could not write to Selafin file %s.\n",pszName);
             CPLFree(pdfValues);
@@ -555,11 +562,11 @@ OGRErr OGRSelafinDataSource::DeleteLayer( int iLayer ) {
         return OGRERR_FAILURE;
     }
     // Delete layer in file. Here we don't need to create a copy of the file because we only update values and it can't get corrupted even if the system crashes during the operation
-    long nNum=papoLayers[iLayer]->GetStepNumber();
+    int nNum=papoLayers[iLayer]->GetStepNumber();
     double dfTime;
     double *dfValues=0;
-    long nTemp;
-    for (long i=nNum;i<poHeader->nSteps-1;++i) {
+    int nTemp;
+    for (int i=nNum;i<poHeader->nSteps-1;++i) {
         if (VSIFSeekL(poHeader->fp,poHeader->getPosition(i+1)+4,SEEK_SET)!=0 ||
             Selafin::read_float(poHeader->fp,dfTime)==0 || 
             VSIFSeekL(poHeader->fp,poHeader->getPosition(i)+4,SEEK_SET)!=0 ||
@@ -567,7 +574,7 @@ OGRErr OGRSelafinDataSource::DeleteLayer( int iLayer ) {
             CPLError( CE_Failure, CPLE_FileIO, "Could not update Selafin file %s.\n",pszName);
             return OGRERR_FAILURE;
         }
-        for (long j=0;j<poHeader->nVar;++j) {
+        for (int j=0;j<poHeader->nVar;++j) {
             if (VSIFSeekL(poHeader->fp,poHeader->getPosition(i+1)+12,SEEK_SET)!=0 ||
                 (nTemp=Selafin::read_floatarray(poHeader->fp,&dfValues)) !=poHeader->nPoints ||
                 VSIFSeekL(poHeader->fp,poHeader->getPosition(i)+12,SEEK_SET)!=0 ||
@@ -580,11 +587,11 @@ OGRErr OGRSelafinDataSource::DeleteLayer( int iLayer ) {
         }
     }
     // Delete all layers with the same step number in layer list. Usually there are two of them: one for points and one for elements, but we can't rely on that because of possible layer filtering specifications
-    for (long i=0;i<nLayers;++i) {
+    for (int i=0;i<nLayers;++i) {
         if (papoLayers[i]->GetStepNumber()==nNum) {
             delete papoLayers[i];
             nLayers--;
-            for (long j=i;j<nLayers;++j) papoLayers[j]=papoLayers[j+1];
+            for (int j=i;j<nLayers;++j) papoLayers[j]=papoLayers[j+1];
             --i;
         }
     }

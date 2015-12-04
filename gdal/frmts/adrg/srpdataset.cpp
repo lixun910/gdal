@@ -121,11 +121,11 @@ class SRPRasterBand : public GDALPamRasterBand
 /*                           SRPRasterBand()                            */
 /************************************************************************/
 
-SRPRasterBand::SRPRasterBand( SRPDataset *poDS, int nBand )
+SRPRasterBand::SRPRasterBand( SRPDataset *poDSIn, int nBandIn )
 
 {
-    this->poDS = poDS;
-    this->nBand = nBand;
+    this->poDS = poDSIn;
+    this->nBand = nBandIn;
     
     eDataType = GDT_Byte;
 
@@ -152,9 +152,9 @@ double  SRPRasterBand::GetNoDataValue( int *pbSuccess )
 GDALColorInterp SRPRasterBand::GetColorInterpretation()
 
 {
-    SRPDataset* poDS = (SRPDataset*)this->poDS;
+    SRPDataset* l_poDS = (SRPDataset*)this->poDS;
 
-    if( poDS->oCT.GetColorEntryCount() > 0 )
+    if( l_poDS->oCT.GetColorEntryCount() > 0 )
         return GCI_PaletteIndex;
     else
         return GCI_GrayIndex;
@@ -167,10 +167,10 @@ GDALColorInterp SRPRasterBand::GetColorInterpretation()
 GDALColorTable *SRPRasterBand::GetColorTable()
 
 {
-    SRPDataset* poDS = (SRPDataset*)this->poDS;
+    SRPDataset* l_poDS = (SRPDataset*)this->poDS;
 
-    if( poDS->oCT.GetColorEntryCount() > 0 )
-        return &(poDS->oCT);
+    if( l_poDS->oCT.GetColorEntryCount() > 0 )
+        return &(l_poDS->oCT);
     else
         return NULL;
 }
@@ -183,20 +183,20 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                                    void * pImage )
 
 {
-    SRPDataset* poDS = (SRPDataset*)this->poDS;
+    SRPDataset* l_poDS = (SRPDataset*)this->poDS;
     int offset;
-    int nBlock = nBlockYOff * poDS->NFC + nBlockXOff;
-    if (nBlockXOff >= poDS->NFC || nBlockYOff >= poDS->NFL)
+    int nBlock = nBlockYOff * l_poDS->NFC + nBlockXOff;
+    if (nBlockXOff >= l_poDS->NFC || nBlockYOff >= l_poDS->NFL)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "nBlockXOff=%d, NFC=%d, nBlockYOff=%d, NFL=%d",
-                 nBlockXOff, poDS->NFC, nBlockYOff, poDS->NFL);
+                 nBlockXOff, l_poDS->NFC, nBlockYOff, l_poDS->NFL);
         return CE_Failure;
     }
 
 /* -------------------------------------------------------------------- */
 /*      Is this a null block?                                           */
 /* -------------------------------------------------------------------- */
-    if (poDS->TILEINDEX && poDS->TILEINDEX[nBlock] == 0)
+    if (l_poDS->TILEINDEX && l_poDS->TILEINDEX[nBlock] == 0)
     {
         memset(pImage, 0, 128 * 128);
         return CE_None;
@@ -205,20 +205,20 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /* -------------------------------------------------------------------- */
 /*      Compute the offset to the block.                                */
 /* -------------------------------------------------------------------- */
-    if (poDS->TILEINDEX)
+    if (l_poDS->TILEINDEX)
     {
-        if( poDS->PCB == 0 ) // uncompressed 
-            offset = poDS->offsetInIMG + (poDS->TILEINDEX[nBlock] - 1) * 128 * 128;
+        if( l_poDS->PCB == 0 ) // uncompressed 
+            offset = l_poDS->offsetInIMG + (l_poDS->TILEINDEX[nBlock] - 1) * 128 * 128;
         else // compressed 
-            offset = poDS->offsetInIMG + (poDS->TILEINDEX[nBlock] - 1);
+            offset = l_poDS->offsetInIMG + (l_poDS->TILEINDEX[nBlock] - 1);
     }
     else
-        offset = poDS->offsetInIMG + nBlock * 128 * 128;
+        offset = l_poDS->offsetInIMG + nBlock * 128 * 128;
     
 /* -------------------------------------------------------------------- */
 /*      Seek to target location.                                        */
 /* -------------------------------------------------------------------- */
-    if (VSIFSeekL(poDS->fdIMG, offset, SEEK_SET) != 0)
+    if (VSIFSeekL(l_poDS->fdIMG, offset, SEEK_SET) != 0)
     {
         CPLError(CE_Failure, CPLE_FileIO, "Cannot seek to offset %d", offset);
         return CE_Failure;
@@ -228,9 +228,9 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*      For uncompressed case we read the 128x128 and return with no    */
 /*      further processing.                                             */
 /* -------------------------------------------------------------------- */
-    if( poDS->PCB == 0 )
+    if( l_poDS->PCB == 0 )
     {
-        if( VSIFReadL(pImage, 1, 128 * 128, poDS->fdIMG) != 128*128 )
+        if( VSIFReadL(pImage, 1, 128 * 128, l_poDS->fdIMG) != 128*128 )
         {
             CPLError(CE_Failure, CPLE_FileIO, 
                      "Cannot read data at offset %d", offset);
@@ -242,13 +242,13 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*      If this is compressed data, we read a goodly chunk of data      */
 /*      and then decode it.                                             */
 /* -------------------------------------------------------------------- */
-    else if( poDS->PCB != 0 )
+    else if( l_poDS->PCB != 0 )
     {
         int    nBufSize = 128*128*2;
         int    nBytesRead, iPixel, iSrc, bHalfByteUsed = FALSE;
         GByte *pabyCData = (GByte *) CPLCalloc(nBufSize,1);
 
-        nBytesRead = VSIFReadL(pabyCData, 1, nBufSize, poDS->fdIMG);
+        nBytesRead = static_cast<int>(VSIFReadL(pabyCData, 1, nBufSize, l_poDS->fdIMG));
         if( nBytesRead == 0 )
         {
             CPLError(CE_Failure, CPLE_FileIO, 
@@ -256,8 +256,8 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
             return CE_Failure;
         }
         
-        CPLAssert( poDS->PVB == 8 );
-        CPLAssert( poDS->PCB == 4 || poDS->PCB == 8 );
+        CPLAssert( l_poDS->PVB == 8 );
+        CPLAssert( l_poDS->PCB == 4 || l_poDS->PCB == 8 );
 
         for( iSrc = 0, iPixel = 0; iPixel < 128 * 128; )
         {
@@ -273,12 +273,12 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
             int nCount = 0;
             int nValue = 0;
 
-            if( poDS->PCB == 8 )
+            if( l_poDS->PCB == 8 )
             {
                 nCount = pabyCData[iSrc++];
                 nValue = pabyCData[iSrc++];
             }
-            else if( poDS->PCB == 4 )
+            else if( l_poDS->PCB == 4 )
             {
                 if( (iPixel % 128) == 0 && bHalfByteUsed )
                 {
@@ -327,7 +327,9 @@ CPLErr SRPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*                          SRPDataset()                               */
 /************************************************************************/
 
-SRPDataset::SRPDataset()
+SRPDataset::SRPDataset() :
+    NFC(0), NFL(0), ZNA(0), LSO(0.0), PSO(0.0), LOD(0.0), LAD(0.0), ARV(0),
+    BRV(0), PCB(0), PVB(0)
 {
     fdIMG = NULL;
     TILEINDEX = NULL;
@@ -586,7 +588,7 @@ int SRPDataset::GetFromRecord(const char* pszFileName, DDFRecord * record)
                 return FALSE;
             }
             offsetInIMG += 3;
-            if (strncmp(recordName,"IMG",3) == 0)
+            if (STARTS_WITH(recordName, "IMG"))
             {
                 offsetInIMG += 4;
                 if (VSIFSeekL(fdIMG,3,SEEK_CUR) != 0)
@@ -658,7 +660,6 @@ int SRPDataset::GetFromRecord(const char* pszFileName, DDFRecord * record)
 
                 for( iColor = 0; iColor < nColorCount; iColor++ )
                 {
-                    int bSuccess;
                     int nCCD, nNSR, nNSG, nNSB;
                     GDALColorEntry sEntry;
 
@@ -689,7 +690,7 @@ int SRPDataset::GetFromRecord(const char* pszFileName, DDFRecord * record)
                 if (bSuccess)
                 {
                     CPLDebug("SRP", "EDN=%d", EDN);
-                    char pszValue[5];
+                    //char pszValue[5];
                     sprintf(pszValue, "%d", EDN);
                     SetMetadataItem( "SRP_EDN", pszValue );
                 }
@@ -877,7 +878,7 @@ DDFRecord* SRPDataset::FindRecordInGENForIMG(DDFModule& module,
     DDFFieldDefn *fieldDefn;
 
     /* Now finds the record */
-    while (TRUE)
+    while( true )
     {
         CPLPushErrorHandler( CPLQuietErrorHandler );
         DDFRecord* record = module.ReadRecord();
@@ -1026,7 +1027,7 @@ char** SRPDataset::GetGENListFromTHF(const char* pszFileName)
 
     CPLString osDirName(CPLGetDirname(pszFileName));
 
-    while (TRUE)
+    while( true )
     {
         CPLPushErrorHandler( CPLQuietErrorHandler );
         record = module.ReadRecord();
@@ -1080,9 +1081,9 @@ char** SRPDataset::GetGENListFromTHF(const char* pszFileName)
 
                     CPLString osName = CPLString(pszNAM);
 
-                    /* Define a subdirectory from Dataset but with only 6 caracatere */
+                    /* Define a subdirectory from Dataset but with only 6 characters */
                     CPLString osDirDataset = pszNAM;
-                    osDirDataset.resize(6); 
+                    osDirDataset.resize(6);
                     CPLString osDatasetDir = CPLFormFilename(osDirName.c_str(), osDirDataset.c_str(), NULL);
 
                     CPLString osGENFileName="";
@@ -1168,7 +1169,7 @@ void SRPDataset::AddMetadatafromFromTHF(const char* pszFileName)
 
     CPLString osDirName(CPLGetDirname(pszFileName));
 
-    while (TRUE)
+    while( true )
     {
         CPLPushErrorHandler( CPLQuietErrorHandler );
         record = module.ReadRecord();
@@ -1293,7 +1294,7 @@ char** SRPDataset::GetIMGListFromGEN(const char* pszFileName,
     if (!module.Open(pszFileName, TRUE))
         return NULL;    
 
-    while (TRUE)
+    while( true )
     {
         nRecordIndex ++;
 
@@ -1405,7 +1406,7 @@ GDALDataset *SRPDataset::Open( GDALOpenInfo * poOpenInfo )
     int bFromSubdataset = FALSE;
     int bTHFWithSingleGEN = FALSE;
 
-    if( EQUALN(poOpenInfo->pszFilename, "SRP:", 4) )
+    if( STARTS_WITH_CI(poOpenInfo->pszFilename, "SRP:") )
     {
         char** papszTokens = CSLTokenizeString2(poOpenInfo->pszFilename + 4, ",", 0);
         if (CSLCount(papszTokens) == 2)
@@ -1527,7 +1528,7 @@ GDALDataset *SRPDataset::Open( GDALOpenInfo * poOpenInfo )
                 return NULL;
             }
 
-            nRecordIndex = CPLScanLong( basename + 6, 2 );
+            nRecordIndex = static_cast<int>(CPLScanLong( basename + 6, 2 ));
 
             CPLString path = CPLGetDirname( osFileName );
             CPLString basename01 = ResetTo01( basename );
@@ -1627,4 +1628,3 @@ void GDALRegister_SRP()
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }
 }
-

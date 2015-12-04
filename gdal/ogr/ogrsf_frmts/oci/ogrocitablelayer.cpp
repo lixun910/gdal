@@ -192,7 +192,7 @@ OGRFeatureDefn *OGROCITableLayer::ReadTableDefinition( const char * pszTable )
     nStatus = 
         OCIDescribeAny( poSession->hSvcCtx, poSession->hError,
                         (dvoid *) osUnquotedTableName.c_str(), 
-                        osUnquotedTableName.length(), OCI_OTYPE_NAME,
+                        static_cast<ub4>(osUnquotedTableName.length()), OCI_OTYPE_NAME,
                         OCI_DEFAULT, OCI_PTYPE_TABLE, poSession->hDescribe );
 
     if( poSession->Failed( nStatus, "OCIDescribeAny" ) )
@@ -204,7 +204,7 @@ OGRFeatureDefn *OGROCITableLayer::ReadTableDefinition( const char * pszTable )
         nStatus =
             OCIDescribeAny(poSession->hSvcCtx, poSession->hError,
                            (dvoid *) osQuotedTableName.c_str(), 
-                           osQuotedTableName.length(), OCI_OTYPE_NAME,
+                           static_cast<ub4>(osQuotedTableName.length()), OCI_OTYPE_NAME,
                            OCI_DEFAULT, OCI_PTYPE_VIEW, poSession->hDescribe );
 
         if( poSession->Failed( nStatus, "OCIDescribeAny" ) )
@@ -216,7 +216,7 @@ OGRFeatureDefn *OGROCITableLayer::ReadTableDefinition( const char * pszTable )
             nStatus = 
                 OCIDescribeAny( poSession->hSvcCtx, poSession->hError,
                                 (dvoid *) osQuotedTableName.c_str(), 
-                                osQuotedTableName.length(), OCI_OTYPE_NAME,
+                                static_cast<ub4>(osQuotedTableName.length()), OCI_OTYPE_NAME,
                                 OCI_DEFAULT, OCI_PTYPE_TABLE, poSession->hDescribe );
 
             if( poSession->Failed( nStatus, "OCIDescribeAny" ) )
@@ -228,7 +228,7 @@ OGRFeatureDefn *OGROCITableLayer::ReadTableDefinition( const char * pszTable )
                 nStatus =
                     OCIDescribeAny(poSession->hSvcCtx, poSession->hError,
                                    (dvoid *) osQuotedTableName.c_str(), 
-                                   osQuotedTableName.length(), OCI_OTYPE_NAME,
+                                   static_cast<ub4>(osQuotedTableName.length()), OCI_OTYPE_NAME,
                                    OCI_DEFAULT, OCI_PTYPE_VIEW, poSession->hDescribe );
 
                 if( poSession->Failed( nStatus, "OCIDescribeAny" ) )
@@ -263,7 +263,7 @@ OGRFeatureDefn *OGROCITableLayer::ReadTableDefinition( const char * pszTable )
 /* -------------------------------------------------------------------- */
 /*      Parse the returned table information.                           */
 /* -------------------------------------------------------------------- */
-    for( int iRawFld = 0; TRUE; iRawFld++ )
+    for( int iRawFld = 0; true; iRawFld++ )
     {
         OGRFieldDefn    oField( "", OFTString);
         OCIParam     *hParmDesc;
@@ -616,7 +616,7 @@ OGRFeature *OGROCITableLayer::GetFeature( GIntBig nFeatureId )
     oCmd.Append( " FROM " );
     oCmd.Append( poFeatureDefn->GetName() );
     oCmd.Append( " " );
-    oCmd.Appendf( 50+strlen(pszFIDName), 
+    oCmd.Appendf( static_cast<int>(50+strlen(pszFIDName)), 
                   " WHERE \"%s\" = " CPL_FRMT_GIB " ", 
                   pszFIDName, nFeatureId );
 
@@ -669,7 +669,7 @@ OGRFeature *OGROCITableLayer::GetNextFeature()
 
 {
 
-    for( ; TRUE; )
+    while( true )
     {
         OGRFeature      *poFeature;
 
@@ -943,7 +943,7 @@ OGRErr OGROCITableLayer::DeleteFeature( GIntBig nFID )
     OGROCIStringBuf     oCmdText;
     OGROCIStatement     oCmdStatement( poDS->GetSession() );
 
-    oCmdText.Appendf( strlen(poFeatureDefn->GetName())+strlen(pszFIDName)+100,
+    oCmdText.Appendf( static_cast<int>(strlen(poFeatureDefn->GetName())+strlen(pszFIDName)+100),
                       "DELETE FROM %s WHERE \"%s\" = " CPL_FRMT_GIB,
                       poFeatureDefn->GetName(), 
                       pszFIDName, 
@@ -997,7 +997,7 @@ OGRErr OGROCITableLayer::UnboundCreateFeature( OGRFeature *poFeature )
     OGROCISession      *poSession = poDS->GetSession();
     char                *pszCommand;
     int                 i, bNeedComma = FALSE;
-    unsigned int        nCommandBufSize;;
+    size_t              nCommandBufSize;
 
 /* -------------------------------------------------------------------- */
 /*      Prepare SQL statement buffer.                                   */
@@ -1091,7 +1091,7 @@ OGRErr OGROCITableLayer::UnboundCreateFeature( OGRFeature *poFeature )
             > nCommandBufSize - 50 )
         {
             nCommandBufSize = 
-                strlen(pszCommand) + strlen(szSDO_GEOMETRY) + 10000;
+               strlen(pszCommand) + strlen(szSDO_GEOMETRY) + 10000;
             pszCommand = (char *) CPLRealloc(pszCommand, nCommandBufSize );
         }
 
@@ -1101,7 +1101,7 @@ OGRErr OGROCITableLayer::UnboundCreateFeature( OGRFeature *poFeature )
 /* -------------------------------------------------------------------- */
 /*      Set the FID.                                                    */
 /* -------------------------------------------------------------------- */
-    int nOffset = strlen(pszCommand);
+    size_t nOffset = strlen(pszCommand);
 
     if( pszFIDName != NULL )
     {
@@ -1630,7 +1630,8 @@ void OGROCITableLayer::UpdateLayerExtents()
                                dfZMin, dfZMax, dfZRes );
         }      
     
-        sDimUpdate.Appendf(strlen(poFeatureDefn->GetName()) + 100,") WHERE TABLE_NAME = '%s'", poFeatureDefn->GetName());    
+        sDimUpdate.Appendf(static_cast<int>(strlen(poFeatureDefn->GetName()) + 100),
+                           ") WHERE TABLE_NAME = '%s'", poFeatureDefn->GetName());    
         
     } 
     else
@@ -1639,7 +1640,7 @@ void OGROCITableLayer::UpdateLayerExtents()
 /*      Prepare dimension update statement.                             */
 /* -------------------------------------------------------------------- */
         sDimUpdate.Append( "INSERT INTO USER_SDO_GEOM_METADATA VALUES " );
-        sDimUpdate.Appendf( strlen(poFeatureDefn->GetName()) + 100,
+        sDimUpdate.Appendf( static_cast<int>(strlen(poFeatureDefn->GetName()) + 100),
                             "('%s', '%s', ",
                             poFeatureDefn->GetName(),
                             pszGeomName );
@@ -2047,7 +2048,7 @@ OGRErr OGROCITableLayer::BoundCreateFeature( OGRFeature *poFeature )
         poFeature->SetFID( iNextFIDToWrite++ );
     }
 
-    panWriteFIDs[iCache] = poFeature->GetFID();
+    panWriteFIDs[iCache] = static_cast<int>(poFeature->GetFID());
 
 /* -------------------------------------------------------------------- */
 /*      Set the other fields.                                           */
@@ -2085,7 +2086,7 @@ OGRErr OGROCITableLayer::BoundCreateFeature( OGRFeature *poFeature )
                 && poFldDefn->GetWidth() != 0 )
                 nEachBufSize = poFldDefn->GetWidth() + 1;
 
-            nLen = strlen(pszStrValue);
+            nLen = static_cast<int>(strlen(pszStrValue));
             if( nLen > nEachBufSize-1 )
                 nLen = nEachBufSize-1;
 

@@ -76,9 +76,8 @@ def ogr_basic_2():
     feat = gdaltest.lyr.GetNextFeature()
     while feat is not None:
         count2 = count2 + 1
-        feat.Destroy()
         feat = gdaltest.lyr.GetNextFeature()
-        
+
     if count2 != 10:
         gdaltest.post_reason( 'Got wrong count with GetNextFeature() - %d, expecting 10' % count2 )
         return 'fail'
@@ -111,8 +110,6 @@ def ogr_basic_3():
     gdaltest.lyr.SetSpatialFilter( poly )
     gdaltest.lyr.ResetReading()
 
-    poly.Destroy()
-
     count = gdaltest.lyr.GetFeatureCount()
     if count != 1:
         gdaltest.post_reason( 'Got wrong feature count with spatial filter, expected 1, got %d' % count )
@@ -124,8 +121,6 @@ def ogr_basic_3():
     if feat1 is None or feat2 is not None:
         gdaltest.post_reason( 'Got too few or too many features with spatial filter.' )
         return 'fail'
-
-    feat1.Destroy()
 
     gdaltest.lyr.SetSpatialFilter( None )
     count = gdaltest.lyr.GetFeatureCount()
@@ -171,8 +166,6 @@ def ogr_basic_5():
         gdaltest.post_reason( 'got wrong feature.' )
         return 'fail'
 
-    feat1.Destroy()
-
     return 'success'
 
 
@@ -214,10 +207,10 @@ def ogr_basic_7():
     if not feat.Equal(feat_clone):
         return 'fail'
 
-    # We MUST delete now as we are changing the feature defn afterwards !
+    # We MUST delete now as we are changing the feature defn afterwards!
     # Crash guaranteed otherwise
-    feat.Destroy()
-    feat_clone.Destroy()
+    feat = None
+    feat_clone = None
 
     field_defn = ogr.FieldDefn('field1', ogr.OFTInteger)
     feat_defn.AddFieldDefn(field_defn)
@@ -460,7 +453,8 @@ def ogr_basic_11():
     for i in range(2):
         ogr.UseExceptions()
         geom = ogr.CreateGeometryFromWkt('POLYGON ((-65 0, -30 -30, -30 0, -65 -30, -65 0))')
-        geom.IsValid()
+        with gdaltest.error_handler():
+            geom.IsValid()
     if used_exceptions_before == 0:
         ogr.DontUseExceptions()
 
@@ -643,12 +637,11 @@ def ogr_basic_12():
 
 def ogr_basic_cleanup():
     gdaltest.lyr = None
-    gdaltest.ds.Destroy()
     gdaltest.ds = None
 
     return 'success'
 
-gdaltest_list = [ 
+gdaltest_list = [
     ogr_basic_1,
     ogr_basic_2,
     ogr_basic_3,
@@ -670,4 +663,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

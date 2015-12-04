@@ -60,7 +60,7 @@ OGRPLScenesDataset::~OGRPLScenesDataset()
     {
         char** papszOptions = NULL;
         papszOptions = CSLSetNameValue(papszOptions, "CLOSE_PERSISTENT", CPLSPrintf("PLSCENES:%p", this));
-        CPLHTTPFetch( osBaseURL, papszOptions);
+        CPLHTTPDestroyResult(CPLHTTPFetch(osBaseURL, papszOptions));
         CSLDestroy(papszOptions);
     }
 }
@@ -112,7 +112,7 @@ OGRLayer* OGRPLScenesDataset::ExecuteSQL( const char *pszSQLCommand,
                                           OGRGeometry *poSpatialFilter,
                                           const char *pszDialect )
 {
-    if( EQUALN(pszSQLCommand, "SELECT ", strlen("SELECT ")) )
+    if( STARTS_WITH_CI(pszSQLCommand, "SELECT ") )
     {
         swq_select oSelect;
         CPLString osSQLCommand(pszSQLCommand);
@@ -121,9 +121,9 @@ OGRLayer* OGRPLScenesDataset::ExecuteSQL( const char *pszSQLCommand,
             osSQLCommand.resize(nLimitPos);
 
         CPLPushErrorHandler(CPLQuietErrorHandler);
-        OGRErr eErr = oSelect.preparse(osSQLCommand);
+        CPLErr eErr = oSelect.preparse(osSQLCommand);
         CPLPopErrorHandler();
-        if( eErr != OGRERR_NONE )
+        if( eErr != CE_None )
             return GDALDataset::ExecuteSQL(pszSQLCommand, poSpatialFilter, pszDialect);
 
 /* -------------------------------------------------------------------- */
@@ -183,7 +183,7 @@ void OGRPLScenesDataset::ReleaseResultSet( OGRLayer * poResultsSet )
 
 int OGRPLScenesDataset::Identify(GDALOpenInfo* poOpenInfo)
 {
-    return EQUALN(poOpenInfo->pszFilename, "PLSCENES:", strlen("PLSCENES:"));
+    return STARTS_WITH_CI(poOpenInfo->pszFilename, "PLSCENES:");
 }
 
 /************************************************************************/
@@ -209,19 +209,20 @@ json_object* OGRPLScenesDataset::RunRequest(const char* pszURL,
 {
     char** papszOptions = CSLAddString(GetBaseHTTPOptions(), NULL);
     CPLHTTPResult * psResult;
-    if( strncmp(osBaseURL, "/vsimem/", strlen("/vsimem/")) == 0 &&
-        strncmp(pszURL, "/vsimem/", strlen("/vsimem/")) == 0 )
+    if( STARTS_WITH(osBaseURL, "/vsimem/") &&
+        STARTS_WITH(pszURL, "/vsimem/") )
     {
         CPLDebug("PLSCENES", "Fetching %s", pszURL);
         psResult = (CPLHTTPResult*) CPLCalloc(1, sizeof(CPLHTTPResult));
-        vsi_l_offset nDataLength = 0;
+        vsi_l_offset nDataLengthLarge = 0;
         CPLString osURL(pszURL);
         if( osURL[osURL.size()-1 ] == '/' )
             osURL.resize(osURL.size()-1);
-        GByte* pabyBuf = VSIGetMemFileBuffer(osURL, &nDataLength, FALSE); 
+        GByte* pabyBuf = VSIGetMemFileBuffer(osURL, &nDataLengthLarge, FALSE); 
+        size_t nDataLength = static_cast<size_t>(nDataLengthLarge);
         if( pabyBuf )
         {
-            psResult->pabyData = (GByte*) VSIMalloc(1 + nDataLength);
+            psResult->pabyData = (GByte*) VSI_MALLOC_VERBOSE(1 + nDataLength);
             if( psResult->pabyData )
             {
                 memcpy(psResult->pabyData, pabyBuf, nDataLength);
@@ -378,11 +379,11 @@ GDALDataset* OGRPLScenesDataset::OpenRasterScene(GDALOpenInfo* poOpenInfo,
         return NULL;
     }
     
-    if( strncmp(osRasterURL, "http://", strlen("http://")) == 0 )
+    if( STARTS_WITH(osRasterURL, "http://") )
     {
         osRasterURL = "http://" + osAPIKey + ":@" + osRasterURL.substr(strlen("http://"));
     }
-    else if( strncmp(osRasterURL, "https://", strlen("https://")) == 0 )
+    else if( STARTS_WITH(osRasterURL, "https://") )
     {
         osRasterURL = "https://" + osAPIKey + ":@" + osRasterURL.substr(strlen("https://"));
     }
@@ -391,7 +392,7 @@ GDALDataset* OGRPLScenesDataset::OpenRasterScene(GDALOpenInfo* poOpenInfo,
     CPLString osOldExt(CPLGetConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ""));
 
     int bUseVSICURL = CSLFetchBoolean(poOpenInfo->papszOpenOptions, "RANDOM_ACCESS", TRUE);
-    if( bUseVSICURL && !(strncmp(osBaseURL, "/vsimem/", strlen("/vsimem/")) == 0) )
+    if( bUseVSICURL && !(STARTS_WITH(osBaseURL, "/vsimem/")) )
     {
         CPLSetThreadLocalConfigOption("CPL_VSIL_CURL_USE_HEAD", "NO");
         CPLSetThreadLocalConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", "{noext}");
@@ -422,7 +423,7 @@ GDALDataset* OGRPLScenesDataset::OpenRasterScene(GDALOpenInfo* poOpenInfo,
                                         sizeof(OGRPLScenesLayer*) * (nLayers + 1));
             papoLayers[nLayers ++] = poLayer;
 
-            /* Attach scene matadata */
+            /* Attach scene metadata. */
             poLayer->SetAttributeFilter(CPLSPrintf("id = '%s'", osScene.c_str()));
             OGRFeature* poFeat = poLayer->GetNextFeature();
             if( poFeat )
@@ -444,7 +445,7 @@ GDALDataset* OGRPLScenesDataset::OpenRasterScene(GDALOpenInfo* poOpenInfo,
             delete poFeat;
         }
     }
-    
+
     if( bUseVSICURL )
     {
         CPLSetThreadLocalConfigOption("CPL_VSIL_CURL_USE_HEAD",
@@ -611,4 +612,3 @@ void RegisterOGRPLSCENES()
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }
 }
-

@@ -288,11 +288,9 @@ CPLErr AIGProcessFFBlock( GByte *pabyCur, int nDataSize, int nMin,
     int i, nDstBytes = (nBlockXSize * nBlockYSize + 7) / 8;
     unsigned char *pabyIntermediate;
 
-    pabyIntermediate = (unsigned char *) VSIMalloc(nDstBytes);
+    pabyIntermediate = (unsigned char *) VSI_MALLOC_VERBOSE(nDstBytes);
     if (pabyIntermediate == NULL)
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory,
-                 "Cannot allocate %d bytes", nDstBytes);
         return CE_Failure;
     }
     
@@ -708,7 +706,7 @@ CPLErr AIGReadBlock( VSILFILE * fp, GUInt32 nBlockOffset, int nBlockSize,
     nDataSize -= nMinSize;
     
 /* -------------------------------------------------------------------- */
-/*	Call an apppropriate handler depending on magic code.		*/
+/*	Call an appropriate handler depending on magic code.		*/
 /* -------------------------------------------------------------------- */
 
     if( nMagic == 0x08 )
@@ -820,7 +818,11 @@ CPLErr AIGReadHeader( const char * pszCoverName, AIGInfo_t * psInfo )
 /*      long.                                                           */
 /* -------------------------------------------------------------------- */
 
-    VSIFReadL( abyData, 1, 308, fp );
+    if( VSIFReadL( abyData, 1, 308, fp ) != 308 )
+    {
+        VSIFCloseL( fp );
+        return( CE_Failure );
+    }
 
     VSIFCloseL( fp );
     
@@ -894,7 +896,11 @@ CPLErr AIGReadBlockIndex( AIGInfo_t * psInfo, AIGTileInfo *psTInfo,
 /*      Verify the magic number.  This is often corrupted by CR/LF      */
 /*      translation.                                                    */
 /* -------------------------------------------------------------------- */
-    VSIFReadL( abyHeader, 1, 8, fp );
+    if( VSIFReadL( abyHeader, 1, 8, fp ) != 8 )
+    {
+        VSIFCloseL( fp );
+        return CE_Failure;
+    }
     if( abyHeader[3] == 0x0D && abyHeader[4] == 0x0A )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
@@ -919,8 +925,12 @@ CPLErr AIGReadBlockIndex( AIGInfo_t * psInfo, AIGTileInfo *psTInfo,
 /* -------------------------------------------------------------------- */
 /*      Get the file length (in 2 byte shorts)                          */
 /* -------------------------------------------------------------------- */
-    VSIFSeekL( fp, 24, SEEK_SET );
-    VSIFReadL( &nValue, 1, 4, fp );
+    if( VSIFSeekL( fp, 24, SEEK_SET ) != 0 ||
+        VSIFReadL( &nValue, 1, 4, fp ) != 4 )
+    {
+        VSIFCloseL( fp );
+        return CE_Failure;
+    }
 
     // FIXME? : risk of overflow in multiplication
     nLength = CPL_MSBWORD32(nValue) * 2;
@@ -930,16 +940,14 @@ CPLErr AIGReadBlockIndex( AIGInfo_t * psInfo, AIGTileInfo *psTInfo,
 /*      into the buffer.                                                */
 /* -------------------------------------------------------------------- */
     psTInfo->nBlocks = (nLength-100) / 8;
-    panIndex = (GUInt32 *) VSIMalloc2(psTInfo->nBlocks, 8);
+    panIndex = (GUInt32 *) VSI_MALLOC2_VERBOSE(psTInfo->nBlocks, 8);
     if (panIndex == NULL)
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory,
-                 "AIGReadBlockIndex: Out of memory. Probably due to corrupted w001001x.adf file");
         VSIFCloseL( fp );
         return CE_Failure;
     }
-    VSIFSeekL( fp, 100, SEEK_SET );
-    if ((int)VSIFReadL( panIndex, 8, psTInfo->nBlocks, fp ) != psTInfo->nBlocks)
+    if( VSIFSeekL( fp, 100, SEEK_SET ) != 0 ||
+        (int)VSIFReadL( panIndex, 8, psTInfo->nBlocks, fp ) != psTInfo->nBlocks)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "AIGReadBlockIndex: Cannot read block info");
@@ -953,13 +961,11 @@ CPLErr AIGReadBlockIndex( AIGInfo_t * psInfo, AIGTileInfo *psTInfo,
 /* -------------------------------------------------------------------- */
 /*	Allocate AIGInfo block info arrays.				*/
 /* -------------------------------------------------------------------- */
-    psTInfo->panBlockOffset = (GUInt32 *) VSIMalloc2(4, psTInfo->nBlocks);
-    psTInfo->panBlockSize = (int *) VSIMalloc2(4, psTInfo->nBlocks);
+    psTInfo->panBlockOffset = (GUInt32 *) VSI_MALLOC2_VERBOSE(4, psTInfo->nBlocks);
+    psTInfo->panBlockSize = (int *) VSI_MALLOC2_VERBOSE(4, psTInfo->nBlocks);
     if (psTInfo->panBlockOffset == NULL || 
         psTInfo->panBlockSize == NULL)
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory,
-                 "AIGReadBlockIndex: Out of memory. Probably due to corrupted w001001x.adf file");
         CPLFree( psTInfo->panBlockOffset );
         CPLFree( psTInfo->panBlockSize );
         CPLFree( panIndex );
@@ -1016,7 +1022,11 @@ CPLErr AIGReadBounds( const char * pszCoverName, AIGInfo_t * psInfo )
 /* -------------------------------------------------------------------- */
 /*      Get the contents - four doubles.                                */
 /* -------------------------------------------------------------------- */
-    VSIFReadL( adfBound, 1, 32, fp );
+    if( VSIFReadL( adfBound, 1, 32, fp ) != 32 )
+    {
+        VSIFCloseL( fp );
+        return CE_Failure;
+    }
 
     VSIFCloseL( fp );
 
@@ -1076,7 +1086,11 @@ CPLErr AIGReadStatistics( const char * pszCoverName, AIGInfo_t * psInfo )
 /* -------------------------------------------------------------------- */
 /*      Get the contents - four doubles.                                */
 /* -------------------------------------------------------------------- */
-    VSIFReadL( adfStats, 1, 32, fp );
+    if( VSIFReadL( adfStats, 1, 32, fp ) != 32 )
+    {
+        VSIFCloseL( fp );
+        return CE_Failure;
+    }
 
     VSIFCloseL( fp );
 

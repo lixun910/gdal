@@ -32,7 +32,8 @@
  *
  * $Log: mitab_middatafile.cpp,v $
  * Revision 1.15  2010-10-12 19:02:40  aboudreault
- * Fixed incomplet patch to handle differently indented lines in mif files (gdal #3694)
+ * Fixed incomplete patch to handle differently indented lines in MIF
+ * files (gdal #3694).
  *
  * Revision 1.14  2006-01-27 13:54:06  fwarmerdam
  * fixed memory leak
@@ -98,7 +99,9 @@ MIDDATAFile::MIDDATAFile()
     m_dfYMultiplier = 1.0;
     m_dfXDisplacement = 0.0;
     m_dfYDisplacement = 0.0;
-
+    m_pszFname = NULL;
+    m_eAccessMode = TABRead;
+    m_bEof = FALSE;
 }
 
 MIDDATAFile::~MIDDATAFile()
@@ -114,7 +117,7 @@ void MIDDATAFile::SaveLine(const char *pszLine)
     }
     else
     {
-        strncpy(m_szSavedLine,pszLine,MIDMAXCHAR);
+        CPLStrlcpy(m_szSavedLine,pszLine,MIDMAXCHAR);
     }
 }
 
@@ -133,12 +136,12 @@ int MIDDATAFile::Open(const char *pszFname, const char *pszAccess)
     /*-----------------------------------------------------------------
      * Validate access mode and make sure we use Text access.
      *----------------------------------------------------------------*/
-    if (EQUALN(pszAccess, "r", 1))
+    if (STARTS_WITH_CI(pszAccess, "r"))
     {
         m_eAccessMode = TABRead;
         pszAccess = "rt";
     }
-    else if (EQUALN(pszAccess, "w", 1))
+    else if (STARTS_WITH_CI(pszAccess, "w"))
     {
         m_eAccessMode = TABWrite;
         pszAccess = "wt";
@@ -213,11 +216,11 @@ const char *MIDDATAFile::GetLine()
         }
         else
         {
-            // skip leading spaces
-            while(pszLine && (*pszLine == ' ' || *pszLine == '\t') )
-                pszLine++;
+            // skip leading spaces and tabs (except is the delimiter is tab)
+            while(pszLine && (*pszLine == ' ' || (*m_pszDelimiter != '\t' && *pszLine == '\t')) )
+                    pszLine++;
 
-            strncpy(m_szLastRead,pszLine,MIDMAXCHAR);
+            CPLStrlcpy(m_szLastRead,pszLine,MIDMAXCHAR);
         }
         //if (pszLine)
         //  printf("%s\n",pszLine);

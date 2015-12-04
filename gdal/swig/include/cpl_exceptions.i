@@ -32,10 +32,15 @@
  *****************************************************************************/
 
 %{
-void VeryQuiteErrorHandler(CPLErr eclass, int code, const char *msg ) {
+void VeryQuietErrorHandler(CPLErr eclass, int code, const char *msg ) {
   /* If the error class is CE_Fatal, we want to have a message issued
      because the CPL support code does an abort() before any exception
      can be generated */
+#if defined(SWIGPERL)
+    AV* error_stack = get_av("Geo::GDAL::error", 0);
+    SV *error = newSVpv(msg, 0);
+    av_push(error_stack, error);
+#endif
   if (eclass == CE_Fatal ) {
     CPLDefaultErrorHandler(eclass, code, msg );
   }
@@ -44,7 +49,7 @@ void VeryQuiteErrorHandler(CPLErr eclass, int code, const char *msg ) {
 
 %inline %{
 void UseExceptions() {
-  CPLSetErrorHandler( (CPLErrorHandler) VeryQuiteErrorHandler );
+  CPLSetErrorHandler( (CPLErrorHandler) VeryQuietErrorHandler );
 }
 
 void DontUseExceptions() {
@@ -60,7 +65,7 @@ void DontUseExceptions() {
     CPLErr eclass = CPLGetLastErrorType();
     if ( eclass == CE_Failure || eclass == CE_Fatal ) {
 #if defined(SWIGPERL)
-      SWIG_exception_fail( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      do_confess( CPLGetLastErrorMsg(), 0 );
 #elif defined(SWIGCSHARP)
       SWIG_CSharpException(SWIG_RuntimeError, CPLGetLastErrorMsg());
 #else

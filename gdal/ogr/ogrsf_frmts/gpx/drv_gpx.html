@@ -54,7 +54,7 @@ OGR 1.8.0 adds supports for Windows-1252 encoding (for previous versions, alteri
 mentionned in the XML header to ISO-8859-1 might work in some cases).<p>
 
 The content returned by OGR will be encoded in UTF-8, after the conversion from the
-encoding mentionned in the file header is.<p>
+encoding mentioned in the file header is.<p>
 
 If your GPX file is not encoded in one of the previous encodings, it will not be parsed by the
 GPX driver. You may convert it into one of the supported encoding with the <i>iconv</i> utility
@@ -132,12 +132,12 @@ field can be set on the first track point to fill the &lt;name&gt; element of th
 The GPX writer supports the following <i>layer</i> creation options:
 <ul>
 <li> <b>FORCE_GPX_TRACK</b>:
-By default when writting a layer whose features are of type wkbLineString, the GPX driver
+By default when writing a layer whose features are of type wkbLineString, the GPX driver
 chooses to write them as routes.
 <br>If FORCE_GPX_TRACK=YES is specified, they will be written
 as tracks.</li><p>
 <li> <b>FORCE_GPX_ROUTE</b>:
-By default when writting a layer whose features are of type wkbMultiLineString, the GPX driver
+By default when writing a layer whose features are of type wkbMultiLineString, the GPX driver
 chooses to write them as tracks.
 <br>If FORCE_GPX_ROUTE=YES is specified, they will be written
 as routes, provided that the multilines are composed of only one single line.</li><p>

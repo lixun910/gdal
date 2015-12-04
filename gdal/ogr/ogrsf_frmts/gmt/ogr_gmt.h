@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGRGMT_H_INCLUDED
-#define _OGRGMT_H_INCLUDED
+#ifndef OGRGMT_H_INCLUDED
+#define OGRGMT_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
@@ -80,6 +80,8 @@ class OGRGmtLayer : public OGRLayer
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
 
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     OGRErr              ICreateFeature( OGRFeature *poFeature );
     
@@ -139,5 +141,5 @@ class OGRGmtDriver : public OGRSFDriver
 };
 
 
-#endif /* ndef _OGRGMT_H_INCLUDED */
+#endif /* ndef OGRGMT_H_INCLUDED */
 

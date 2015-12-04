@@ -135,7 +135,7 @@ static void PrintKey(GeoKey *key, GTIFPrintMethod print, void *aux)
 {
     char *data;
     geokey_t keyid = (geokey_t) key->gk_key;
-    int count = key->gk_count;
+    int count = (int) key->gk_count;
     int vals_now,i;
     pinfo_t *sptr;
     double *dptr;
@@ -352,7 +352,6 @@ static int ReadKey(GTIF *gt, GTIFReadMethod scan, void *aux)
     short  *sptr;
     char name[1000];
     char type[20];
-    double data[100];
     double *dptr;
     char *vptr;
     int num;
@@ -415,8 +414,11 @@ static int ReadKey(GTIF *gt, GTIFReadMethod scan, void *aux)
                   cdata[out_char++] = *(vptr++);
           }
 
-          if( out_char < count-1 ) return StringError(message);
-          if( *vptr != '"' ) return StringError(message);
+          if( out_char < count-1 ||  *vptr != '"' )
+          {
+              _GTIFFree( cdata );
+              return StringError(message);
+          }
 
           cdata[count-1] = '\0';
           GTIFKeySet(gt,key,ktype,count,cdata);
@@ -424,8 +426,10 @@ static int ReadKey(GTIF *gt, GTIFReadMethod scan, void *aux)
           _GTIFFree( cdata );
       }
       break;
-        
+
       case TYPE_DOUBLE: 
+      {
+        double data[100];
         outcount = count;
         for (dptr = data; count > 0; count-= vals_now)
         {
@@ -448,6 +452,7 @@ static int ReadKey(GTIF *gt, GTIFReadMethod scan, void *aux)
         else
             GTIFKeySet(gt,key,ktype,outcount,data);
         break;
+      }
         
       case TYPE_SHORT: 
         if (count==1)
@@ -459,11 +464,9 @@ static int ReadKey(GTIF *gt, GTIFReadMethod scan, void *aux)
         }
         else  /* multi-valued short - no such thing yet */
         {
-            char* cdata;
-            memcpy(&cdata, &data, sizeof(void*));
-            sptr = (short *)cdata;
+            short data[100];
             outcount = count;
-            for (; count > 0; count-= vals_now)
+            for (sptr = data; count > 0; count-= vals_now)
             {
                 vals_now = count > 3? 3: count;
                 for (i=0; i<vals_now; i++,sptr++)
@@ -501,3 +504,4 @@ static void DefaultRead(char *string, void *aux)
       fprintf(stderr, "geo_print.c DefaultRead failed to read anything.\n");
     }
 }
+

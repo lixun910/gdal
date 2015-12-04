@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_OSM_H_INCLUDED
-#define _OGR_OSM_H_INCLUDED
+#ifndef OGR_OSM_H_INCLUDED
+#define OGR_OSM_H_INCLUDED
 
 // replace O(log2(N)) complexity of FindNode() by O(1)
 #define ENABLE_NODE_LOOKUP_BY_HASHING 1
@@ -148,6 +148,8 @@ class OGROSMLayer : public OGRLayer
     virtual OGRErr      SetAttributeFilter( const char* pszAttrQuery );
 
     virtual OGRErr      GetExtent( OGREnvelope *psExtent, int bForce );
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     const OGREnvelope*  GetSpatialFilterEnvelope();
 
@@ -216,7 +218,7 @@ typedef struct
 {
     char* pszK;
     int nKeyIndex;
-    int nOccurences;
+    int nOccurences;  // TODO: Spelling.
     std::vector<char*> asValues;
     std::map<const char*, int, ConstCharComp> anMapV; /* map that is the reverse of asValues */
 } KeyDesc;
@@ -486,5 +488,5 @@ class OGROSMDataSource : public OGRDataSource
     int                 DoesAttributeNameLaundering() const { return bAttributeNameLaundering; }
 };
 
-#endif /* ndef _OGR_OSM_H_INCLUDED */
+#endif /* ndef OGR_OSM_H_INCLUDED */
 

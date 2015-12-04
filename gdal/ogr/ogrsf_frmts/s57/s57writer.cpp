@@ -39,16 +39,14 @@ CPL_CVSID("$Id$");
 /*                             S57Writer()                              */
 /************************************************************************/
 
-S57Writer::S57Writer()
-
-{
-    poModule = NULL;
-    poRegistrar = NULL;
-    poClassContentExplorer = NULL;
-
-    nCOMF = 10000000;
-    nSOMF = 10;
-}
+S57Writer::S57Writer() :
+    poModule(NULL),
+    nNext0001Index(0),
+    poRegistrar(NULL),
+    poClassContentExplorer(NULL),
+    nCOMF(10000000),
+    nSOMF(10)
+{ }
 
 /************************************************************************/
 /*                             ~S57Writer()                             */
@@ -883,7 +881,10 @@ int S57Writer::WriteCompleteFeature( OGRFeature *poFeature )
     if( poRegistrar != NULL 
         && poClassContentExplorer->SelectClass( poFeature->GetDefnRef()->GetName() )
         && !WriteATTF( poRec, poFeature ) )
+    {
+        delete poRec;
         return FALSE;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Add the FSPT if needed.                                         */
@@ -1045,7 +1046,7 @@ int S57Writer::WriteATTF( DDFRecord *poRec, OGRFeature *poFeature )
 
         // copy data into record buffer.
         memcpy( achRawData + nRawSize, pszATVL, strlen(pszATVL) );
-        nRawSize += strlen(pszATVL);
+        nRawSize += static_cast<int>(strlen(pszATVL));
         achRawData[nRawSize++] = DDF_UNIT_TERMINATOR;
     
         nACount++;

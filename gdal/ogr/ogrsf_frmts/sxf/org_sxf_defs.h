@@ -38,7 +38,7 @@
  *    - Descriptor of data
  *    - Records 
  *         - Title of the record 
- *         - The certificate of the object (the geomety)
+ *         - The certificate of the object (the geometry)
  *             - sub-objects
  *             - The graphic description of object
  *             - The description of the vector of the tying of the 3d- model of object
@@ -197,9 +197,9 @@ enum SXFCoordinateMeasUnit
 
 typedef struct
 {
-    long double stProjCoords[8]; //X(0) & Y(1) South West, X(2) & Y(3) North West, X(4) & Y(5) North East, X(6) & Y(7) South East
-    long double stGeoCoords[8];
-    long double stFrameCoords[8];
+    double stProjCoords[8]; //X(0) & Y(1) South West, X(2) & Y(3) North West, X(4) & Y(5) North East, X(6) & Y(7) South East
+    double stGeoCoords[8];
+    double stFrameCoords[8];
     OGREnvelope Env;
     OGRSpatialReference *pSpatRef;
     SXFCoordinateMeasUnit eUnitInPlan;
@@ -208,7 +208,7 @@ typedef struct
     double dfFalseNorthing;
     double dfFalseEasting;
     GUInt32 nResolution;
-    long double dfScale;
+    double dfScale;
     bool bIsRealCoordinates;
     SXFCoordinatesAccuracy stCoordAcc;
 
@@ -252,7 +252,7 @@ typedef struct
     SXFValueType eValType;      // size of values (Note 3)
     int bFormat;                 // Has 3D vector (Note 4) /* Format of the certificate (0- linear size, 1-vector format ) */
     GByte bDim;                 // Dimensionality of the idea (0- 2D, 1- 3D) (Note 6)
-    int bHasTextSign;           // Sign of certificate with the text (Note 8)
+    bool bHasTextSign;           // Sign of certificate with the text (Note 8)
     GUInt32 nPointCount;        // Point count
     GUInt16 nSubObjectCount;    // The sub object count
 
@@ -327,6 +327,7 @@ typedef struct
 */
 typedef struct  {
     GUInt32 nOffset;      //RSC Section offset in bytes from the beginning of the RSC file
+    // TODO: Fix spelling nLenght -> nLength
     GUInt32 nLenght;      //RSC Section record length
     GUInt32 nRecordCount; //count of records in the section
 } RSCSection;

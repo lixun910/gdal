@@ -48,6 +48,17 @@ GDALPamRasterBand::GDALPamRasterBand()
 }
 
 /************************************************************************/
+/*                         GDALPamRasterBand()                          */
+/************************************************************************/
+
+GDALPamRasterBand::GDALPamRasterBand(int bForceCachedIOIn) : GDALRasterBand(bForceCachedIOIn)
+
+{
+    psPam = NULL;
+    SetMOFlags( GetMOFlags() | GMO_PAM_CLASS );
+}
+
+/************************************************************************/
 /*                         ~GDALPamRasterBand()                         */
 /************************************************************************/
 
@@ -246,10 +257,11 @@ void GDALPamRasterBand::PamInitialize()
     if( psPam )
         return;
 
-    GDALPamDataset *poParentDS = (GDALPamDataset *) GetDataset();
-
-    if( poParentDS == NULL || !(poParentDS->GetMOFlags() & GMO_PAM_CLASS) )
+    GDALDataset* poNonPamParentDS = GetDataset();
+    if( poNonPamParentDS == NULL || !(poNonPamParentDS->GetMOFlags() & GMO_PAM_CLASS) )
         return;
+
+    GDALPamDataset *poParentDS = (GDALPamDataset *) poNonPamParentDS;
 
     poParentDS->PamInitialize();
     if( poParentDS->psPam == NULL )
@@ -685,6 +697,26 @@ CPLErr GDALPamRasterBand::SetNoDataValue( double dfNewValue )
 }
 
 /************************************************************************/
+/*                          DeleteNoDataValue()                         */
+/************************************************************************/
+
+CPLErr GDALPamRasterBand::DeleteNoDataValue()
+
+{
+    PamInitialize();
+
+    if( psPam )
+    {
+        psPam->bNoDataValueSet = FALSE;
+        psPam->dfNoDataValue = 0.0;
+        psPam->poParentDS->MarkPamDirty();
+        return CE_None;
+    }
+    else
+        return GDALRasterBand::DeleteNoDataValue();
+}
+
+/************************************************************************/
 /*                           GetNoDataValue()                           */
 /************************************************************************/
 
@@ -1076,7 +1108,8 @@ PamHistogramToXMLTree( double dfMin, double dfMax,
 
 {
     char *pszHistCounts;
-    int iBucket, iHistOffset;
+    int iBucket;
+    size_t iHistOffset;
     CPLXMLNode *psXMLHist;
     CPLString oFmt;
 

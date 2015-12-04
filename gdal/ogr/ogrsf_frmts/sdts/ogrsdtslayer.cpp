@@ -41,8 +41,8 @@ CPL_CVSID("$Id$");
 /************************************************************************/
 
 OGRSDTSLayer::OGRSDTSLayer( SDTSTransfer * poTransferIn, int iLayerIn,
-                            OGRSDTSDataSource * poDSIn )
-
+                            OGRSDTSDataSource * poDSIn ) :
+    bPolygonsBuilt(FALSE)
 {
     poDS = poDSIn;
 
@@ -110,9 +110,11 @@ OGRSDTSLayer::OGRSDTSLayer( SDTSTransfer * poTransferIn, int iLayerIn,
 /*      Get the attribute table reader, and the associated user         */
 /*      attribute field.                                                */
 /* -------------------------------------------------------------------- */
+        int nLayerIdx = poTransfer->FindLayer( papszATIDRefs[iTable] );
+        if( nLayerIdx < 0 )
+            continue;
         poAttrReader = (SDTSAttrReader *)
-            poTransfer->GetLayerIndexedReader(
-                poTransfer->FindLayer( papszATIDRefs[iTable] ) );
+            poTransfer->GetLayerIndexedReader(nLayerIdx);
 
         if( poAttrReader == NULL )
             continue;
@@ -181,7 +183,7 @@ OGRSDTSLayer::OGRSDTSLayer( SDTSTransfer * poTransferIn, int iLayerIn,
             }
 
             CPLFree( pszFieldName );
-            
+
         } /* next iSF (subfield) */
     } /* next iTable */
     CSLDestroy( papszATIDRefs );
@@ -434,7 +436,7 @@ OGRFeature *OGRSDTSLayer::GetNextFeature()
 /*      Read features till we find one that satisfies our current       */
 /*      spatial criteria.                                               */
 /* -------------------------------------------------------------------- */
-    while( TRUE )
+    while( true )
     {
         poFeature = GetNextUnfilteredFeature();
         if( poFeature == NULL )

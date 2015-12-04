@@ -53,7 +53,7 @@ GDALMDReaderGeoEye::GDALMDReaderGeoEye(const char *pszPath,
     for(i = 0; i < nBaseNameLen; i++)
     {
         szMetadataName[i] = pszBaseName[i];
-        if(EQUALN(pszBaseName + i, "_rgb_", 5) || EQUALN(pszBaseName + i, "_pan_", 5))
+        if(STARTS_WITH_CI(pszBaseName + i, "_rgb_") || STARTS_WITH_CI(pszBaseName + i, "_pan_"))
         {
             break;
         }
@@ -115,7 +115,7 @@ GDALMDReaderGeoEye::~GDALMDReaderGeoEye()
 /**
  * HasRequiredFiles()
  */
-const bool GDALMDReaderGeoEye::HasRequiredFiles() const
+bool GDALMDReaderGeoEye::HasRequiredFiles() const
 {
     if (!m_osIMDSourceFilename.empty())
         return true;
@@ -202,12 +202,12 @@ void GDALMDReaderGeoEye::LoadMetadata()
 /**
  * GetAcqisitionTimeFromString()
  */
-const time_t GDALMDReaderGeoEye::GetAcquisitionTimeFromString(
+time_t GDALMDReaderGeoEye::GetAcquisitionTimeFromString(
         const char* pszDateTime)
 {
     if(NULL == pszDateTime)
         return 0;
-        
+
     int iYear;
     int iMonth;
     int iDay;
@@ -215,14 +215,14 @@ const time_t GDALMDReaderGeoEye::GetAcquisitionTimeFromString(
     int iMin;
     int iSec = 0;
 
-// string exampe: Acquisition Date/Time: 2006-03-01 11:08 GMT
+    // string example: Acquisition Date/Time: 2006-03-01 11:08 GMT
 
     int r = sscanf ( pszDateTime, "%d-%d-%d %d:%d GMT", &iYear, &iMonth,
                      &iDay, &iHours, &iMin);
 
     if (r != 5)
         return 0;
-    
+
     struct tm tmDateTime;
     tmDateTime.tm_sec = iSec;
     tmDateTime.tm_min = iMin;
@@ -257,13 +257,13 @@ char** GDALMDReaderGeoEye::LoadIMDWktFile() const
     {
         // skip section (=== or ---) lines
 
-        if(EQUALN( papszLines[i], "===",3))
+        if(STARTS_WITH_CI(papszLines[i], "==="))
         {
             bBeginSection = true;
             continue;
         }
 
-        if(EQUALN( papszLines[i], "---",3) || CPLStrnlen(papszLines[i], 512) == 0)
+        if(STARTS_WITH_CI(papszLines[i], "---") || CPLStrnlen(papszLines[i], 512) == 0)
             continue;
 
         // check the metadata level

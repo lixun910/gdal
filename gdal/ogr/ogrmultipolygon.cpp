@@ -47,11 +47,51 @@ OGRMultiPolygon::OGRMultiPolygon()
 }
 
 /************************************************************************/
+/*              OGRMultiPolygon( const OGRMultiPolygon& )               */
+/************************************************************************/
+
+/**
+ * \brief Copy constructor.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the constructor
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRMultiPolygon::OGRMultiPolygon( const OGRMultiPolygon& other ) :
+    OGRMultiSurface(other)
+{
+}
+
+/************************************************************************/
 /*                         ~OGRMultiPolygon()                           */
 /************************************************************************/
 
 OGRMultiPolygon::~OGRMultiPolygon()
 {
+}
+
+/************************************************************************/
+/*                  operator=( const OGRMultiPolygon&)                    */
+/************************************************************************/
+
+/**
+ * \brief Assignment operator.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the operator
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRMultiPolygon& OGRMultiPolygon::operator=( const OGRMultiPolygon& other )
+{
+    if( this != &other)
+    {
+        OGRMultiSurface::operator=( other );
+    }
+    return *this;
 }
 
 /************************************************************************/
@@ -112,23 +152,7 @@ OGRBoolean OGRMultiPolygon::hasCurveGeometry(CPL_UNUSED int bLookForNonLinear) c
 
 OGRErr OGRMultiPolygon::PointOnSurface( OGRPoint * poPoint ) const
 {
-    if( poPoint == NULL || poPoint->IsEmpty() )
-        return OGRERR_FAILURE;
-
-    OGRGeometryH hInsidePoint = OGR_G_PointOnSurface( (OGRGeometryH) this );
-    if( hInsidePoint == NULL )
-        return OGRERR_FAILURE;
-
-    OGRPoint *poInsidePoint = (OGRPoint *) hInsidePoint;
-    if( poInsidePoint->IsEmpty() )
-        poPoint->empty();
-    else
-    {
-        poPoint->setX( poInsidePoint->getX() );
-        poPoint->setY( poInsidePoint->getY() );
-    }
-
-    return OGRERR_NONE;
+    return PointOnSurfaceInternal(poPoint);
 }
 
 /************************************************************************/

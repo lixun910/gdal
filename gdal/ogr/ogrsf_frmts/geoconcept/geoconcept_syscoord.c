@@ -35,11 +35,6 @@
 
 CPL_CVSID("$Id: geoconcept_syscoord.c,v 1.0.0 2007-12-24 15:40:28 drichard Exp $")
 
-#ifndef PI
-#define PI 3.14159265358979323846
-#endif
-
-
 /* -------------------------------------------------------------------- */
 /*      GCSRS globals                                                   */
 /* -------------------------------------------------------------------- */
@@ -67,13 +62,13 @@ static GCSysCoord gk_asSysCoordList[]=
 {"Lambert 4",                       NULL,  2.337229166667,   0.000000000, 42.16500000,0.99994471000,    234.358,  185861.369,  0.0,  0.0,  13,   2,    5,-1},
 {"Bonne NTF",                       NULL,  2.337222222222,   0.000000000, 48.86000000,1.00000000000,      0.000,       0.000,  0.0,  0.0,   1,   3,   11,-1},
 {"UTM Nord - ED50",                 NULL,  0.000000000000,   0.000000000,  0.00000000,0.99960000000, 500000.000,       0.000,  0.0,  0.0,  14,   1,   12, 0},
-{"Plate carrée",                    NULL,  0.000000000000,   0.000000000,  0.00000000,0.00000000000,      0.000,       0.000,  0.0,  0.0,  11,   4,   13,-1},
+{"Plate carr""\xe9""e",                    NULL,  0.000000000000,   0.000000000,  0.00000000,0.00000000000,      0.000,       0.000,  0.0,  0.0,  11,   4,   13,-1},
 {"MGRS (Military UTM)",             NULL,  0.000000000000,   0.000000000,  0.00000000,0.99960000000,      0.000,       0.000,  0.0,  0.0,   4,  11,   14,-1},
 {"UTM Sud - WGS84",                 NULL,  0.000000000000,   0.000000000,  0.00000000,0.99960000000, 500000.000,10000000.000,  0.0,  0.0,   4,   1,   15, 0},
 {"National GB projection",          NULL,  0.000000000000,  -2.000000000, 49.00000000,0.99960127170, 400000.000, -100000.000,  0.0,  0.0,  12,  12,   16,-1},
 {"UTM Nord - WGS84",                NULL,  0.000000000000,   0.000000000,  0.00000000,0.99960000000, 500000.000,       0.000,  0.0,  0.0,   4,   1,   17, 0},
 {"UTM Nord - WGS84",                NULL,  0.000000000000,   0.000000000,  0.00000000,0.99960000000, 500000.000,       0.000,  0.0,  0.0,9990,   1,   17, 0},
-{"Lambert 2 étendu - sans grille",  NULL,  2.337229166667,   0.000000000, 46.80000000,0.99987742000, 600000.000, 2200000.000,  0.0,  0.0,   1,   2,   91,-1},
+{"Lambert 2 ""\xe9""tendu - sans grille",  NULL,  2.337229166667,   0.000000000, 46.80000000,0.99987742000, 600000.000, 2200000.000,  0.0,  0.0,   1,   2,   91,-1},
 {"Lambert 1 - sans grille",         NULL,  2.337229166667,   0.000000000, 49.50000000,0.99987734000, 600000.000,  200000.000,  0.0,  0.0,   1,   2,   92,-1},
 {"Lambert 2 - sans grille",         NULL,  2.337229166667,   0.000000000, 46.80000000,0.99987742000, 600000.000,  200000.000,  0.0,  0.0,   1,   2,   93,-1},
 {"Lambert 3 - sans grille",         NULL,  2.337229166667,   0.000000000, 44.10000000,0.99987750000, 600000.000,  200000.000,  0.0,  0.0,   1,   2,   94,-1},
@@ -123,7 +118,7 @@ static GCSysCoord gk_asSysCoordList[]=
 {"Geoportail Nouvelle Caledonie",   NULL,  0.000000000000,   0.000000000,  0.00000000,0.92718385456,      0.000,       0.000,-22.0,  0.0,9984,  26, 2021,-1},
 {"Geoportail Wallis",               NULL,  0.000000000000,   0.000000000,  0.00000000,0.97029572627,      0.000,       0.000,-14.0,  0.0,9984,  26, 2022,-1},
 {"Geoportail Polynesie",            NULL,  0.000000000000,   0.000000000,  0.00000000,0.96592582628,      0.000,       0.000,-15.0,  0.0,9984,  26, 2023,-1},
-{"Mercator sur sphère WGS84",       NULL,  0.000000000000,   0.000000000,  0.00000000,1.00000000000,      0.000,       0.000,  0.0,  0.0,2015,  21, 2027,-1},
+{"Mercator sur sph""\xe8""re WGS84",       NULL,  0.000000000000,   0.000000000,  0.00000000,1.00000000000,      0.000,       0.000,  0.0,  0.0,2015,  21, 2027,-1},
 {"(Long/Lat) RGF 93",                "d",  0.000000000000,   0.000000000,  0.00000000,0.00000000000,      0.000,       0.000,  0.0,  0.0,  13,   0, 2028,-1},
 {"(Long/Lat) ITRS-89",               "d",  0.000000000000,   0.000000000,  0.00000000,0.00000000000,      0.000,       0.000,  0.0,  0.0,9984,   0, 2028,-1},
 {"Geoportail Crozet",               NULL,  0.000000000000,   0.000000000,  0.00000000,0.69465837046,      0.000,       0.000,-46.0,  0.0,9984,  26, 2040,-1},/* FIXME : wrong scale factor was 0.69088241108 */
@@ -160,7 +155,7 @@ static GCProjectionInfo gk_asProjList[]=
 {"UTM",                     0,    1},
 {"Lambert Conform Conic",   0,    2},
 {"Bonne",                   0,    3},
-{"Plate carrée",            0,    4},
+{"Plate carr""\xe9""e",            0,    4},
 {"MGRS (Military UTM)",     0,   11},
 {"Transversal Mercator",    0,   12},
 {"Lambert secant",          0,   18},
@@ -238,8 +233,8 @@ static GCSpheroidInfo gk_asSpheroidList[]=
 {
 {"Sphere",                     6378137.0000, 0.00000000000000,   1},
 {"Clarke 1866",                6378206.4000, 0.08227185423947,   2},/* Wrong, semi-major was 6378249.4000     */
-{"Clarke 1880",                6378249.2000, 0.08248325676300,   3},/* Wrong, excentricity was 0.082483256945 */
-{"GRS 80",                     6378137.0000, 0.08181919104300,   4},/* Wrong, excentricity was 0.081819191060 */
+{"Clarke 1880",                6378249.2000, 0.08248325676300,   3},/* Wrong, eccentricity was 0.082483256945 */
+{"GRS 80",                     6378137.0000, 0.08181919104300,   4},/* Wrong, eccentricity was 0.081819191060 */
 {"International 1909",         6378388.0000, 0.08199188997900,   5},
 {"WGS 72",                     6378135.0000, 0.08181881201777,   6},
 {"Australian National",        6378160.0000, 0.08182017998700,   7},
@@ -363,8 +358,8 @@ static int GCSRSAPI_CALL _areCompatibleDatums_GCSRS ( int id1, int id2 )
   return FALSE;
 }/* _areCompatibleDatums_GCSRS */
 
-#define _CPLDebugSpheroid_GCSRS(e) \
-CPLDebug( "GEOCONCEPT", "SemiMajor:%.4f;Excentricity:%.10f;",\
+#define CPLDebugSpheroid_GCSRS(e) \
+CPLDebug( "GEOCONCEPT", "SemiMajor:%.4f;Eccentricity:%.10f;",\
           GetInfoSpheroidSemiMajor_GCSRS(e),\
           GetInfoSpheroidExcentricity_GCSRS(e)\
 );
@@ -397,7 +392,7 @@ ell_relax:
   return ell;
 }/* _findSpheroid_GCSRS */
 
-#define _CPLDebugDatum_GCSRS(d) \
+#define CPLDebugDatum_GCSRS(d) \
 CPLDebug( "GEOCONCEPT", "ID:%d;ShiftX:%.4f;ShiftY:%.4f;ShiftZ:%.4f;DiffA:%.4f;DiffFlattening:%.7f;",\
   GetInfoDatumID_GCSRS((d)),\
   GetInfoDatumShiftX_GCSRS((d)),\
@@ -512,7 +507,7 @@ static GCProjectionInfo GCSRSAPI_CALL1(*) _findProjection_GCSRS ( const char* p,
   return proj;
 }/* _findProjection_GCSRS */
 
-#define _CPLDebugSysCoord_GCSRS(m,s) \
+#define CPLDebugSysCoord_GCSRS(m,s) \
 CPLDebug( "GEOCONCEPT", "[%s]ID=%d;Zone=%d;DatumID=%d;ProjID=%d;PrimeMeridian=%.10f;CentralMeridian=%.10f;LatitudeOfOrigin=%.10f;StandardParallel1=%.10f;StandardParallel2=%.10f;ScaleFactor=%.10f;FalseEasting=%.10f;FalseNorthing=%.10f;",\
           (m)? (m):"",\
           GetSysCoordSystemID_GCSRS((s)),\
@@ -539,7 +534,7 @@ static GCSysCoord GCSRSAPI_CALL1(*) _findSysCoord_GCSRS ( GCSysCoord* theSysCoor
 
   SetSysCoordSystemID_GCSRS(theSysCoord, -1);
   SetSysCoordTimeZone_GCSRS(theSysCoord, -1);
-  _CPLDebugSysCoord_GCSRS(NULL,theSysCoord);
+  CPLDebugSysCoord_GCSRS(NULL,theSysCoord);
   for( iSysCoord= 0, gcsc= &(gk_asSysCoordList[0]);
        GetSysCoordSystemID_GCSRS(gcsc)!=-1;
        iSysCoord++, gcsc= &(gk_asSysCoordList[iSysCoord]) )
@@ -554,7 +549,7 @@ static GCSysCoord GCSRSAPI_CALL1(*) _findSysCoord_GCSRS ( GCSysCoord* theSysCoor
     {
       switch( GetSysCoordProjID_GCSRS(gcsc) )
       {
-        case    1 :/* UTM familly : central meridian is the 6* zone - 183 (in degrees) */
+        case    1 : /* UTM family: central meridian is the 6* zone - 183 (in degrees) */
           if( GetSysCoordCentralMeridian_GCSRS(gcsc)==0.0 ) /* generic UTM definition */
           {
             break;
@@ -589,7 +584,7 @@ static GCSysCoord GCSRSAPI_CALL1(*) _findSysCoord_GCSRS ( GCSysCoord* theSysCoor
             bestSysCoord= iSysCoord;
           }
           break;
-        case    1:/* UTM familly : central meridian is the 6* zone - 183 (in degrees) */
+        case    1: /* UTM family: central meridian is the 6* zone - 183 (in degrees) */
           if( GetSysCoordCentralMeridian_GCSRS(gcsc)!=0.0 &&
               GetSysCoordDatumID_GCSRS(gcsc)==GetSysCoordDatumID_GCSRS(theSysCoord) &&
               GetSysCoordDatumID_GCSRS(&(gk_asSysCoordList[bestSysCoord]))!=GetSysCoordDatumID_GCSRS(theSysCoord)) /* exact match */
@@ -655,11 +650,8 @@ GCSysCoord GCSRSAPI_CALL1(*) CreateSysCoord_GCSRS (
   int iSysCoord;
   GCSysCoord* theSysCoord, *gcsc;
 
-  if( !(theSysCoord= CPLMalloc(sizeof(GCSysCoord))) )
+  if( !(theSysCoord= VSI_MALLOC_VERBOSE(sizeof(GCSysCoord))) )
   {
-    CPLError( CE_Failure, CPLE_OutOfMemory,
-              "failed to create a Geoconcept coordinate system.\n"
-              );
     return NULL;
   }
   _InitSysCoord_GCSRS(theSysCoord);
@@ -809,7 +801,7 @@ GCSysCoord GCSRSAPI_CALL1(*) OGRSpatialReference2SysCoord_GCSRS ( OGRSpatialRefe
     if( (v= OSRGetProjParm(poSR,SRS_PP_PSEUDO_STD_PARALLEL_1,0.0,NULL))!= 0.0 )
     {
       /* should be SRS_PT_EQUIRECTANGULAR : */
-      SetSysCoordScaleFactor_GCSRS(syscoord, cos(v*PI/180.0));
+      SetSysCoordScaleFactor_GCSRS(syscoord, cos(v*M_PI/180.0));
       SetSysCoordStandardParallel1_GCSRS(syscoord, v);/* allow keeping lat_ts sign */
     }
   }

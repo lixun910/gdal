@@ -45,7 +45,7 @@ CPL_CVSID("$Id$");
 SHPHandle OGRShapeDataSource::DS_SHPOpen( const char * pszShapeFile, const char * pszAccess )
 {
     /* Do lazy shx loading for /vsicurl/ */
-    if( strncmp(pszShapeFile, "/vsicurl/", strlen("/vsicurl/")) == 0 &&
+    if( STARTS_WITH(pszShapeFile, "/vsicurl/") &&
         strcmp(pszAccess, "r") == 0 )
         pszAccess = "rl";
     SHPHandle hSHP = SHPOpenLL( pszShapeFile, pszAccess, (SAHooks*) VSI_SHP_GetHook(b2GBLimit) );
@@ -68,16 +68,16 @@ DBFHandle OGRShapeDataSource::DS_DBFOpen( const char * pszDBFFile, const char * 
 /*                         OGRShapeDataSource()                         */
 /************************************************************************/
 
-OGRShapeDataSource::OGRShapeDataSource()
-
+OGRShapeDataSource::OGRShapeDataSource() :
+    papoLayers(NULL),
+    nLayers(0),
+    pszName(NULL),
+    bDSUpdate(FALSE),
+    bSingleFileDataSource(FALSE),
+    papszOpenOptions(NULL)
 {
-    pszName = NULL;
-    papoLayers = NULL;
-    nLayers = 0;
-    bSingleFileDataSource = FALSE;
     poPool = new OGRLayerPool();
     b2GBLimit = CSLTestBoolean(CPLGetConfigOption("SHAPE_2GB_LIMIT", "FALSE"));
-    papszOpenOptions = NULL;
 }
 
 
@@ -282,7 +282,7 @@ int OGRShapeDataSource::Open( GDALOpenInfo* poOpenInfo,
 #ifdef IMMEDIATE_OPENING
         int nDirLayers = nLayers;
 #else
-        int nDirLayers = oVectorLayerName.size();
+        int nDirLayers = static_cast<int>(oVectorLayerName.size());
 #endif
 
         CPLErrorReset();
@@ -311,7 +311,7 @@ int OGRShapeDataSource::OpenFile( const char *pszNewName, int bUpdate,
 
 /* -------------------------------------------------------------------- */
 /*      SHPOpen() should include better (CPL based) error reporting,    */
-/*      and we should be trying to distinquish at this point whether    */
+/*      and we should be trying to distinguish at this point whether    */
 /*      failure is a result of trying to open a non-shapefile, or       */
 /*      whether it was a shapefile and we want to report the error      */
 /*      up.                                                             */
@@ -337,7 +337,7 @@ int OGRShapeDataSource::OpenFile( const char *pszNewName, int bUpdate,
         return FALSE;
     }
     CPLErrorReset();
-    
+
 /* -------------------------------------------------------------------- */
 /*      Open the .dbf file, if it exists.  To open a dbf file, the      */
 /*      filename has to either refer to a successfully opened shp       */
@@ -604,13 +604,13 @@ OGRShapeDataSource::ICreateLayer( const char * pszLayerName,
 /* -------------------------------------------------------------------- */
     char        *pszFilename;
 
-    int b2GBLimit = CSLTestBoolean(CSLFetchNameValueDef( papszOptions, "2GB_LIMIT", "FALSE" ));
+    int l_b2GBLimit = CSLTestBoolean(CSLFetchNameValueDef( papszOptions, "2GB_LIMIT", "FALSE" ));
 
     if( nShapeType != SHPT_NULL )
     {
         pszFilename = CPLStrdup(CPLFormFilename( NULL, pszFilenameWithoutExt, "shp" ));
 
-        hSHP = SHPCreateLL( pszFilename, nShapeType, (SAHooks*) VSI_SHP_GetHook(b2GBLimit) );
+        hSHP = SHPCreateLL( pszFilename, nShapeType, (SAHooks*) VSI_SHP_GetHook(l_b2GBLimit) );
         
         if( hSHP == NULL )
         {
@@ -860,7 +860,7 @@ OGRLayer * OGRShapeDataSource::ExecuteSQL( const char *pszStatement,
 /* ==================================================================== */
 /*      Handle command to drop a spatial index.                         */
 /* ==================================================================== */
-    if( EQUALN(pszStatement, "REPACK ", 7) )
+    if( STARTS_WITH_CI(pszStatement, "REPACK ") )
     {
         OGRShapeLayer *poLayer = (OGRShapeLayer *) 
             GetLayerByName( pszStatement + 7 );
@@ -886,7 +886,7 @@ OGRLayer * OGRShapeDataSource::ExecuteSQL( const char *pszStatement,
 /* ==================================================================== */
 /*      Handle command to shrink columns to their minimum size.         */
 /* ==================================================================== */
-    if( EQUALN(pszStatement, "RESIZE ", 7) )
+    if( STARTS_WITH_CI(pszStatement, "RESIZE ") )
     {
         OGRShapeLayer *poLayer = (OGRShapeLayer *)
             GetLayerByName( pszStatement + 7 );
@@ -905,7 +905,7 @@ OGRLayer * OGRShapeDataSource::ExecuteSQL( const char *pszStatement,
 /* ==================================================================== */
 /*      Handle command to recompute extent                             */
 /* ==================================================================== */
-    if( EQUALN(pszStatement, "RECOMPUTE EXTENT ON ", 20) )
+    if( STARTS_WITH_CI(pszStatement, "RECOMPUTE EXTENT ON ") )
     {
         OGRShapeLayer *poLayer = (OGRShapeLayer *) 
             GetLayerByName( pszStatement + 20 );
@@ -924,7 +924,7 @@ OGRLayer * OGRShapeDataSource::ExecuteSQL( const char *pszStatement,
 /* ==================================================================== */
 /*      Handle command to drop a spatial index.                         */
 /* ==================================================================== */
-    if( EQUALN(pszStatement, "DROP SPATIAL INDEX ON ", 22) )
+    if( STARTS_WITH_CI(pszStatement, "DROP SPATIAL INDEX ON ") )
     {
         OGRShapeLayer *poLayer = (OGRShapeLayer *) 
             GetLayerByName( pszStatement + 22 );
@@ -939,11 +939,11 @@ OGRLayer * OGRShapeDataSource::ExecuteSQL( const char *pszStatement,
         }
         return NULL;
     }
-    
+
 /* ==================================================================== */
-/*      Handle all comands except spatial index creation generically.   */
+/*      Handle all commands except spatial index creation generically.  */
 /* ==================================================================== */
-    if( !EQUALN(pszStatement,"CREATE SPATIAL INDEX ON ",24) )
+    if( !STARTS_WITH_CI(pszStatement, "CREATE SPATIAL INDEX ON ") )
     {
         char **papszTokens = CSLTokenizeString( pszStatement );
         if( CSLCount(papszTokens) >=4
@@ -1077,7 +1077,7 @@ void OGRShapeDataSource::SetLastUsedLayer( OGRShapeLayer* poLayer )
     /* The only rationale for that test is to avoid breaking applications */
     /* that would deal with layers of the same datasource in different */
     /* threads. In GDAL < 1.9.0, this would work in most cases I can */
-    /* imagine as shapefile layers are pretty much independant from each */
+    /* imagine as shapefile layers are pretty much independent from each */
     /* others (although it has never been guaranteed to be a valid use case, */
     /* and the shape driver is likely more the exception than the rule in */
     /* permitting accessing layers from different threads !) */

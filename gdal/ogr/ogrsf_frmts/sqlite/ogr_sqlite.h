@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_SQLITE_H_INCLUDED
-#define _OGR_SQLITE_H_INCLUDED
+#ifndef OGR_SQLITE_H_INCLUDED
+#define OGR_SQLITE_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "gdal_pam.h"
@@ -203,6 +203,8 @@ class OGRSQLiteDataSource;
 class IOGRSQLiteGetSpatialWhere
 {
   public:
+    virtual              ~IOGRSQLiteGetSpatialWhere() {}
+
     virtual int           HasFastSpatialFilter(int iGeomCol) = 0;
     virtual CPLString     GetSpatialWhere(int iGeomCol,
                                           OGRGeometry* poFilterGeom) = 0;
@@ -249,6 +251,8 @@ class OGRSQLiteLayer : public OGRLayer, public IOGRSQLiteGetSpatialWhere
 
     int                *panFieldOrdinals;
     int                 iFIDCol;
+    int                 iOGRNativeDataCol;
+    int                 iOGRNativeMediaTypeCol;
 
     int                 bIsVirtualShape;
 
@@ -510,6 +514,8 @@ class OGRSQLiteViewLayer : public OGRSQLiteLayer
     virtual GIntBig     GetFeatureCount( int );
 
     virtual void        SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRSQLiteLayer::SetSpatialFilter(iGeomField, poGeom); }
     virtual OGRErr      SetAttributeFilter( const char * );
 
     virtual OGRFeature *GetFeature( GIntBig nFeatureId );
@@ -528,6 +534,8 @@ class OGRSQLiteViewLayer : public OGRSQLiteLayer
 class IOGRSQLiteSelectLayer
 {
     public:
+        virtual                     ~IOGRSQLiteSelectLayer() {}
+
         virtual char*&               GetAttrQueryString() = 0;
         virtual OGRFeatureQuery*&    GetFeatureQuery() = 0;
         virtual OGRGeometry*&        GetFilterGeom() = 0;
@@ -675,7 +683,7 @@ class OGRSQLiteBaseDataSource : public GDALPamDataset
 #endif
 
     VSILFILE*           fpMainFile; /* Set by the VFS layer when it opens the DB */
-                                    /* Must *NOT* be closed by the datasource explicitely. */
+                                    /* Must *NOT* be closed by the datasource explicitly. */
 
     int                 OpenOrCreateDB(int flags, int bRegisterOGR2SQLiteExtensions);
     int                 SetSynchronous();
@@ -846,4 +854,4 @@ sqlite3_vfs* OGRSQLiteCreateVFS(pfnNotifyFileOpenedType pfn, void* pfnUserData);
 
 void OGRSQLiteRegisterInflateDeflate(sqlite3* hDB);
 
-#endif /* ndef _OGR_SQLITE_H_INCLUDED */
+#endif /* ndef OGR_SQLITE_H_INCLUDED */

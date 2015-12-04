@@ -101,7 +101,7 @@ environment variables.<p>
 OGR 1.8.0 adds support for detecting feature attributes in nested GML elements
 (non-flat attribute hierarchy) that can be found in some GML profiles
 such as UK Ordnance Survey MasterMap. OGR 1.8.0 also brings support for reading
-IntegerList, RealList and StringList field types when a GML element has several occurences.<p>
+IntegerList, RealList and StringList field types when a GML element has several occurrences.<p>
 
 Since OGR 1.8.0, a specialized GML driver - the <a href="drv_nas.html">NAS</a> driver - is available to read
 German AAA GML Exchange Format (NAS/ALKIS).<p>
@@ -129,14 +129,12 @@ several geometry fields, or the .gfs file declares several geometry fields, mult
 fields will be reported by the GML driver according to
 <a href="http://trac.osgeo.org/gdal/wiki/rfc41_multiple_geometry_fields">RFC 41</a>.<p>
 
-Starting with OGR 1.10, in case of multiple geometry occurences, if a geometry is in a &lt;geometry&gt; element,
+Starting with OGR 1.10, in case of multiple geometry occurrences, if a geometry is in a &lt;geometry&gt; element,
 this will be the one selected. This will make default behaviour consistent with Inspire objects.<p>
-
 
 Starting with OGR 1.8.0, the user can change the .gfs file to select the appropriate
 geometry by specifying its path with the &lt;GeometryElementPath&gt; element. See the
 description of the .gfs syntax below.<p>
-
 
 <!-- Voluntary commented : a bit experimental for now and perhaps a better solution
      will emerge later -->
@@ -211,9 +209,9 @@ gml:xlink and gml:id relations are the followings:<ul>
 	   many thousands (or even millions) of xlink:href / gml:id relational 
 	   pairs.</li>
 	<li>using the <b>GML_SKIP_RESOLVE_ELEMS HUGE</b> method realistically allows 
-	   to succesfully resolve some really huge GML file (3GB+) containing many 
+	   to successfully resolve some really huge GML file (3GB+) containing many 
 	   millions xlink:href / gml:id in a reasonable time (about an hour or so on).</li>
-	<li>The <b>GML_SKIP_RESOLVE_ELEMS HUGE</b> method supports the followind further
+	<li>The <b>GML_SKIP_RESOLVE_ELEMS HUGE</b> method supports the following further
 	   configuration option:<ul>
 		<li>you can use <b>GML_GFS_TEMPLATE</b> <b><i>path_to_template.gfs</i></b>
 		   in order to unconditionally use a predefined GFS file. This option is really useful
@@ -276,11 +274,11 @@ Expat library supports reading the following built-in encodings :
 </ul>
 
 When used with Expat library, OGR 1.8.0 adds supports for Windows-1252 encoding (
-for previous versions, altering the encoding mentionned in the XML header to
+for previous versions, altering the encoding mentioned in the XML header to
 ISO-8859-1 might work in some cases).<p>
 
 The content returned by OGR will be encoded in UTF-8, after the conversion from the
-encoding mentionned in the file header is.<p>
+encoding mentioned in the file header is.<p>
 
 If the GML file is not encoded in one of the previous encodings and the only parser available
 is Expat, it will not be parsed by the GML driver. You may convert it into one of the supported

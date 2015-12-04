@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_NAS_H_INCLUDED
-#define _OGR_NAS_H_INCLUDED
+#ifndef OGR_NAS_H_INCLUDED
+#define OGR_NAS_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "nasreaderp.h"
@@ -67,6 +67,8 @@ class OGRNASLayer : public OGRLayer
 
     GIntBig             GetFeatureCount( int bForce = TRUE );
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
 
@@ -144,4 +146,4 @@ class OGRNASDataSource : public OGRDataSource
     void                PopulateRelations();
 };
 
-#endif /* _OGR_NAS_H_INCLUDED */
+#endif /* OGR_NAS_H_INCLUDED */

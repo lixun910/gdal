@@ -35,14 +35,14 @@
 /* Building Blocks : Point, LinearRing                                    */
 /**************************************************************************/
 
-#ifndef _OGIS_GEOMETRY_WKB_STRUCT_H
-#define _OGIS_GEOMETRY_WKB_STRUCT_H
+#ifndef OGIS_GEOMETRY_WKB_STRUCT_H
+#define OGIS_GEOMETRY_WKB_STRUCT_H
 
 #define CPL_LSBPTRPOINT(p) \
 {                                                                 \
-    CPL_LSBPTR32(&p.x);                                           \
-    CPL_LSBPTR32(&p.y);                                           \
-    CPL_LSBPTR32(&p.z);                                           \
+    CPL_LSBPTR64(&p.x);                                           \
+    CPL_LSBPTR64(&p.y);                                           \
+    CPL_LSBPTR64(&p.z);                                           \
 }
 
 #ifdef CPL_MSB

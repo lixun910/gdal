@@ -41,17 +41,17 @@ CPL_CVSID("$Id$");
 
 /**
  * \class GDALPamDataset "gdal_pam.h"
- * 
+ *
  * A subclass of GDALDataset which introduces the ability to save and
  * restore auxiliary information (coordinate system, gcps, metadata, 
  * etc) not supported by a file format via an "auxiliary metadata" file
  * with the .aux.xml extension.  
- * 
+ *
  * <h3>Enabling PAM</h3>
- * 
+ *
  * PAM support can be enabled (resp. disabled) in GDAL by setting the GDAL_PAM_ENABLED
- * configuration option (via CPLSetConfigOption(), or the environment) to 
- * the value of YES (resp. NO). Note: The default value is build dependant and defaults
+ * configuration option (via CPLSetConfigOption(), or the environment) to
+ * the value of YES (resp. NO). Note: The default value is build dependent and defaults
  * to YES in Windows and Unix builds.
  *
  * <h3>PAM Proxy Files</h3>
@@ -300,13 +300,12 @@ void GDALPamDataset::PamInitialize()
     
     for( iBand = 0; iBand < GetRasterCount(); iBand++ )
     {
-        GDALPamRasterBand *poBand = (GDALPamRasterBand *)
-            GetRasterBand(iBand+1);
+        GDALRasterBand *poBand = GetRasterBand(iBand+1);
         
         if( poBand == NULL || !(poBand->GetMOFlags() & GMO_PAM_CLASS) )
             continue;
 
-        poBand->PamInitialize();
+        ((GDALPamRasterBand *)poBand)->PamInitialize();
     }
 }
 
@@ -595,7 +594,7 @@ int GDALPamDataset::IsPamFilenameAPotentialSiblingFile()
     if( strlen(pszPhysicalFile) == 0 && GetDescription() != NULL )
         pszPhysicalFile = GetDescription();
 
-    int nLenPhysicalFile = strlen(pszPhysicalFile);
+    size_t nLenPhysicalFile = strlen(pszPhysicalFile);
     int bIsSiblingPamFile = strncmp(psPam->pszPamFilename, pszPhysicalFile,
                                     nLenPhysicalFile) == 0 &&
                             strcmp(psPam->pszPamFilename + nLenPhysicalFile,
@@ -821,7 +820,7 @@ CPLErr GDALPamDataset::TrySaveXML()
         const char *pszNewPam;
         const char *pszBasename = GetDescription();
 
-        if( psPam && psPam->osPhysicalFilename.length() > 0 )
+        if( psPam->osPhysicalFilename.length() > 0 )
             pszBasename = psPam->osPhysicalFilename;
             
         if( PamGetProxy(pszBasename) == NULL 
@@ -833,7 +832,7 @@ CPLErr GDALPamDataset::TrySaveXML()
             eErr = TrySaveXML();
         }
         /* No way we can save into a /vsicurl resource */
-        else if( strncmp(psPam->pszPamFilename, "/vsicurl", strlen("/vsicurl")) != 0 )
+        else if( !STARTS_WITH(psPam->pszPamFilename, "/vsicurl") )
         {
             CPLError( CE_Warning, CPLE_AppDefined, 
                       "Unable to save auxiliary information in %s.",
@@ -1294,7 +1293,7 @@ const char *GDALPamDataset::GetMetadataItem( const char *pszName,
             GDALDataset::GetMetadataItem( pszName, pszDomain );
 
         if( pszOverviewFile == NULL 
-            || !EQUALN(pszOverviewFile,":::BASE:::",10) )
+            || !STARTS_WITH_CI(pszOverviewFile, ":::BASE:::") )
             return pszOverviewFile;
         
         CPLString osPath;

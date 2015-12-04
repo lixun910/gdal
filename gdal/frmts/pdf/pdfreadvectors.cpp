@@ -34,7 +34,7 @@
 
 CPL_CVSID("$Id$");
 
-#if defined(HAVE_POPPLER) || defined(HAVE_PODOFO)
+#if defined(HAVE_POPPLER) || defined(HAVE_PODOFO) || defined(HAVE_PDFIUM)
 
 /************************************************************************/
 /*                        OpenVectorLayers()                            */
@@ -42,6 +42,17 @@ CPL_CVSID("$Id$");
 
 int PDFDataset::OpenVectorLayers(GDALPDFDictionary* poPageDict)
 {
+    if( bHasLoadedLayers )
+        return TRUE;
+    bHasLoadedLayers = TRUE;
+
+    if( poPageDict == NULL )
+    {
+        poPageDict = poPageObj->GetDictionary();
+        if ( poPageDict == NULL )
+            return FALSE;
+    }
+
     GetCatalog();
     if( poCatalogObject == NULL )
         return FALSE;
@@ -206,6 +217,7 @@ int PDFDataset::TestCapability( CPL_UNUSED const char * pszCap )
 OGRLayer *PDFDataset::GetLayer( int iLayer )
 
 {
+    OpenVectorLayers(NULL);
     if (iLayer < 0 || iLayer >= nLayers)
         return NULL;
 
@@ -218,6 +230,7 @@ OGRLayer *PDFDataset::GetLayer( int iLayer )
 
 int PDFDataset::GetLayerCount()
 {
+    OpenVectorLayers(NULL);
     return nLayers;
 }
 
@@ -272,12 +285,12 @@ void PDFDataset::ExploreTree(GDALPDFObject* poObj, int nRecLevel)
                     osLayerName = CPLSPrintf("Layer%d", nLayers + 1);
             }
 
-            const char* pszWKT = GetProjectionRef();
+            const char* l_pszWKT = GetProjectionRef();
             OGRSpatialReference* poSRS = NULL;
-            if (pszWKT && pszWKT[0] != '\0')
+            if (l_pszWKT && l_pszWKT[0] != '\0')
             {
                 poSRS = new OGRSpatialReference();
-                poSRS->importFromWkt((char**) &pszWKT);
+                poSRS->importFromWkt((char**) &l_pszWKT);
             }
 
             OGRPDFLayer* poLayer =
@@ -1134,7 +1147,7 @@ OGRGeometry* PDFDataset::ParseContent(const char* pszContent,
                         }
                         poGeom->assignSpatialReference(poCurLayer->GetSpatialRef());
                         poFeature->SetGeometryDirectly(poGeom);
-                        poCurLayer->CreateFeature(poFeature);
+                        CPL_IGNORE_RET_VAL(poCurLayer->CreateFeature(poFeature));
                         delete poFeature;
                     }
 
@@ -1467,7 +1480,7 @@ void PDFDataset::ExploreContents(GDALPDFObject* poObj,
             int bMatchQ = FALSE;
             while (pszAfterBDC[0] == ' ' || pszAfterBDC[0] == '\r' || pszAfterBDC[0] == '\n')
                 pszAfterBDC ++;
-            if (strncmp(pszAfterBDC, "0 0 m", 5) == 0)
+            if (STARTS_WITH(pszAfterBDC, "0 0 m"))
             {
                 const char* pszLastq = pszBDC;
                 while(pszLastq > pszStr && *pszLastq != 'q')
@@ -1590,12 +1603,12 @@ void PDFDataset::ExploreContentsNonStructured(GDALPDFObject* poContents,
                 OGRPDFLayer* poLayer = (OGRPDFLayer*) GetLayerByName(osSanitizedName.c_str());
                 if (poLayer == NULL)
                 {
-                    const char* pszWKT = GetProjectionRef();
+                    const char* l_pszWKT = GetProjectionRef();
                     OGRSpatialReference* poSRS = NULL;
-                    if (pszWKT && pszWKT[0] != '\0')
+                    if (l_pszWKT && l_pszWKT[0] != '\0')
                     {
                         poSRS = new OGRSpatialReference();
-                        poSRS->importFromWkt((char**) &pszWKT);
+                        poSRS->importFromWkt((char**) &l_pszWKT);
                     }
 
                     poLayer =
@@ -1663,4 +1676,4 @@ void PDFDataset::ExploreContentsNonStructured(GDALPDFObject* poContents,
     }
 }
 
-#endif /* defined(HAVE_POPPLER) || defined(HAVE_PODOFO) */
+#endif /* defined(HAVE_POPPLER) || defined(HAVE_PODOFO) || defined(HAVE_PDFIUM) */

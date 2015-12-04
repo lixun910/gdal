@@ -32,8 +32,19 @@
 
 #include <string>
 #include "ogr_mysql.h"
+
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4201 ) /* nonstandard extension used : nameless struct/union */
+#endif
 #include <my_sys.h>
+<<<<<<< HEAD
 #include <my_default.h>
+=======
+#ifdef _MSC_VER
+#pragma warning( pop ) 
+#endif
+>>>>>>> OSGeo/trunk
 
 #include "cpl_conv.h"
 #include "cpl_string.h"
@@ -43,21 +54,17 @@ CPL_CVSID("$Id$");
 /*                         OGRMySQLDataSource()                         */
 /************************************************************************/
 
-OGRMySQLDataSource::OGRMySQLDataSource()
-
-{
-    pszName = NULL;
-    papoLayers = NULL;
-    nLayers = 0;
-    hConn = 0;
-    nSoftTransactionLevel = 0;
-
-    nKnownSRID = 0;
-    panSRID = NULL;
-    papoSRS = NULL;
-
-    poLongResultLayer = NULL;
-}
+OGRMySQLDataSource::OGRMySQLDataSource() :
+    papoLayers(NULL),
+    nLayers(0),
+    pszName(NULL),
+    bDSUpdate(FALSE),
+    hConn(0),
+    nKnownSRID(0),
+    panSRID(NULL),
+    papoSRS(NULL),
+    poLongResultLayer(NULL)
+{ }
 
 /************************************************************************/
 /*                        ~OGRMySQLDataSource()                         */
@@ -66,21 +73,19 @@ OGRMySQLDataSource::OGRMySQLDataSource()
 OGRMySQLDataSource::~OGRMySQLDataSource()
 
 {
-    int         i;
-
     InterruptLongResult();
 
     CPLFree( pszName );
 
-    for( i = 0; i < nLayers; i++ )
+    for( int i = 0; i < nLayers; i++ )
         delete papoLayers[i];
-    
+
     CPLFree( papoLayers );
 
     if( hConn != NULL )
         mysql_close( hConn );
 
-    for( i = 0; i < nKnownSRID; i++ )
+    for( int i = 0; i < nKnownSRID; i++ )
     {
         if( papoSRS[i] != NULL )
             papoSRS[i]->Release();
@@ -171,15 +176,15 @@ int OGRMySQLDataSource::Open( const char * pszNewName, char** papszOpenOptions,
 
     for( i = 1; papszItems[i] != NULL; i++ )
     {
-        if( EQUALN(papszItems[i],"user=",5) )
+        if( STARTS_WITH_CI(papszItems[i], "user=") )
             oUser = papszItems[i] + 5;
-        else if( EQUALN(papszItems[i],"password=",9) )
+        else if( STARTS_WITH_CI(papszItems[i], "password=") )
             oPassword = papszItems[i] + 9;
-        else if( EQUALN(papszItems[i],"host=",5) )
+        else if( STARTS_WITH_CI(papszItems[i], "host=") )
             oHost = papszItems[i] + 5;
-        else if( EQUALN(papszItems[i],"port=",5) )
+        else if( STARTS_WITH_CI(papszItems[i], "port=") )
             nPort = atoi(papszItems[i] + 5);
-        else if( EQUALN(papszItems[i],"tables=",7) )
+        else if( STARTS_WITH_CI(papszItems[i], "tables=") )
         {
             papszTableNames = CSLTokenizeStringComplex( 
                 papszItems[i] + 7, ";", FALSE, FALSE );
@@ -655,7 +660,7 @@ OGRLayer * OGRMySQLDataSource::ExecuteSQL( const char *pszSQLCommand,
 /*      Special case DELLAYER: command.                                 */
 /* -------------------------------------------------------------------- */
 #ifdef notdef
-    if( EQUALN(pszSQLCommand,"DELLAYER:",9) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DELLAYER:") )
     {
         const char *pszLayerName = pszSQLCommand + 9;
 
@@ -781,7 +786,7 @@ void OGRMySQLDataSource::InterruptLongResult()
 /*                            DeleteLayer()                             */
 /************************************************************************/
 
-int OGRMySQLDataSource::DeleteLayer( int iLayer)
+OGRErr OGRMySQLDataSource::DeleteLayer( int iLayer)
 
 {
     if( iLayer < 0 || iLayer >= nLayers )

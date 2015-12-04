@@ -67,7 +67,7 @@ OGRGFTDataSource::~OGRGFTDataSource()
     {
         char** papszOptions = NULL;
         papszOptions = CSLSetNameValue(papszOptions, "CLOSE_PERSISTENT", CPLSPrintf("GFT:%p", this));
-        CPLHTTPFetch( GetAPIURL(), papszOptions);
+        CPLHTTPDestroyResult( CPLHTTPFetch( GetAPIURL(), papszOptions) );
         CSLDestroy(papszOptions);
     }
 
@@ -119,7 +119,7 @@ OGRLayer *OGRGFTDataSource::GetLayerByName(const char * pszLayerName)
     {
         *pszLeftParenthesis = '\0';
         pszGeomColumnName = CPLStrdup(pszLeftParenthesis+1);
-        int len = strlen(pszGeomColumnName);
+        int len = static_cast<int>(strlen(pszGeomColumnName));
         if (len > 0 && pszGeomColumnName[len - 1] == ')')
             pszGeomColumnName[len - 1] = '\0';
     }
@@ -152,7 +152,7 @@ OGRLayer *OGRGFTDataSource::GetLayerByName(const char * pszLayerName)
 /*                      OGRGFTGetOptionValue()                          */
 /************************************************************************/
 
-CPLString OGRGFTGetOptionValue(const char* pszFilename,
+static CPLString OGRGFTGetOptionValue(const char* pszFilename,
                                const char* pszOptionName)
 {
     CPLString osOptionName(pszOptionName);
@@ -203,7 +203,7 @@ int OGRGFTDataSource::Open( const char * pszFilename, int bUpdateIn)
         if (osAccessToken.size() == 0)
             return FALSE;
     }
-
+    /* coverity[copy_paste_error] */
     if (osAccessToken.size() == 0 && osAuth.size() > 0)
     {
         osRefreshToken.Seize(GOA2GetRefreshToken(osAuth, FUSION_TABLE_SCOPE));
@@ -242,7 +242,7 @@ int OGRGFTDataSource::Open( const char * pszFilename, int bUpdateIn)
     char* pszLine = (char*) psResult->pabyData;
     if (pszLine == NULL ||
         psResult->pszErrBuf != NULL ||
-        strncmp(pszLine, "table id,name", strlen("table id,name")) != 0)
+        !STARTS_WITH(pszLine, "table id,name"))
     {
         CPLHTTPDestroyResult(psResult);
         return FALSE;
@@ -504,7 +504,7 @@ CPLHTTPResult * OGRGFTDataSource::RunSQL(const char* pszUnescapedSQL)
 /*      are transformed info failure.                                   */
 /* -------------------------------------------------------------------- */
     if (psResult && psResult->pszContentType &&
-        strncmp(psResult->pszContentType, "text/html", 9) == 0)
+        STARTS_WITH(psResult->pszContentType, "text/html"))
     {
         CPLDebug( "GFT", "RunSQL HTML Response:%s", psResult->pabyData );
         CPLError(CE_Failure, CPLE_AppDefined, 
@@ -544,7 +544,7 @@ OGRLayer * OGRGFTDataSource::ExecuteSQL( const char *pszSQLCommand,
 /* -------------------------------------------------------------------- */
 /*      Special case DELLAYER: command.                                 */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(pszSQLCommand,"DELLAYER:",9) )
+    if( STARTS_WITH_CI(pszSQLCommand, "DELLAYER:") )
     {
         const char *pszLayerName = pszSQLCommand + 9;
 

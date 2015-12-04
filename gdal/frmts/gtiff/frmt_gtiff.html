@@ -157,6 +157,17 @@ stored the EXIF metadata domain.</p>
 files created with the default profile GDALGeoTIFF. Note that all bands must use the same nodata value.
 When BASELINE or GeoTIFF profile are used, the nodata value is stored into a PAM .aux.xml file.</p>
 
+<h2>Open options</h2>
+
+<ul>
+
+<li><p><b>NUM_THREADS=number_of_threads/ALL_CPUS</b>: (From GDAL 2.1)
+Enable multi-threaded compression by specifying the number of worker threads.
+Worth it for slow compression algorithms such as DEFLATE or LZMA. Will be
+ignored for JPEG.  Default is compression in the main thread.</p></li>
+
+</ul>
+
 <h2>Creation Issues</h2>
 
 <p>GeoTIFF files can be created with any GDAL defined band type, including
@@ -203,7 +214,7 @@ option can be used to force creation of tiled TIFF files.</p></li>
 
 <li><p><b>NBITS=n</b>: Create a file with less than 8 bits per sample by passing a value from 1 to 7.  The apparent pixel type should be Byte. From GDAL 1.6.0, values of n=9...15 (UInt16 type) and n=17...31 (UInt32 type) are also accepted. </p></li>
 
-<li><p><b>COMPRESS=[JPEG/LZW/PACKBITS/DEFLATE/CCITTRLE/CCITTFAX3/CCITTFAX4/NONE]</b>: 
+<li><p><b>COMPRESS=[JPEG/LZW/PACKBITS/DEFLATE/CCITTRLE/CCITTFAX3/CCITTFAX4/LZMA/NONE]</b>: 
 Set the compression to use.  JPEG should generally only be used with Byte data (8 bit per channel).
 But starting with GDAL 1.7.0 and provided that GDAL is built with internal libtiff and libjpeg,
 it is possible to read and write TIFF files with 12bit JPEG compressed TIFF files (seen as UInt16 bands with NBITS=12).
@@ -211,6 +222,11 @@ See the <a href="http://trac.osgeo.org/gdal/wiki/TIFF12BitJPEG">"8 and 12 bit JP
 The CCITT compression should only be used with 1bit (NBITS=1) data.
 LZW and DEFLATE compressions can be used with the PREDICTOR creation option.
 None is the default.</p></li>
+
+<li><p><b>NUM_THREADS=number_of_threads/ALL_CPUS</b>: (From GDAL 2.1)
+Enable multi-threaded compression by specifying the number of worker threads.
+Worth for slow compressions such as DEFLATE or LZMA. Will be ignored for JPEG.
+Default is compression in the main thread.</p></li>
 
 <li><p><b>PREDICTOR=[1/2/3]</b>: Set the predictor for LZW or DEFLATE compression. The default is 1 (no predictor), 2 is horizontal differencing and 3 is floating point prediction.</p></li>
 
@@ -291,6 +307,15 @@ also exist, provided that the GDAL_TIFF_INTERNAL_MASK configuration option is se
 Note that this creation option will have <a href="http://trac.osgeo.org/gdal/ticket/3917">no effect</a> if general options
 (i.e. options which are not creation options) of gdal_translate are used.</p></li>
 
+<li><p><b>GEOTIFF_KEYS_FLAVOR=[STANDARD/ESRI_PE]</b>: (GDAL &gt;= 2.1.0) Determine
+which "flavor" of GeoTIFF keys must be used to write the SRS information. The STANDARD
+way (default choice) will use the general accepted formulations of GeoTIFF keys, including
+extensions of the values accepted for ProjectedCSTypeGeoKey to new EPSG codes.
+The ESRI_PE flavor will write formulations that are (more) compatible of ArcGIS. At the time
+of writing, the ESRI_PE choice has mostly an effect when writing the EPSG:3857 (Web Mercator)
+SRS. For other SRS, the standard way will be used, with the addition of a ESRI_PE WKT
+string as the value of PCSCitationGeoKey.</p></li>
+
 </ul>
 
 <h3>About JPEG compression of RGB images </h3>
@@ -338,7 +363,7 @@ will generate a file with the above defined constraints (related to position of 
 block order), and this
 is only supported for a uncompressed file. The Create() method also supports creating streamable
 compatible files, but the writer must be careful to set the projection, geotransform
-or metadata before writting image blocks (so that the IFD is written at the beginning
+or metadata before writing image blocks (so that the IFD is written at the beginning
 of the file). And when writing image blocks, the order
 of blocks must be the one of the above paragraph, otherwise errors will be reported.
 
@@ -357,7 +382,7 @@ gdal_translate my_fifo out.png -of PNG
 <p>
 Note: not all utilities are compatible with such input or output streaming operations,
 and even those which may deal with such files may not manage to deal with them in
-all circumstances, for example if the reading driver drived by the output file is
+all circumstances, for example if the reading driver driven by the output file is
 not compatible with the block order of the streamed input.
 
 <h3>Configuration options</h3>
@@ -377,7 +402,7 @@ Can help reading partially corrupted TIFF files</li>
 <li>USE_RRD: Can be set to TRUE to force external overviews in the RRD format. Default value : FALSE</li>
 <li>TIFF_USE_OVR: Can be set to TRUE to force external overviews in the GeoTIFF (.ovr) format. Default value : FALSE</li>
 <li>GTIFF_POINT_GEO_IGNORE: Can be set to TRUE to revert back to the behaviour of GDAL &lt; 1.8.0
-regarding how PixelIsPoint is interprated w.r.t geotransform. See <a href="http://trac.osgeo.org/gdal/wiki/rfc33_gtiff_pixelispoint">
+regarding how PixelIsPoint is interpreted w.r.t geotransform. See <a href="http://trac.osgeo.org/gdal/wiki/rfc33_gtiff_pixelispoint">
 RFC 33: GTiff - Fixing PixelIsPoint Interpretation</a> for more details. Default value : FALSE</li>
 <li>GTIFF_REPORT_COMPD_CS: (GDAL >= 1.9.0). Can be set to TRUE to avoid stripping the vertical CS of compound CS. Default value : FALSE</li>
 <li>GDAL_ENABLE_TIFF_SPLIT : Can be set to FALSE to avoid all-in-one-strip files being presented as having. Default value : TRUE</li>
@@ -390,14 +415,16 @@ have false easting/northing improperly set in meters when it ought to be in
 coordinate system linear units.  (<a href="http://trac.osgeo.org/gdal/ticket/3901">Ticket #3901</a>). 
 <li>TAB_APPROX_GEOTRANSFORM=YES/NO: (GDAL &gt;= 2.0) To decide if an approximate geotransform is acceptable when reading a .tab file. Default value: NO
 <li>GTIFF_DIRECT_IO=YES/NO: (GDAL &gt;= 2.0) Can be set to YES to use specialized
-RasterIO() implementations when reading un-tiled un-compressed TIFF files to
+RasterIO() implementations when reading un-compressed TIFF files (un-tiled only
+in GDAL 2.0, both un-tiled and tiled in GDAL 2.1) to
 avoid using the block cache. Setting it to YES even when the optimized cases do
 not apply should be safe (generic implementation will be used). Default value:NO
 <li>GTIFF_VIRTUAL_MEM_IO=YES/NO/IF_ENOUGH_RAM: (GDAL &gt;= 2.0) Can be set to YES
 to use specialized RasterIO() implementations when reading un-compressed TIFF
 files to avoid using the block cache.
 This implementation relies on memory-mapped file I/O,
-and is currently only supported on Linux (64-bit build strongly recommended).
+and is currently only supported on Linux (64-bit build strongly recommended) or,
+starting with GDAL 2.1, on other POSIX-like systems.
 Setting it to YES even when the optimized cases do not apply should be safe
 (generic implementation will be used), but if the file exceeds RAM, disk swapping
 might occur if the whole file is read. Setting it to IF_ENOUGH_RAM will first

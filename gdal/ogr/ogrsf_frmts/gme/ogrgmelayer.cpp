@@ -41,8 +41,12 @@ CPL_CVSID("$Id: ogrgmetablelayer.cpp 25475 2013-01-09 09:09:59Z warmerdam $");
 /************************************************************************/
 
 OGRGMELayer::OGRGMELayer(OGRGMEDataSource* poDS,
-                         const char* pszTableId)
-
+                         const char* pszTableId) :
+    iGeometryField(0),
+    current_features_array(NULL),
+    index_in_page(0),
+    bInTransaction(false),
+    eGTypeForCreation(wkbUnknown)
 {
     CPLDebug("GME", "Opening existing layer %s", pszTableId);
     this->poDS = poDS;
@@ -406,18 +410,18 @@ OGRFeature *OGRGMELayer::GetNextRawFeature()
 OGRFeature *OGRGMELayer::GetNextFeature()
 {
     OGRFeature *poFeature = NULL;
-    
-    while( TRUE )
+
+    while( true )
     {
         poFeature = GetNextRawFeature();
         if( poFeature == NULL )
             break;
 
-        // incremeted in GetNextRawFeature()
+        // Incremented in GetNextRawFeature().
         // m_nFeaturesRead++;
 
         if( (m_poFilterGeom == NULL
-             || poFeature->GetGeometryRef() == NULL 
+             || poFeature->GetGeometryRef() == NULL
              || FilterGeometry( poFeature->GetGeometryRef() ) )
             && (m_poAttrQuery == NULL
                 || m_poAttrQuery->Evaluate( poFeature )) )

@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _ISO8211_H_INCLUDED
-#define _ISO8211_H_INCLUDED
+#ifndef ISO8211_H_INCLUDED
+#define ISO8211_H_INCLUDED
 
 #include "cpl_port.h"
 #include "cpl_vsi.h"
@@ -48,7 +48,7 @@ typedef enum {
 /*      mostly conveniences.                                            */
 /************************************************************************/
 
-long CPL_ODLL DDFScanInt( const char *pszString, int nMaxChars );
+int CPL_ODLL  DDFScanInt( const char *pszString, int nMaxChars );
 int  CPL_ODLL DDFScanVariable( const char * pszString, int nMaxChars, int nDelimChar );
 char CPL_ODLL *DDFFetchVariable( const char *pszString, int nMaxChars,
                         int nDelimChar1, int nDelimChar2,
@@ -131,12 +131,12 @@ class CPL_ODLL DDFModule
     int         _fieldControlLength;
     char        _extendedCharSet[4];
 
-    long _recLength;
+    int _recLength;
     char _leaderIden;
-    long _fieldAreaStart;
-    long _sizeFieldLength;
-    long _sizeFieldPos;
-    long _sizeFieldTag;
+    int _fieldAreaStart;
+    int _sizeFieldLength;
+    int _sizeFieldPos;
+    int _sizeFieldTag;
 
     // One DirEntry per field.  
     int         nFieldDefnCount;
@@ -195,7 +195,7 @@ class CPL_ODLL DDFFieldDefn
      */
     const char  *GetName() { return pszTag; }
 
-    /** Fetch a longer descriptio of this field.
+    /** Fetch a longer description of this field.
      * @return this is an internal copy and shouldn't be freed.
      */
     const char  *GetDescription() { return _fieldName; }
@@ -268,7 +268,7 @@ class CPL_ODLL DDFFieldDefn
 
 /**
  * Information from the DDR record describing one subfield of a DDFFieldDefn.
- * All subfields of a field will occur in each occurance of that field
+ * All subfields of a field will occur in each occurrence of that field
  * (as a DDFField) in a DDFRecord.  Subfield's actually contain formatted
  * data (as instances within a record).
  */
@@ -356,7 +356,7 @@ private:
 /* -------------------------------------------------------------------- */
   int        bIsVariable;
   
-  char       chFormatDelimeter;
+  char       chFormatDelimeter;  // TODO: Spelling.
   int        nFormatWidth;
 
 /* -------------------------------------------------------------------- */
@@ -523,4 +523,4 @@ class CPL_ODLL DDFField
 };
 
 
-#endif /* ndef _ISO8211_H_INCLUDED */
+#endif /* ndef ISO8211_H_INCLUDED */

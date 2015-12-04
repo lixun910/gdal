@@ -638,8 +638,8 @@ def wms_15():
     if ds is None:
         return' fail'
 
-    if ds.RasterXSize != 134217728 \
-       or ds.RasterYSize != 134217728 \
+    if ds.RasterXSize != 1073741824 \
+       or ds.RasterYSize != 1073741824 \
        or ds.RasterCount != 3:
         gdaltest.post_reason( 'wrong size or bands' )
         return 'fail'
@@ -652,15 +652,15 @@ def wms_15():
     gt = ds.GetGeoTransform()
     if abs(gt[0]- -20037508.342787001) > 0.00001 \
        or abs(gt[3]- 20037508.342787001) > 0.00001 \
-       or abs(gt[1] - 0.298582141697407) > 0.00001 \
+       or abs(gt[1] - 0.037322767717361482) > 0.00001 \
        or abs(gt[2] - 0) > 0.00001 \
-       or abs(gt[5] - -0.298582141697407) > 0.00001 \
+       or abs(gt[5] - -0.037322767717361482) > 0.00001 \
        or abs(gt[4] - 0) > 0.00001:
         gdaltest.post_reason( 'wrong geotransform' )
         print(gt)
         return 'fail'
 
-    if ds.GetRasterBand(1).GetOverviewCount() != 19:
+    if ds.GetRasterBand(1).GetOverviewCount() != 22:
         gdaltest.post_reason( 'bad overview count' )
         print(ds.GetRasterBand(1).GetOverviewCount())
         return 'fail'
@@ -735,6 +735,10 @@ def wms_16():
         return 'skip'
 
     if val is None or val.find('<og:cat>86</og:cat>') == -1:
+        if val.find('java.lang.NullPointerException') >= 0 or val.find('504 Gateway Time-out') >= 0:
+            print(val)
+            return 'skip'
+
         gdaltest.post_reason('expected a value')
         print(val)
         return 'fail'
@@ -743,18 +747,25 @@ def wms_16():
     val_again = ds.GetRasterBand(1).GetMetadataItem(pixel, "LocationInfo")
     if val_again != val:
         gdaltest.post_reason('expected a value')
+        print(val_again)
         return 'fail'
 
     # Ask another band. Should be cached
     val2 = ds.GetRasterBand(2).GetMetadataItem(pixel, "LocationInfo")
     if val2 != val:
         gdaltest.post_reason('expected a value')
+        print(val2)
         return 'fail'
 
     # Ask an overview band
     val2 = ds.GetRasterBand(1).GetOverview(0).GetMetadataItem(pixel, "LocationInfo")
     if val2 != val:
+        if val2.find('java.lang.NullPointerException') >= 0 or val2.find('504 Gateway Time-out') >= 0:
+            print(val2)
+            return 'skip'
+
         gdaltest.post_reason('expected a value')
+        print(val2)
         return 'fail'
 
     ds = None
@@ -793,10 +804,10 @@ def wms_18():
 
     if gdaltest.wms_drv is None:
         return 'skip'
-    
+
     # We don't need to check if the remote service is online as we
-    # don't need a connection for this test
-    
+    # don't need a connection for this test.
+
     fn = '<GDAL_WMS><Service name="AGS"><ServerUrl>http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Specialty/ESRI_StateCityHighway_USA/MapServer</ServerUrl><BBoxOrder>xyXY</BBoxOrder><SRS>EPSG:3857</SRS></Service><DataWindow><UpperLeftX>-20037508.34</UpperLeftX><UpperLeftY>20037508.34</UpperLeftY><LowerRightX>20037508.34</LowerRightX><LowerRightY>-20037508.34</LowerRightY><SizeX>512</SizeX><SizeY>512</SizeY></DataWindow></GDAL_WMS>'
 
     ds = gdal.Open( fn )
@@ -827,7 +838,39 @@ def wms_18():
     ds = None
         
     return 'success'
-    
+
+###############################################################################
+# Test a IIP server
+
+def wms_19():
+
+    if gdaltest.wms_drv is None:
+        return 'skip'
+
+    ds = gdal.Open( 'IIP:http://merovingio.c2rmf.cnrs.fr/fcgi-bin/iipsrv.fcgi?FIF=globe.256x256.tif' )
+
+    if ds is None:
+        if gdaltest.gdalurlopen('http://merovingio.c2rmf.cnrs.fr/fcgi-bin/iipsrv.fcgi?FIF=globe.256x256.tif&obj=Basic-Info') is None:
+            return 'skip'
+        gdaltest.post_reason( 'open failed.' )
+        return 'fail'
+
+    if ds.RasterXSize != 86400 \
+       or ds.RasterYSize != 43200 \
+       or ds.RasterCount != 3:
+        gdaltest.post_reason( 'wrong size or bands' )
+        return 'fail'
+
+    # Expected checksum seems to change over time. Hum...
+    cs = ds.GetRasterBand(1).GetOverview(ds.GetRasterBand(1).GetOverviewCount()-1).Checksum()
+    if cs == 0:
+        gdaltest.post_reason( 'Did not get expected checksum.' )
+        print(cs)
+        return 'fail'
+        
+    ds = None
+        
+    return 'success'
 ###############################################################################
 def wms_cleanup():
 
@@ -855,6 +898,7 @@ gdaltest_list = [
     wms_16,
     wms_17,
     wms_18,
+    wms_19,
     wms_cleanup ]
 
 if __name__ == '__main__':

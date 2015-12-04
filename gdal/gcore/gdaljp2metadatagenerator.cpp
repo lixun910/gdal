@@ -245,7 +245,7 @@ typedef struct
 GDALGMLJP2Expr* GDALGMLJP2Expr::Build(const char* pszOriStr,
                                       const char*& pszStr)
 {
-    if( EQUALN(pszStr, "{{{", strlen("{{{")) )
+    if( STARTS_WITH_CI(pszStr, "{{{") )
     {
         pszStr += strlen("{{{");
         SkipSpaces(pszStr);
@@ -253,7 +253,7 @@ GDALGMLJP2Expr* GDALGMLJP2Expr::Build(const char* pszOriStr,
         if( poExpr == NULL )
             return NULL;
         SkipSpaces(pszStr);
-        if( !EQUALN(pszStr, "}}}", strlen("}}}")) )
+        if( !STARTS_WITH_CI(pszStr, "}}}") )
         {
             ReportError(pszOriStr, pszStr);
             delete poExpr;
@@ -262,7 +262,7 @@ GDALGMLJP2Expr* GDALGMLJP2Expr::Build(const char* pszOriStr,
         pszStr += strlen("}}}");
         return poExpr;
     }
-    else if( EQUALN(pszStr, "XPATH", strlen("XPATH")) )
+    else if( STARTS_WITH_CI(pszStr, "XPATH") )
     {
         pszStr += strlen("XPATH");
         SkipSpaces(pszStr);
@@ -730,7 +730,7 @@ static CPLString GDALGMLJP2EvalExpr(const CPLString& osTemplate,
 {
     CPLString osXMLRes;
     size_t nPos = 0;
-    while( TRUE )
+    while( true )
     {
         // Get next expression
         size_t nStartPos = osTemplate.find("{{{", nPos);
@@ -855,7 +855,10 @@ static void GDALGMLJP2XPathUUID(xmlXPathParserContextPtr ctxt, int nargs)
     osRet += GDALGMLJP2HexFormatter(rand() & 0xFF);
     osRet += "-";
     for( int i=0; i<6; i ++ )
+    {
+        /* coverity[dont_call] */
         osRet += GDALGMLJP2HexFormatter(rand() & 0xFF);
+    }
 
     valuePush(ctxt, xmlXPathNewString((const xmlChar*)osRet.c_str()));
 }
@@ -866,8 +869,15 @@ static void GDALGMLJP2XPathUUID(xmlXPathParserContextPtr ctxt, int nargs)
 /*                      GDALGMLJP2GenerateMetadata()                    */
 /************************************************************************/
 
-CPLXMLNode* GDALGMLJP2GenerateMetadata(const CPLString& osTemplateFile,
-                                       const CPLString& osSourceFile)
+CPLXMLNode* GDALGMLJP2GenerateMetadata(
+#ifdef HAVE_LIBXML2
+    const CPLString& osTemplateFile,
+    const CPLString& osSourceFile
+#else
+    const CPLString& /* osTemplateFile */,
+    const CPLString& /* osSourceFile */
+#endif
+)
 {
 #ifndef HAVE_LIBXML2
     return NULL;
@@ -877,12 +887,12 @@ CPLXMLNode* GDALGMLJP2GenerateMetadata(const CPLString& osTemplateFile,
         return NULL;
     CPLString osTemplate((const char*)pabyStr);
     CPLFree(pabyStr);
-    
+
     if( !VSIIngestFile( NULL, osSourceFile, &pabyStr, NULL, -1 ) )
         return NULL;
     CPLString osSource((const char*)pabyStr);
     CPLFree(pabyStr);
-    
+
     xmlDocPtr pDoc = xmlParseDoc((const xmlChar *)osSource.c_str());
     if( pDoc == NULL )
     {

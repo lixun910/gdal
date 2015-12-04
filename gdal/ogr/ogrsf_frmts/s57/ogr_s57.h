@@ -28,8 +28,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _OGR_S57_H_INCLUDED
-#define _OGR_S57_H_INCLUDED
+#ifndef OGR_S57_H_INCLUDED
+#define OGR_S57_H_INCLUDED
 
 #include "ogrsf_frmts.h"
 #include "s57.h"
@@ -67,6 +67,8 @@ class OGRS57Layer : public OGRLayer
     
     virtual GIntBig     GetFeatureCount( int bForce = TRUE );
     virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+                { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
 
@@ -144,4 +146,4 @@ class OGRS57Driver : public GDALDriver
     static S57ClassRegistrar *GetS57Registrar();
 };
 
-#endif /* ndef _OGR_S57_H_INCLUDED */
+#endif /* ndef OGR_S57_H_INCLUDED */

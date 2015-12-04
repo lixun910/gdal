@@ -45,7 +45,7 @@ OGR_SQLITE_PRAGMA = "pragma_name=pragma_value[,pragma_name2=pragma_value2]*".</p
 
 <h2>"Regular" SQLite databases</h2>
 
-<p>The driver looks for a geometry_columns table layed out as defined
+<p>The driver looks for a geometry_columns table laid out as defined
 loosely according to OGC Simple Features standards, particularly as defined
 in <A href="http://trac.osgeo.org/fdo/wiki/FDORfc16">FDO RFC 16</a>.  If
 found it is used to map tables to layers.</P>
@@ -78,7 +78,7 @@ modified or read, following new API described in <a href="http://trac.osgeo.org/
 <p>
 In GDAL 1.10, such support was read-only and there were as many OGR layers exposed
 as there are geometry columns. They were named "table_name(geometry_column_name)".
-Such syntax is still possible with GDAL 2.0 when explictely querying a layer
+Such syntax is still possible with GDAL 2.0 when explicitly querying a layer
 with GetLayerByName()</p>
 
 <h2>REGEXP operator</h2>
@@ -147,7 +147,7 @@ CREATE VIRTUAL TABLE table_name USING VirtualOGR(datasource_name, update_mode, l
 
 where :
 <ul>
-<li><i>datasource_name</i> is the connexion string to any OGR datasource.</li>
+<li><i>datasource_name</i> is the connetion string to any OGR datasource.</li>
 <li><i>update_mode</i> = 0 for read-only mode (default value) or 1 for update mode.</li>
 <li><i>layer_name</i> = the name of a layer of the opened datasource.</li>
 <li><i>expose_ogr_style</i> = 0 to prevent the OGR_STYLE special from being displayed (default value) or 1 to expose it.</li>
@@ -266,7 +266,7 @@ geometry column named GEOMETRY (or WKT_GEOMETRY if FORMAT=WKT). If you wish to u
 it can be supplied with the GEOMETRY_NAME layer creation option.</p></li>
 
 <li><p><b>LAUNDER=YES/NO</b>: Controls whether layer and field names will be 
-laundered for easier use in SQLite.  Laundered names will be convered to lower 
+laundered for easier use in SQLite.  Laundered names will be converted to lower 
 case and some special characters(' - #) will be changed to underscores. Default
 to YES.</p></li>
 
@@ -309,7 +309,7 @@ appropriately in order to get optimal performance.
 The default OGR behavior is to COMMIT a transaction every 200 inserted rows. This
 value is surely too low for SQLite; and closing too much frequently the current
 transaction causes severe performance degradation.
-The <b>-gt</b> argument allows to explicitly set the number of rows for each transaction.
+The <b>-gt</b> argument allows explicitly setting the number of rows for each transaction.
 Explicitly defining <b>-gt 1024</b> usually ensures a noticeable performance boost;
 defining an even bigger <b>-gt 65536</b> ensures optimal performance while
 populating some table containing many hundredth thousand or million rows.<p>

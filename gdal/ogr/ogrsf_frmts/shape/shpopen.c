@@ -545,7 +545,7 @@ SHPOpenLL( const char * pszLayer, const char * pszAccess, SAHooks *psHooks )
 /* -------------------------------------------------------------------- */
     pszBasename = (char *) malloc(strlen(pszLayer)+5);
     strcpy( pszBasename, pszLayer );
-    for( i = strlen(pszBasename)-1; 
+    for( i = (int)strlen(pszBasename)-1; 
          i > 0 && pszBasename[i] != '.' && pszBasename[i] != '/'
              && pszBasename[i] != '\\';
          i-- ) {}
@@ -935,7 +935,7 @@ SHPCreateLL( const char * pszLayer, int nShapeType, SAHooks *psHooks )
 /* -------------------------------------------------------------------- */
     pszBasename = (char *) malloc(strlen(pszLayer)+5);
     strcpy( pszBasename, pszLayer );
-    for( i = strlen(pszBasename)-1; 
+    for( i = (int)strlen(pszBasename)-1; 
          i > 0 && pszBasename[i] != '.' && pszBasename[i] != '/'
              && pszBasename[i] != '\\';
          i-- ) {}
@@ -1159,10 +1159,10 @@ SHPCreateObject( int nSHPType, int nShapeId, int nParts,
 
         psObject->panPartStart[0] = 0;
         psObject->panPartType[0] = SHPP_RING;
-        
+
         for( i = 0; i < nParts; i++ )
         {
-            if( psObject->panPartStart != NULL )
+            if( panPartStart != NULL )
                 psObject->panPartStart[i] = panPartStart[i];
 
             if( panPartType != NULL )
@@ -1294,7 +1294,6 @@ SHPWriteObject(SHPHandle psSHP, int nShapeId, SHPObject * psObject )
         || psObject->nSHPType == SHPT_MULTIPATCH )
     {
         int32		nPoints, nParts;
-        int    		i;
 
         nPoints = psObject->nVertices;
         nParts = psObject->nParts;
@@ -1411,7 +1410,6 @@ SHPWriteObject(SHPHandle psSHP, int nShapeId, SHPObject * psObject )
              || psObject->nSHPType == SHPT_MULTIPOINTM )
     {
         int32		nPoints;
-        int    		i;
 
         nPoints = psObject->nVertices;
 
@@ -1774,7 +1772,7 @@ SHPReadObject( SHPHandle psSHP, int hEntity )
         return NULL;
     }
 
-    nBytesRead = psSHP->sHooks.FRead( psSHP->pabyRec, 1, nEntitySize, psSHP->fpSHP );
+    nBytesRead = (int)psSHP->sHooks.FRead( psSHP->pabyRec, 1, nEntitySize, psSHP->fpSHP );
 
     /* Special case for a shapefile whose .shx content length field is not equal */
     /* to the content length field of the .shp, which is a violation of "The */
@@ -1792,7 +1790,7 @@ SHPReadObject( SHPHandle psSHP, int hEntity )
         {
             char str[128];
             sprintf( str,
-                    "Sanity check failed when trying to recover from inconsistant .shx/.shp with shape %d",
+                    "Sanity check failed when trying to recover from inconsistent .shx/.shp with shape %d",
                     hEntity );
 
             psSHP->sHooks.Error( str );
@@ -2522,7 +2520,7 @@ SHPRewindObject( CPL_UNUSED SHPHandle hSHP,
 
                 /* Rule #1:
                  * Test whether the edge 'straddles' the horizontal ray from the test point (dfTestY,dfTestY)
-                 * The rule #1 also excludes edges collinear with the ray.
+                 * The rule #1 also excludes edges colinear with the ray.
                  */
                 if ( ( psObject->padfY[iEdge+nVertStart] < dfTestY
                        && dfTestY <= psObject->padfY[iNext+nVertStart] )

@@ -33,6 +33,7 @@
 
 /* for std::numeric_limits */
 #include <limits>
+#include <new>
 
 CPL_CVSID("$Id$");
 
@@ -85,12 +86,59 @@ OGRPoint::OGRPoint( double xIn, double yIn )
 }
 
 /************************************************************************/
+/*                       OGRPoint( const OGRPoint& )                    */
+/************************************************************************/
+
+/**
+ * \brief Copy constructor.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the constructor
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRPoint::OGRPoint( const OGRPoint& other ) :
+    OGRGeometry( other ),
+    x( other.x ),
+    y( other.y ),
+    z( other.z )
+{
+}
+
+/************************************************************************/
 /*                             ~OGRPoint()                              */
 /************************************************************************/
 
 OGRPoint::~OGRPoint()
 
 {
+}
+
+/************************************************************************/
+/*                       operator=( const OGRPoint& )                   */
+/************************************************************************/
+
+/**
+ * \brief Assignment operator.
+ * 
+ * Note: before GDAL 2.1, only the default implementation of the operator
+ * existed, which could be unsafe to use.
+ * 
+ * @since GDAL 2.1
+ */
+
+OGRPoint& OGRPoint::operator=( const OGRPoint& other )
+{
+    if( this != &other)
+    {
+        OGRGeometry::operator=( other );
+        
+        x = other.x;
+        y = other.y;
+        z = other.z;
+    }
+    return *this;
 }
 
 /************************************************************************/
@@ -102,7 +150,9 @@ OGRPoint::~OGRPoint()
 OGRGeometry *OGRPoint::clone() const
 
 {
-    OGRPoint    *poNewPoint = new OGRPoint( x, y, z );
+    OGRPoint    *poNewPoint = new (std::nothrow) OGRPoint( x, y, z );
+    if( poNewPoint == NULL )
+        return NULL;
 
     poNewPoint->assignSpatialReference( getSpatialReference() );
     poNewPoint->setCoordinateDimension( nCoordDimension );
@@ -182,9 +232,9 @@ int OGRPoint::getCoordinateDimension() const
 void OGRPoint::setCoordinateDimension( int nNewDimension )
 
 {
-    nCoordDimension = nNewDimension;
+    nCoordDimension = (nCoordDimension < 0 ) ? -nNewDimension : nNewDimension;
     
-    if( nCoordDimension == 2 )
+    if( nNewDimension == 2 )
         z = 0;
 }
 
@@ -220,7 +270,7 @@ OGRErr OGRPoint::importFromWkb( unsigned char * pabyData,
     OGRBoolean          bIs3D = FALSE;
 
     OGRErr eErr = importPreambuleFromWkb( pabyData, nSize, eByteOrder, bIs3D, eWkbVariant );
-    if( eErr >= 0 )
+    if( eErr != OGRERR_NONE )
         return eErr;
 
     if ( nSize < ((bIs3D) ? 29 : 21) && nSize != -1 )
@@ -338,13 +388,14 @@ OGRErr OGRPoint::importFromWkt( char ** ppszInput )
 
 {
     int bHasZ = FALSE, bHasM = FALSE;
-    OGRErr      eErr = importPreambuleFromWkt(ppszInput, &bHasZ, &bHasM);
-    if( eErr >= 0 )
-    {
-        if( eErr == OGRERR_NONE ) /* only the case for an EMPTY case */
-            nCoordDimension = (bHasZ) ? -3 : -2;
-
+    bool bIsEmpty = false;
+    OGRErr      eErr = importPreambuleFromWkt(ppszInput, &bHasZ, &bHasM, &bIsEmpty);
+    if( eErr != OGRERR_NONE )
         return eErr;
+    if( bIsEmpty )
+    {
+        nCoordDimension = (bHasZ) ? -3 : -2;
+        return OGRERR_NONE;
     }
 
     const char  *pszInput = *ppszInput;
@@ -393,7 +444,7 @@ OGRErr OGRPoint::importFromWkt( char ** ppszInput )
         nCoordDimension = 2;
 
     *ppszInput = (char *) pszInput;
-    
+
     return OGRERR_NONE;
 }
 
@@ -401,7 +452,7 @@ OGRErr OGRPoint::importFromWkt( char ** ppszInput )
 /*                            exportToWkt()                             */
 /*                                                                      */
 /*      Translate this structure into it's well known text format       */
-/*      equivelent.                                                     */
+/*      equivalent.                                                     */
 /************************************************************************/
 
 OGRErr OGRPoint::exportToWkt( char ** ppszDstText,
@@ -518,19 +569,20 @@ void OGRPoint::getEnvelope( OGREnvelope3D * psEnvelope ) const
 OGRBoolean OGRPoint::Equals( OGRGeometry * poOther ) const
 
 {
-    OGRPoint    *poOPoint = (OGRPoint *) poOther;
-    
-    if( poOPoint== this )
+    if( poOther== this )
         return TRUE;
     
     if( poOther->getGeometryType() != getGeometryType() )
         return FALSE;
 
-    if ( IsEmpty() && poOther->IsEmpty() )
+    OGRPoint    *poOPoint = (OGRPoint *) poOther;
+    if ( nCoordDimension != poOPoint->nCoordDimension )
+        return FALSE;
+    
+    if ( IsEmpty() )
         return TRUE;
 
     // we should eventually test the SRS.
-    
     if( poOPoint->getX() != getX()
         || poOPoint->getY() != getY()
         || poOPoint->getZ() != getZ() )

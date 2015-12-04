@@ -669,12 +669,9 @@ GDALWarpSrcMaskMasker( void *pMaskFuncArg,
 /* -------------------------------------------------------------------- */
     GByte *pabySrcMask;
 
-    pabySrcMask = (GByte *) VSIMalloc2(nXSize,nYSize);
+    pabySrcMask = (GByte *) VSI_MALLOC2_VERBOSE(nXSize,nYSize);
     if( pabySrcMask == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory,
-                  "Failed to allocate pabySrcMask (%dx%d) in GDALWarpSrcMaskMasker()", 
-                  nXSize, nYSize );
         return CE_Failure;
     }
 
@@ -856,7 +853,7 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount,
  * destination (INIT_DEST) and all other processing, and so should be used
  * careful.  Mostly useful to short circuit a lot of extra work in mosaicing 
  * situations.
- * 
+ *
  * - UNIFIED_SRC_NODATA=YES/[NO]: By default nodata masking values considered
  * independently for each band.  However, sometimes it is desired to treat all
  * bands as nodata if and only if, all bands match the corresponding nodata
@@ -873,7 +870,7 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount,
  * for areas around the pole, or transformations where some of the image is
  * untransformable.  The following options provide some additional control
  * to deal with errors in computing the source window:
- * 
+ *
  * - SAMPLE_GRID=YES/NO: Setting this option to YES will force the sampling to 
  * include internal points as well as edge points which can be important if
  * the transformation is esoteric inside out, or if large sections of the
@@ -885,8 +882,8 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount,
  *
  * - SOURCE_EXTRA: This is a number of extra pixels added around the source
  * window for a given request, and by default it is 1 to take care of rounding
- * error.  Setting this larger will incease the amount of data that needs to
- * be read, but can avoid missing source data.  
+ * error.  Setting this larger will increase the amount of data that needs to
+ * be read, but can avoid missing source data.
  *
  * - CUTLINE: This may contain the WKT geometry for a cutline.  It will
  * be converted into a geometry by GDALWarpOperation::Initialize() and assigned
@@ -919,8 +916,8 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount,
  * outputing typically to a streamed file. The gdalwarp utility automatically
  * sets this option when outputing to /vsistdout/ or a named pipe (on Unix).
  * This option has performance impacts for some reprojections.
- * Note: band interleaved output is not currently supported by the warping algorithm in
- * a streamable compabible way.
+ * Note: band interleaved output is not currently supported by the warping
+ * algorithm in a streamable compatible way.
  *
  * - SRC_COORD_PRECISION: (GDAL >= 2.0). Advanced setting. This defaults to 0, to indicate that
  * no rounding of computing source image coordinates corresponding to the target
@@ -1343,7 +1340,7 @@ GDALWarpOptions * CPL_STDCALL GDALDeserializeWarpOptions( CPLXMLNode *psTree )
             && EQUAL(psItem->pszValue,"Option") )
         {
             const char *pszName = CPLGetXMLValue(psItem, "Name", NULL );
-            const char *pszValue = CPLGetXMLValue(psItem, "", NULL );
+            pszValue = CPLGetXMLValue(psItem, "", NULL );
 
             if( pszName != NULL && pszValue != NULL )
             {
@@ -1522,9 +1519,9 @@ GDALWarpOptions * CPL_STDCALL GDALDeserializeWarpOptions( CPLXMLNode *psTree )
     }
 
 /* -------------------------------------------------------------------- */
-/*      If any error has occured, cleanup else return success.          */
+/*      If any error has occurred, cleanup else return success.          */
 /* -------------------------------------------------------------------- */
-    if( CPLGetLastErrorNo() != CE_None )
+    if( CPLGetLastErrorType() != CE_None )
     {
         if ( psWO->pTransformerArg )
         {

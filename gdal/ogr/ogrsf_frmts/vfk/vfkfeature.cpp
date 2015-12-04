@@ -148,28 +148,39 @@ bool IVFKFeature::SetGeometry(OGRGeometry *poGeom, const char *ftype)
             OGRPoint pt;
             OGRGeometry *poGeomCurved;
             OGRCircularString poGeomString;
-                
+
             poGeomCurved = NULL;
             if (EQUAL(ftype, "15") || EQUAL(ftype, "16")) {         /* -> circle or arc */
-                int npoints;
-                
-                npoints = ((OGRLineString *) poGeom)->getNumPoints();
+                int npoints = ((OGRLineString *) poGeom)->getNumPoints();
                 for (int i = 0; i < npoints; i++) {
                     ((OGRLineString *) poGeom)->getPoint(i, &pt);
                     poGeomString.addPoint(&pt);
                 }
                 if (EQUAL(ftype, "15")) {
+                    if (npoints < 3) {
+                      CPLError(CE_Warning, CPLE_AppDefined,
+                               "npoints is %d.  expected 3", npoints);
+                    }
+                    if (npoints > 3) {
+                        CPLError(CE_Warning, CPLE_AppDefined,
+                                 "npoints is %d.  Will overflow buffers.  "
+                                 "Cannot continue.", npoints);
+                        m_bValid = FALSE;
+                        return false;
+                    }
+
                     /* compute center and radius of a circle */
-                    double x[3], y[3];
+                    double x[3] = { 0.0, 0.0, 0.0 };
+                    double y[3] = { 0.0, 0.0, 0.0 };
                     double m1, n1, m2, n2, c1, c2, mx;
                     double c_x, c_y;
-                    
+
                     for (int i = 0; i < npoints; i++) {
                         ((OGRLineString *) poGeom)->getPoint(i, &pt);
                         x[i] = pt.getX();
                         y[i] = pt.getY();
                     }
-                                        
+
                     m1 = (x[0] + x[1]) / 2.0;
                     n1 = (y[0] + y[1]) / 2.0;
 
@@ -195,7 +206,7 @@ bool IVFKFeature::SetGeometry(OGRGeometry *poGeom, const char *ftype)
 
                 }
             }
-            else if (strlen(ftype) > 2 && EQUALN(ftype, "15", 2)) { /* -> circle with radius */
+            else if (strlen(ftype) > 2 && STARTS_WITH_CI(ftype, "15")) { /* -> circle with radius */
                 float r;
                 char s[3]; /* 15 */
 
@@ -394,7 +405,7 @@ bool VFKFeature::SetProperties(const char *pszLine)
             inString = inString ? FALSE : TRUE;
             if (inString) {
                 poProp = poChar;
-                if (*poChar == '"' && (*(poChar+1) == ';' || *(poChar+1) == '\0')) { 
+                if (*poChar == '"' && (*(poChar+1) == ';' || *(poChar+1) == '\0')) {
                     poChar++;
                     inString = FALSE;
                 }
@@ -430,10 +441,11 @@ bool VFKFeature::SetProperties(const char *pszLine)
     /* set properties from the list */
     if (oPropList.size() != (size_t) m_poDataBlock->GetPropertyCount()) {
         /* try to read also invalid records */
-        CPLError(CE_Warning, CPLE_AppDefined, 
+        CPLError(CE_Warning, CPLE_AppDefined,
                  "%s: invalid number of properties %d should be %d",
                  m_poDataBlock->GetName(),
 		 (int) oPropList.size(), m_poDataBlock->GetPropertyCount());
+        CPLFree(pszProp);
         return FALSE;
    }
     iIndex = 0;
@@ -441,8 +453,9 @@ bool VFKFeature::SetProperties(const char *pszLine)
 	 ip != oPropList.end(); ++ip) {
 	SetProperty(iIndex++, (*ip).c_str());
     }
-    
-    /* set fid 
+
+    // TODO(martinl): What was this block disabled?
+    /* set fid
     if (EQUAL(m_poDataBlock->GetName(), "SBP")) {
         GUIntBig id;
         const VFKProperty *poVfkProperty;
@@ -452,13 +465,13 @@ bool VFKFeature::SetProperties(const char *pszLine)
         {
             id = strtoul(poVfkProperty->GetValueS(), NULL, 0);
             if (id == 1)
-                SetFID(0); 
+                SetFID(0);
             else
-                SetFID(-1); 
+                SetFID(-1);
         }
     }
     else {
-        SetFID(0); 
+        SetFID(0);
     }
     */
     CPLFree(pszProp);
@@ -598,7 +611,7 @@ bool VFKFeature::LoadGeometryLineStringSBP()
         return false;
     
     poLine = this;
-    while (TRUE)
+    while( true )
     {
         id   = poLine->GetProperty(idxBp_Id)->GetValueI();
         ipcb = poLine->GetProperty(idxPCB)->GetValueI();

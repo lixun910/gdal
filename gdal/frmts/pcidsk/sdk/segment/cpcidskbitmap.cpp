@@ -43,12 +43,16 @@ using namespace PCIDSK;
 /*                           CPCIDSKBitmap()                            */
 /************************************************************************/
 
-CPCIDSKBitmap::CPCIDSKBitmap( PCIDSKFile *file, int segment,
+CPCIDSKBitmap::CPCIDSKBitmap( PCIDSKFile *fileIn, int segmentIn,
                               const char *segment_pointer )
-        : CPCIDSKSegment( file, segment, segment_pointer )
+        : CPCIDSKSegment( fileIn, segmentIn, segment_pointer )
 
 {
     loaded = false;
+    width = 0;
+    height = 0;
+    block_width = 0;
+    block_height = 0;
 }
 
 /************************************************************************/
@@ -233,12 +237,12 @@ int CPCIDSKBitmap::ReadBlock( int block_index, void *buffer,
                               int win_xsize, int win_ysize )
 
 {
-    uint64 block_size = (block_width * block_height + 7) / 8;
+    uint64 block_size = (static_cast<uint64>(block_width) * block_height + 7) / 8;
     uint8 *wrk_buffer = (uint8 *) buffer;
 
     if( block_index < 0 || block_index >= GetBlockCount() )
     {
-        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+        ThrowPCIDSKException( "Requested non-existent block (%d)", 
                               block_index );
     }
 /* -------------------------------------------------------------------- */
@@ -277,7 +281,7 @@ int CPCIDSKBitmap::ReadBlock( int block_index, void *buffer,
         memset( buffer, 0, (size_t) block_size );
         
         short_block_size = 
-            ((height - block_index*block_height) * block_width + 7) / 8;
+            (static_cast<uint64>(height - block_index*block_height) * block_width + 7) / 8;
         
         ReadFromFile( wrk_buffer, block_size * block_index, short_block_size );
     }
@@ -310,7 +314,7 @@ int CPCIDSKBitmap::ReadBlock( int block_index, void *buffer,
 int CPCIDSKBitmap::WriteBlock( int block_index, void *buffer )
 
 {
-    uint64 block_size = (block_width * block_height) / 8;
+    uint64 block_size = (static_cast<uint64>(block_width) * block_height) / 8;
 
     if( (block_index+1) * block_height <= height )
         WriteToFile( buffer, block_size * block_index, block_size );
@@ -319,7 +323,7 @@ int CPCIDSKBitmap::WriteBlock( int block_index, void *buffer )
         uint64 short_block_size;
 
         short_block_size =
-            ((height - block_index*block_height) * block_width + 7) / 8;
+            (static_cast<uint64>(height - block_index*block_height) * block_width + 7) / 8;
 
         WriteToFile( buffer, block_size * block_index, short_block_size );
     }
@@ -343,7 +347,7 @@ int CPCIDSKBitmap::GetOverviewCount()
 PCIDSKChannel *CPCIDSKBitmap::GetOverview( CPL_UNUSED int i )
 {
     // The %d is ignored in the exception.
-    ThrowPCIDSKException("Non-existant overview %d requested on bitmap segment.");
+    ThrowPCIDSKException("Non-existent overview %d requested on bitmap segment.");
     return NULL;
 }
 

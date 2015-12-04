@@ -33,10 +33,6 @@
 #include "cpl_csv.h"
 #include "ogr_p.h"
 
-#ifndef M_PI
-# define M_PI  3.1415926535897932384626433832795
-#endif
-
 /************************************************************************/
 /*                            OGRBNALayer()                             */
 /*                                                                      */
@@ -50,26 +46,24 @@ OGRBNALayer::OGRBNALayer( const char *pszFilename,
                           OGRwkbGeometryType eLayerGeomType,
                           int bWriter,
                           OGRBNADataSource* poDS,
-                          int nIDs)
-
+                          int nIDs) :
+    eof(FALSE),
+    failed(FALSE),
+    curLine(0),
+    nNextFID(0),
+    nFeatures(0),
+    partialIndexTable(TRUE),
+    offsetAndLineFeaturesTable(NULL)
 {
-    eof = FALSE;
-    failed = FALSE;
-    curLine = 0;
-    nNextFID = 0;
-    
     this->bWriter = bWriter;
     this->poDS = poDS;
     this->nIDs = nIDs;
 
-    nFeatures = 0;
-    partialIndexTable = TRUE;
-    offsetAndLineFeaturesTable = NULL;
-
-    const char* iKnowHowToCount[] = { "Primary", "Secondary", "Third", "Fourth", "Fifth" };
+    const char* iKnowHowToCount[]
+        = { "Primary", "Secondary", "Third", "Fourth", "Fifth" };
     char tmp[32];
 
-    poFeatureDefn = new OGRFeatureDefn( CPLSPrintf("%s_%s", 
+    poFeatureDefn = new OGRFeatureDefn( CPLSPrintf("%s_%s",
                                                    CPLGetBasename( pszFilename ) , 
                                                    layerName ));
     poFeatureDefn->Reference();
@@ -79,8 +73,7 @@ OGRBNALayer::OGRBNALayer( const char *pszFilename,
 
     if (! bWriter )
     {
-        int i;
-        for(i=0;i<nIDs;i++)
+        for(int i=0;i<nIDs;i++)
         {
             if (i < (int) (sizeof(iKnowHowToCount)/sizeof(iKnowHowToCount[0])) )
             {
@@ -153,7 +146,7 @@ void OGRBNALayer::ResetReading()
     failed = FALSE;
     curLine = 0;
     nNextFID = 0;
-    VSIFSeekL( fpBNA, 0, SEEK_SET );
+    CPL_IGNORE_RET_VAL(VSIFSeekL( fpBNA, 0, SEEK_SET ));
 }
 
 
@@ -176,7 +169,8 @@ OGRFeature *OGRBNALayer::GetNextFeature()
         line = curLine;
         if (nNextFID < nFeatures)
         {
-            VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nNextFID].offset, SEEK_SET );
+            if( VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nNextFID].offset, SEEK_SET ) < 0 )
+                return NULL;
             curLine = offsetAndLineFeaturesTable[nNextFID].line;
         }
         record =  BNA_GetNextRecord(fpBNA, &ok, &curLine, TRUE, bnaFeatureType);
@@ -252,22 +246,22 @@ void OGRBNALayer::WriteFeatureAttributes(VSILFILE* fp, OGRFeature *poFeature )
                     char szBuffer[64];
                     OGRFormatDouble(szBuffer, sizeof(szBuffer),
                                     poFeature->GetFieldAsDouble(i), '.');
-                    VSIFPrintfL( fp, "\"%s\",", szBuffer);
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "\"%s\",", szBuffer));
                 }
                 else
                 {
                     const char *pszRaw = poFeature->GetFieldAsString( i );
-                    VSIFPrintfL( fp, "\"%s\",", pszRaw);
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "\"%s\",", pszRaw));
                 }
             }
             else
             {
-                VSIFPrintfL( fp, "\"\",");
+                CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "\"\","));
             }
         }
         else
         {
-            VSIFPrintfL( fp, "\"\",");
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "\"\","));
         }
     }
 }
@@ -280,10 +274,10 @@ void OGRBNALayer::WriteCoord(VSILFILE* fp, double dfX, double dfY)
 {
     char szBuffer[64];
     OGRFormatDouble(szBuffer, sizeof(szBuffer), dfX, '.', poDS->GetCoordinatePrecision());
-    VSIFPrintfL( fp, "%s", szBuffer);
-    VSIFPrintfL( fp, "%s", poDS->GetCoordinateSeparator());
+    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", szBuffer));
+    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", poDS->GetCoordinateSeparator()));
     OGRFormatDouble(szBuffer, sizeof(szBuffer), dfY, '.', poDS->GetCoordinatePrecision());
-    VSIFPrintfL( fp, "%s", szBuffer);
+    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", szBuffer));
 }
 
 /************************************************************************/
@@ -335,10 +329,10 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
         {
             OGRPoint* point = (OGRPoint*)poGeom;
             WriteFeatureAttributes(fp, poFeature);
-            VSIFPrintfL( fp, "1");
-            VSIFPrintfL( fp, "%s", partialEol);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "1"));
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", partialEol));
             WriteCoord(fp, point->getX(), point->getY());
-            VSIFPrintfL( fp, "%s", eol);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", eol));
             break;
         }
             
@@ -393,12 +387,12 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                     if ( is_ellipse == TRUE )
                     {
                         WriteFeatureAttributes(fp, poFeature);
-                        VSIFPrintfL( fp, "2");
-                        VSIFPrintfL( fp, "%s", partialEol);
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "2"));
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", partialEol));
                         WriteCoord(fp, center1X, center1Y);
-                        VSIFPrintfL( fp, "%s", partialEol);
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", partialEol));
                         WriteCoord(fp, major_radius, minor_radius);
-                        VSIFPrintfL( fp, "%s", eol);
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", eol));
                     }
                 }
             }
@@ -416,12 +410,12 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                     return OGRERR_FAILURE;
                 }
                 WriteFeatureAttributes(fp, poFeature);
-                VSIFPrintfL( fp, "%d", nBNAPoints);
+                CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%d", nBNAPoints));
                 n = ring->getNumPoints();
                 int nbPair = 0;
                 for(i=0;i<n;i++)
                 {
-                    VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                     WriteCoord(fp, ring->getX(i), ring->getY(i));
                     nbPair++;
                 }
@@ -431,15 +425,15 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                     n = ring->getNumPoints();
                     for(j=0;j<n;j++)
                     {
-                        VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                         WriteCoord(fp, ring->getX(j), ring->getY(j));
                         nbPair++;
                     }
-                    VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                     WriteCoord(fp, firstX, firstY);
                     nbPair++;
                 }
-                VSIFPrintfL( fp, "%s", eol);
+                CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", eol));
             }
             break;
         }
@@ -478,7 +472,7 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                 return OGRERR_FAILURE;
             }
             WriteFeatureAttributes(fp, poFeature);
-            VSIFPrintfL( fp, "%d", nBNAPoints);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%d", nBNAPoints));
             int nbPair = 0;
             for(i=0;i<N;i++)
             {
@@ -491,13 +485,13 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                 int nInteriorRings = polygon->getNumInteriorRings();
                 for(j=0;j<n;j++)
                 {
-                    VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                     WriteCoord(fp, ring->getX(j), ring->getY(j));
                     nbPair++;
                 }
                 if (i != 0)
                 {
-                    VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                     WriteCoord(fp, firstX, firstY);
                     nbPair++;
                 }
@@ -507,16 +501,16 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                     n = ring->getNumPoints();
                     for(k=0;k<n;k++)
                     {
-                        VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                        CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                         WriteCoord(fp, ring->getX(k), ring->getY(k));
                         nbPair++;
                     }
-                    VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " ");
+                    CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", ((nbPair % nbPairPerLine) == 0) ? partialEol : " "));
                     WriteCoord(fp, firstX, firstY);
                     nbPair++;
                 }
             }
-            VSIFPrintfL( fp, "%s", eol);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", eol));
             break;
         }
 
@@ -532,15 +526,15 @@ OGRErr OGRBNALayer::ICreateFeature( OGRFeature *poFeature )
                 return OGRERR_FAILURE;
             }
             WriteFeatureAttributes(fp, poFeature);
-            VSIFPrintfL( fp, "-%d", n);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "-%d", n));
             int nbPair = 0;
             for(i=0;i<n;i++)
             {
-                VSIFPrintfL( fp, "%s", partialEol);
+                CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", partialEol));
                 WriteCoord(fp, line->getX(i), line->getY(i));
                 nbPair++;
             }
-            VSIFPrintfL( fp, "%s", eol);
+            CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s", eol));
             break;
         }
             
@@ -697,7 +691,7 @@ OGRFeature *    OGRBNALayer::BuildFeatureFromBNARecord (BNARecord* record, long 
         }
         if (i == record->nCoords)
         {
-            /* Let's be a bit tolerant abount non closing polygons */
+            /* Let's be a bit tolerant about non-closing polygons. */
             if (isFirstPolygon)
             {
                 ring->addPoint(record->tabCoords[0][0], record->tabCoords[0][1] );
@@ -708,7 +702,7 @@ OGRFeature *    OGRBNALayer::BuildFeatureFromBNARecord (BNARecord* record, long 
                 nbPolygons++;
             }
         }
-        
+
         if (nbPolygons == 1)
         {
             /* Special optimization here : we directly put the polygon into the multipolygon. */
@@ -778,7 +772,8 @@ void OGRBNALayer::FastParseUntil ( int interestFID)
 
         if (nFeatures > 0)
         {
-            VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nFeatures-1].offset, SEEK_SET );
+            if( VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nFeatures-1].offset, SEEK_SET ) < 0 )
+                return;
             curLine = offsetAndLineFeaturesTable[nFeatures-1].line;
 
             /* Just skip the last read one */
@@ -839,7 +834,7 @@ OGRFeature *  OGRBNALayer::GetFeature( GIntBig nFID )
     BNARecord* record;
     int ok;
     
-    if (nFID < 0 || (GIntBig)(int)nFID != nFID)
+    if (nFID < 0 || !CPL_INT64_FITS_ON_INT32(nFID))
         return NULL;
 
     FastParseUntil((int)nFID);
@@ -847,7 +842,8 @@ OGRFeature *  OGRBNALayer::GetFeature( GIntBig nFID )
     if (nFID >= nFeatures)
         return NULL;
 
-    VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nFID].offset, SEEK_SET );
+    if( VSIFSeekL( fpBNA, offsetAndLineFeaturesTable[nFID].offset, SEEK_SET ) < 0 )
+        return NULL;
     curLine = offsetAndLineFeaturesTable[nFID].line;
     record =  BNA_GetNextRecord(fpBNA, &ok, &curLine, TRUE, bnaFeatureType);
 

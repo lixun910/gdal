@@ -93,7 +93,7 @@ OGRFeature *OGRAeronavFAALayer::GetNextFeature()
 {
     OGRFeature  *poFeature;
 
-    while(TRUE)
+    while( true )
     {
         if (bEOF)
             return NULL;
@@ -230,7 +230,7 @@ OGRFeature *OGRAeronavFAADOFLayer::GetNextRawFeature()
     const char* pszLine;
     char szBuffer[130];
 
-    while(TRUE)
+    while( true )
     {
         pszLine = CPLReadLine2L(fpAeronavFAA, 130, NULL);
         if (pszLine == NULL)
@@ -335,7 +335,7 @@ OGRFeature *OGRAeronavFAANAVAIDLayer::GetNextRawFeature()
     const char* pszLine;
     char szBuffer[134];
 
-    while(TRUE)
+    while( true )
     {
         pszLine = CPLReadLine2L(fpAeronavFAA, 134, NULL);
         if (pszLine == NULL)
@@ -436,7 +436,7 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
     OGRFeature* poFeature = NULL;
     OGRLineString* poLS = NULL;
 
-    while(TRUE)
+    while( true )
     {
         if (osLastReadLine.size() != 0)
             pszLine = osLastReadLine.c_str();
@@ -447,12 +447,12 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
         if (pszLine == NULL)
         {
             bEOF = TRUE;
-            return poFeature;
+            break;
         }
         if (strlen(pszLine) != 85)
             continue;
 
-        if (bIsDPOrSTARS && strncmp(pszLine, "===", 3) == 0 && pszLine[3] != '=')
+        if (bIsDPOrSTARS && STARTS_WITH(pszLine, "===") && pszLine[3] != '=')
         {
             osAPTName = pszLine + 3;
             const char* pszComma = strchr(pszLine + 3, ',');
@@ -473,15 +473,15 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
             }
         }
 
-        if (strncmp(pszLine + 2, "FACILITY OR", strlen("FACILITY OR")) == 0)
+        if (STARTS_WITH(pszLine + 2, "FACILITY OR"))
             continue;
-        if (strncmp(pszLine + 2, "INTERSECTION", strlen("INTERSECTION")) == 0)
+        if (STARTS_WITH(pszLine + 2, "INTERSECTION"))
             continue;
 
         if (strcmp(pszLine, "================================DELETIONS LIST=================================198326") == 0)
         {
             bEOF = TRUE;
-            return poFeature;
+            break;
         }
 
         if (poFeature == NULL)
@@ -491,7 +491,7 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
                 continue;
             }
 
-            if (strncmp(pszLine + 29, "                    ", 20) == 0 ||
+            if (STARTS_WITH(pszLine + 29, "                    ") ||
                 strchr(pszLine, '(') != NULL)
             {
                 CPLString osName = pszLine + 2;
@@ -518,17 +518,16 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
                 else
                     poFeature->SetField(0, osName);
                 poLS = new OGRLineString();
-                poFeature->SetGeometryDirectly(poLS);
             }
             continue;
         }
 
-        if (strncmp(pszLine, "                                                                                    0", 85) == 0)
+        if (STARTS_WITH(pszLine, "                                                                                    0"))
         {
             if (poLS->getNumPoints() == 0)
                 continue;
             else
-                return poFeature;
+                break;
         }
 
         if (pszLine[29 - 1] == ' ' && pszLine[42 - 1] == ' ')
@@ -536,7 +535,7 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
         if (strstr(pszLine, "RWY") || strchr(pszLine, '('))
         {
             osLastReadLine = pszLine;
-            return poFeature;
+            break;
         }
 
         double dfLat, dfLon;
@@ -546,6 +545,10 @@ OGRFeature *OGRAeronavFAARouteLayer::GetNextRawFeature()
                   dfLon);
         poLS->addPoint(dfLon, dfLat);
     }
+
+    if( poFeature != NULL )
+        poFeature->SetGeometryDirectly(poLS);
+    return poFeature;
 }
 
 /************************************************************************/
@@ -633,7 +636,7 @@ OGRFeature *OGRAeronavFAAIAPLayer::GetNextRawFeature()
     char szBuffer[87];
     int nCountUnderscoreLines = 0;
 
-    while(TRUE)
+    while( true )
     {
         pszLine = CPLReadLine2L(fpAeronavFAA, 87, NULL);
         if (pszLine == NULL)
@@ -644,7 +647,7 @@ OGRFeature *OGRAeronavFAAIAPLayer::GetNextRawFeature()
         if (strlen(pszLine) != 85)
             continue;
 
-        if (strncmp(pszLine, "DELETIONS", strlen("DELETIONS")) == 0)
+        if (STARTS_WITH(pszLine, "DELETIONS"))
         {
             bEOF = TRUE;
             return NULL;
@@ -659,7 +662,7 @@ OGRFeature *OGRAeronavFAAIAPLayer::GetNextRawFeature()
 
         if (pszLine[1] != ' ')
             continue;
-        if (strncmp(pszLine, "                                                                               ", 79) == 0)
+        if (STARTS_WITH(pszLine, "                                                                               "))
             continue;
         if (strstr(pszLine, "NAVIGATIONAL AIDS") != NULL)
             continue;

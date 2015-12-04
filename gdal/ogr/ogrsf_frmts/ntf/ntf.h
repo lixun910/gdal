@@ -27,8 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef _NTF_H_INCLUDED
-#define _NTF_H_INCLUDED
+#ifndef NTF_H_INCLUDED
+#define NTF_H_INCLUDED
 
 #include "cpl_conv.h"
 #include "ogrsf_frmts.h"
@@ -51,9 +51,9 @@
 #define NRT_CHAIN    24                /* Chain */
 #define NRT_POLYGON  31                /* Polygon */
 #define NRT_CPOLY    33                /* Complex Polygon */
-#define NRT_COLLECT  34                /* Collection of featues */
+#define NRT_COLLECT  34                /* Collection of features */
 #define NRT_ADR      40                /* Attribute Description Record */
-#define NRT_CODELIST 42                /* Codelist Record (ie. BL2000) */
+#define NRT_CODELIST 42                /* Codelist Record (i.e. BL2000) */
 #define NRT_TEXTREC  43                /* Text */
 #define NRT_TEXTPOS  44                /* Text position */
 #define NRT_TEXTREP  45                /* Text representation */
@@ -166,7 +166,7 @@ public:
 
     const char  *Lookup( const char * );
 
-    char        szValType[3];   /* attribute code for list, ie. AC */
+    char        szValType[3];   /* attribute code for list, i.e. AC */
     char        szFInter[6];    /* format of code values */
  
     int         nNumCode;
@@ -432,6 +432,8 @@ class OGRNTFFeatureClassLayer : public OGRLayer
 
     OGRGeometry *       GetSpatialFilter() { return poFilterGeom; }
     void                SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     void                ResetReading();
     OGRFeature *        GetNextFeature();
@@ -473,6 +475,8 @@ class OGRNTFRasterLayer : public OGRLayer
 
     OGRGeometry *       GetSpatialFilter() { return poFilterGeom; }
     void                SetSpatialFilter( OGRGeometry * );
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+                { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
     void                ResetReading();
     OGRFeature *        GetNextFeature();
@@ -576,4 +580,4 @@ NTFStrokeArcToOGRGeometry_Angles( double dfCenterX, double dfCenterY,
                                   double dfStartAngle, double dfEndAngle,
                                   int nVertexCount );
 
-#endif /* ndef _NTF_H_INCLUDED */
+#endif /* ndef NTF_H_INCLUDED */

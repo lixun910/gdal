@@ -30,11 +30,231 @@
 #include "ogrgeojsonwriter.h"
 #include "ogrgeojsonutils.h"
 #include "ogr_geojson.h"
+#include "ogrgeojsonreader.h"
 #include <json.h> // JSON-C
 #include <json_object_private.h>
 #include <printbuf.h>
 #include <ogr_api.h>
 #include <ogr_p.h>
+
+/************************************************************************/
+/*                     OGRGeoJSONIsPatchablePosition()                  */
+/************************************************************************/
+
+static bool OGRGeoJSONIsPatchablePosition( json_object* poJSonCoordinates,
+                                           json_object* poNativeCoordinates )
+{
+    return json_object_get_type(poJSonCoordinates) == json_type_array &&
+           json_object_get_type(poNativeCoordinates) == json_type_array &&
+           json_object_array_length(poJSonCoordinates) == 3 &&
+           json_object_array_length(poNativeCoordinates) >= 4 &&
+           json_object_get_type(
+            json_object_array_get_idx(poJSonCoordinates, 0)) != json_type_array &&
+           json_object_get_type(
+            json_object_array_get_idx(poNativeCoordinates, 0)) != json_type_array;
+}
+
+/************************************************************************/
+/*                       OGRGeoJSONPatchPosition()                      */
+/************************************************************************/
+
+static void OGRGeoJSONPatchPosition( json_object* poJSonCoordinates,
+                                     json_object* poNativeCoordinates )
+{
+    int nLength = json_object_array_length(poNativeCoordinates);
+    for(int i=3; i<nLength;i++)
+    {
+        json_object_array_add(poJSonCoordinates,
+            json_object_get(
+                json_object_array_get_idx(poNativeCoordinates, i)));
+    }
+}
+
+/************************************************************************/
+/*                      OGRGeoJSONIsPatchableArray()                    */
+/************************************************************************/
+
+static bool OGRGeoJSONIsPatchableArray( json_object* poJSonArray,
+                                        json_object* poNativeArray,
+                                        int nDepth,
+                                        bool bLightCheck )
+{
+    if( nDepth == 0 )
+        return OGRGeoJSONIsPatchablePosition(poJSonArray, poNativeArray);
+
+    int nLength;
+    if( json_object_get_type(poJSonArray) == json_type_array &&
+        json_object_get_type(poNativeArray) == json_type_array &&
+        (nLength = json_object_array_length(poJSonArray)) ==
+                            json_object_array_length(poNativeArray) )
+    {
+        for( int i=0; i < nLength; i++ )
+        {
+            json_object* poJSonChild =
+                json_object_array_get_idx(poJSonArray, i);
+            json_object* poNativeChild =
+                json_object_array_get_idx(poNativeArray, i);
+            if( !OGRGeoJSONIsPatchableArray(poJSonChild, poNativeChild,
+                                            nDepth - 1, bLightCheck) )
+            {
+                return false;
+            }
+            if( bLightCheck )
+                break;
+        }
+        return true;
+    }
+    return false;
+}
+
+/************************************************************************/
+/*                        OGRGeoJSONPatchArray()                        */
+/************************************************************************/
+
+static void OGRGeoJSONPatchArray( json_object* poJSonArray,
+                                  json_object* poNativeArray,
+                                  int nDepth )
+{
+    if( nDepth == 0 )
+    {
+        OGRGeoJSONPatchPosition(poJSonArray, poNativeArray);
+        return;
+    }
+    int nLength = json_object_array_length(poJSonArray);
+    for(int i=0; i<nLength;i++)
+    {
+        json_object* poJSonChild = json_object_array_get_idx(poJSonArray, i);
+        json_object* poNativeChild = json_object_array_get_idx(poNativeArray, i);
+        OGRGeoJSONPatchArray(poJSonChild, poNativeChild,nDepth-1);
+    }
+}
+
+/************************************************************************/
+/*                        OGRGeoJSONIsPatchableGeometry()                */
+/************************************************************************/
+
+static bool OGRGeoJSONIsPatchableGeometry( json_object* poJSonGeometry,
+                                           json_object* poNativeGeometry )
+{
+    if( json_object_get_type(poJSonGeometry) != json_type_object ||
+        json_object_get_type(poNativeGeometry) != json_type_object )
+    {
+        return false;
+    }
+
+    json_object_iter it;
+    it.key = NULL;
+    it.val = NULL;
+    it.entry = NULL;
+    json_object_object_foreachC(poNativeGeometry, it)
+    {
+        if( strcmp(it.key, "coordinates") == 0 )
+        {
+            json_object* poJSonCoordinates =
+                    json_object_object_get(poJSonGeometry, "coordinates");
+            json_object* poNativeCoordinates = it.val;
+            // 0 = Point
+            // 1 = LineString or MultiPoint
+            // 2 = MultiLineString or Polygon
+            // 3 = MultiPolygon
+            for(int i=0;i<=3;i++)
+            {
+                if( OGRGeoJSONIsPatchableArray(poJSonCoordinates,
+                                               poNativeCoordinates, i, false) )
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if( strcmp(it.key, "geometries") == 0 )
+        {
+            json_object* poJSonGeometries =
+                    json_object_object_get(poJSonGeometry, "geometries");
+            json_object* poNativeGeometries = it.val;
+            int nLength;
+            if( json_object_get_type(poJSonGeometries) == json_type_array &&
+                json_object_get_type(poNativeGeometries) == json_type_array &&
+                (nLength = json_object_array_length(poJSonGeometries)) == 
+                    json_object_array_length(poNativeGeometries) )
+            {
+                for( int i=0; i < nLength; i++ )
+                {
+                    json_object* poJSonChild =
+                        json_object_array_get_idx(poJSonGeometries, i);
+                    json_object* poNativeChild =
+                        json_object_array_get_idx(poNativeGeometries, i);
+                    if( !OGRGeoJSONIsPatchableGeometry(poJSonChild, poNativeChild) )
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+    return false;
+}
+
+/************************************************************************/
+/*                        OGRGeoJSONPatchGeometry()                     */
+/************************************************************************/
+
+static void OGRGeoJSONPatchGeometry( json_object* poJSonGeometry,
+                                     json_object* poNativeGeometry )
+{
+    json_object_iter it;
+    it.key = NULL;
+    it.val = NULL;
+    it.entry = NULL;
+    json_object_object_foreachC(poNativeGeometry, it)
+    {
+        if( strcmp(it.key, "type") == 0 ||
+            strcmp(it.key, "bbox") == 0 )
+        {
+            continue;
+        }
+        if( strcmp(it.key, "coordinates") == 0 )
+        {
+            json_object* poJSonCoordinates =
+                json_object_object_get(poJSonGeometry, "coordinates");
+            json_object* poNativeCoordinates = it.val;
+            for(int i=0;i<=3;i++)
+            {
+                if( OGRGeoJSONIsPatchableArray(poJSonCoordinates,
+                                               poNativeCoordinates, i, true) )
+                {
+                    OGRGeoJSONPatchArray(poJSonCoordinates,
+                                         poNativeCoordinates, i);
+                    break;
+                }
+            }
+
+            continue;
+        }
+        if( strcmp(it.key, "geometries") == 0 )
+        {
+            json_object* poJSonGeometries =
+                json_object_object_get(poJSonGeometry, "geometries");
+            json_object* poNativeGeometries = it.val;
+            int nLength = json_object_array_length(poJSonGeometries);
+            for( int i=0; i < nLength; i++ )
+            {
+                json_object* poJSonChild =
+                    json_object_array_get_idx(poJSonGeometries, i);
+                json_object* poNativeChild =
+                    json_object_array_get_idx(poNativeGeometries, i);
+                OGRGeoJSONPatchGeometry(poJSonChild, poNativeChild);
+            }
+
+            continue;
+        }
+
+        json_object_object_add( poJSonGeometry, it.key,
+                                json_object_get(it.val) );
+    }
+}
 
 /************************************************************************/
 /*                           OGRGeoJSONWriteFeature                     */
@@ -51,9 +271,53 @@ json_object* OGRGeoJSONWriteFeature( OGRFeature* poFeature, int bWriteBBOX, int 
                             json_object_new_string("Feature") );
 
 /* -------------------------------------------------------------------- */
+/*      Write native JSon data.                                         */
+/* -------------------------------------------------------------------- */
+    bool bIdAlreadyWritten = false;
+    const char* pszNativeMediaType = poFeature->GetNativeMediaType();
+    json_object* poNativeGeom = NULL;
+    if( pszNativeMediaType && EQUAL(pszNativeMediaType, "application/vnd.geo+json") )
+    {
+        const char* pszNativeData = poFeature->GetNativeData();
+        json_object* poNativeJSon = NULL;
+        if( pszNativeData && OGRJSonParse(pszNativeData, &poNativeJSon) &&
+            json_object_get_type(poNativeJSon) == json_type_object )
+        {
+            json_object_iter it;
+            it.key = NULL;
+            it.val = NULL;
+            it.entry = NULL;
+            CPLString osNativeData;
+            json_object_object_foreachC(poNativeJSon, it)
+            {
+                if( strcmp(it.key, "type") == 0 ||
+                    strcmp(it.key, "properties") == 0 )
+                {
+                    continue;
+                }
+                if( strcmp(it.key, "bbox") == 0 )
+                {
+                    bWriteBBOX = TRUE;
+                    continue;
+                }
+                if( strcmp(it.key, "geometry") == 0 )
+                {
+                    poNativeGeom = json_object_get(it.val);
+                    continue;
+                }
+                if( strcmp(it.key, "id") == 0 )
+                    bIdAlreadyWritten = true;
+                json_object_object_add( poObj, it.key,
+                                        json_object_get(it.val) );
+            }
+            json_object_put(poNativeJSon);
+        }
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Write FID if available                                          */
 /* -------------------------------------------------------------------- */
-    if ( poFeature->GetFID() != OGRNullFID )
+    if ( poFeature->GetFID() != OGRNullFID && !bIdAlreadyWritten )
     {
         json_object_object_add( poObj, "id",
                                 json_object_new_int64(poFeature->GetFID()) );
@@ -62,9 +326,8 @@ json_object* OGRGeoJSONWriteFeature( OGRFeature* poFeature, int bWriteBBOX, int 
 /* -------------------------------------------------------------------- */
 /*      Write feature attributes to GeoJSON "properties" object.        */
 /* -------------------------------------------------------------------- */
-    json_object* poObjProps = NULL;
-
-    poObjProps = OGRGeoJSONWriteAttributes( poFeature );
+    json_object* poObjProps
+        = OGRGeoJSONWriteAttributes( poFeature );
     json_object_object_add( poObj, "properties", poObjProps );
 
 /* -------------------------------------------------------------------- */
@@ -101,9 +364,17 @@ json_object* OGRGeoJSONWriteFeature( OGRFeature* poFeature, int bWriteBBOX, int 
 
             json_object_object_add( poObj, "bbox", poObjBBOX );
         }
+
+        if( OGRGeoJSONIsPatchableGeometry( poObjGeom, poNativeGeom ) )
+        {
+            OGRGeoJSONPatchGeometry( poObjGeom, poNativeGeom );
+        }
     }
-    
+
     json_object_object_add( poObj, "geometry", poObjGeom );
+
+    if( poNativeGeom != NULL )
+        json_object_put(poNativeGeom);
 
     return poObj;
 }
@@ -122,11 +393,12 @@ json_object* OGRGeoJSONWriteAttributes( OGRFeature* poFeature )
     OGRFeatureDefn* poDefn = poFeature->GetDefnRef();
     for( int nField = 0; nField < poDefn->GetFieldCount(); ++nField )
     {
-        json_object* poObjProp;
         OGRFieldDefn* poFieldDefn = poDefn->GetFieldDefn( nField );
         CPLAssert( NULL != poFieldDefn );
         OGRFieldType eType = poFieldDefn->GetType();
         OGRFieldSubType eSubType = poFieldDefn->GetSubType();
+
+        json_object* poObjProp;
 
         if( !poFeature->IsFieldSet(nField) )
         {
@@ -157,8 +429,16 @@ json_object* OGRGeoJSONWriteAttributes( OGRFeature* poFeature )
         }
         else if( OFTString == eType )
         {
-            poObjProp = json_object_new_string( 
-                poFeature->GetFieldAsString(nField) );
+            const char* pszStr = poFeature->GetFieldAsString(nField);
+            const size_t nLen = strlen(pszStr);
+            poObjProp = NULL;
+            if( (pszStr[0] == '{' && pszStr[nLen-1] == '}') ||
+                (pszStr[0] == '[' && pszStr[nLen-1] == ']') )
+            {
+                OGRJSonParse(pszStr, &poObjProp, false);
+            }
+            if( poObjProp == NULL )
+                poObjProp = json_object_new_string( pszStr );
         }
         else if( OFTIntegerList == eType )
         {
@@ -239,7 +519,7 @@ json_object* OGRGeoJSONWriteGeometry( OGRGeometry* poGeometry, int nCoordPrecisi
 /* -------------------------------------------------------------------- */
 /*      Build "type" member of GeoJSOn "geometry" object.               */
 /* -------------------------------------------------------------------- */
-    
+
     // XXX - mloskot: workaround hack for pure JSON-C API design.
     char* pszName = const_cast<char*>(OGRGeoJSONGetGeometryName( poGeometry ));
     json_object_object_add( poObj, "type", json_object_new_string(pszName) );
@@ -338,16 +618,15 @@ json_object* OGRGeoJSONWritePolygon( OGRPolygon* poPolygon, int nCoordPrecision 
     CPLAssert( NULL != poPolygon );
 
     /* Generate "coordinates" array object. */
-    json_object* poObj = NULL;
-    poObj = json_object_new_array();
-    
+    json_object* poObj = json_object_new_array();
+
     /* Exterior ring. */
     OGRLinearRing* poRing = poPolygon->getExteriorRing();
     if (poRing == NULL)
         return poObj;
-    
-    json_object* poObjRing = NULL;
-    poObjRing = OGRGeoJSONWriteLineCoords( poRing, nCoordPrecision );
+
+    json_object* poObjRing
+        = OGRGeoJSONWriteLineCoords( poRing, nCoordPrecision );
     if( poObjRing == NULL )
     {
         json_object_put(poObj);
@@ -385,8 +664,8 @@ json_object* OGRGeoJSONWriteMultiPoint( OGRMultiPoint* poGeometry, int nCoordPre
     CPLAssert( NULL != poGeometry );
 
     /* Generate "coordinates" object for 2D or 3D dimension. */
-    json_object* poObj = NULL;
-    poObj = json_object_new_array();
+    json_object* poObj
+        = json_object_new_array();
 
     for( int i = 0; i < poGeometry->getNumGeometries(); ++i )
     {
@@ -394,8 +673,8 @@ json_object* OGRGeoJSONWriteMultiPoint( OGRMultiPoint* poGeometry, int nCoordPre
         CPLAssert( NULL != poGeom );
         OGRPoint* poPoint = static_cast<OGRPoint*>(poGeom);
 
-        json_object* poObjPoint = NULL;
-        poObjPoint = OGRGeoJSONWritePoint( poPoint, nCoordPrecision );
+        json_object* poObjPoint
+            = OGRGeoJSONWritePoint( poPoint, nCoordPrecision );
         if( poObjPoint == NULL )
         {
             json_object_put(poObj);
@@ -417,8 +696,7 @@ json_object* OGRGeoJSONWriteMultiLineString( OGRMultiLineString* poGeometry, int
     CPLAssert( NULL != poGeometry );
 
     /* Generate "coordinates" object for 2D or 3D dimension. */
-    json_object* poObj = NULL;
-    poObj = json_object_new_array();
+    json_object* poObj = json_object_new_array();
 
     for( int i = 0; i < poGeometry->getNumGeometries(); ++i )
     {
@@ -433,7 +711,7 @@ json_object* OGRGeoJSONWriteMultiLineString( OGRMultiLineString* poGeometry, int
             json_object_put(poObj);
             return NULL;
         }
-        
+
         json_object_array_add( poObj, poObjLine );
     }
 
@@ -449,8 +727,7 @@ json_object* OGRGeoJSONWriteMultiPolygon( OGRMultiPolygon* poGeometry, int nCoor
     CPLAssert( NULL != poGeometry );
 
     /* Generate "coordinates" object for 2D or 3D dimension. */
-    json_object* poObj = NULL;
-    poObj = json_object_new_array();
+    json_object* poObj = json_object_new_array();
 
     for( int i = 0; i < poGeometry->getNumGeometries(); ++i )
     {
@@ -458,14 +735,14 @@ json_object* OGRGeoJSONWriteMultiPolygon( OGRMultiPolygon* poGeometry, int nCoor
         CPLAssert( NULL != poGeom );
         OGRPolygon* poPoly = static_cast<OGRPolygon*>(poGeom);
 
-        json_object* poObjPoly = NULL;
-        poObjPoly = OGRGeoJSONWritePolygon( poPoly, nCoordPrecision );
+        json_object* poObjPoly
+            = OGRGeoJSONWritePolygon( poPoly, nCoordPrecision );
         if( poObjPoly == NULL )
         {
             json_object_put(poObj);
             return NULL;
         }
-        
+
         json_object_array_add( poObj, poObjPoly );
     }
 
@@ -481,22 +758,21 @@ json_object* OGRGeoJSONWriteGeometryCollection( OGRGeometryCollection* poGeometr
     CPLAssert( NULL != poGeometry );
 
     /* Generate "geometries" object. */
-    json_object* poObj = NULL;
-    poObj = json_object_new_array();
+    json_object* poObj = json_object_new_array();
 
     for( int i = 0; i < poGeometry->getNumGeometries(); ++i )
     {
         OGRGeometry* poGeom = poGeometry->getGeometryRef( i );
         CPLAssert( NULL != poGeom );
-        
-        json_object* poObjGeom = NULL;
-        poObjGeom = OGRGeoJSONWriteGeometry( poGeom, nCoordPrecision );
+
+        json_object* poObjGeom
+            = OGRGeoJSONWriteGeometry( poGeom, nCoordPrecision );
         if( poGeom == NULL )
         {
             json_object_put(poObj);
             return NULL;
         }
-        
+
         json_object_array_add( poObj, poObjGeom );
     }
 
@@ -562,7 +838,7 @@ json_object* OGRGeoJSONWriteLineCoords( OGRLineString* poLine, int nCoordPrecisi
         }
         json_object_array_add( poObjCoords, poObjPoint );
     }
-    
+
     return poObjCoords;
 }
 
@@ -611,10 +887,11 @@ char* OGR_G_ExportToJsonEx( OGRGeometryH hGeometry, char** papszOptions )
 
     OGRGeometry* poGeometry = (OGRGeometry*) (hGeometry);
 
-    int nCoordPrecision = atoi(CSLFetchNameValueDef(papszOptions, "COORDINATE_PRECISION", "-1"));
+    const int nCoordPrecision
+        = atoi(CSLFetchNameValueDef(papszOptions, "COORDINATE_PRECISION", "-1"));
 
-    json_object* poObj = NULL;
-    poObj = OGRGeoJSONWriteGeometry( poGeometry, nCoordPrecision );
+    json_object* poObj
+        = OGRGeoJSONWriteGeometry( poGeometry, nCoordPrecision );
 
     if( NULL != poObj )
     {
@@ -640,14 +917,14 @@ static int OGR_json_double_with_precision_to_string(struct json_object *jso,
                                                     CPL_UNUSED int flags)
 {
     char szBuffer[75];
-    int nPrecision = (int) (size_t) jso->_userdata;
+    const int nPrecision = (int) (size_t) jso->_userdata;
     OGRFormatDouble( szBuffer, sizeof(szBuffer), jso->o.c_double, '.',
                      (nPrecision < 0) ? 15 : nPrecision );
     if( szBuffer[0] == 't' /*oobig */ )
     {
         CPLsnprintf(szBuffer, sizeof(szBuffer), "%.18g", jso->o.c_double);
     }
-    return printbuf_memappend(pb, szBuffer, strlen(szBuffer)); 
+    return printbuf_memappend(pb, szBuffer, static_cast<int>(strlen(szBuffer))); 
 }
 
 /************************************************************************/

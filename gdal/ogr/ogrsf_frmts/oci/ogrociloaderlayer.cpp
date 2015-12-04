@@ -344,7 +344,7 @@ OGRErr OGROCILoaderLayer::WriteFeatureStreamMode( OGRFeature *poFeature )
             nLineLen = 0;
         }
 
-        nLineLen += strlen(pszStrValue);
+        nLineLen += static_cast<int>(strlen(pszStrValue));
 
         if( poFldDefn->GetType() == OFTInteger 
             || poFldDefn->GetType() == OFTInteger64
@@ -361,7 +361,7 @@ OGRErr OGROCILoaderLayer::WriteFeatureStreamMode( OGRFeature *poFeature )
         }
         else 
         {
-            int nLength = strlen(pszStrValue);
+            int nLength = static_cast<int>(strlen(pszStrValue));
 
             if( poFldDefn->GetWidth() > 0 && nLength > poFldDefn->GetWidth() )
             {
@@ -482,7 +482,7 @@ OGRErr OGROCILoaderLayer::WriteFeatureVariableMode( OGRFeature *poFeature )
         }
         else 
         {
-            int nLength = strlen(pszStrValue);
+            int nLength = static_cast<int>(strlen(pszStrValue));
 
             if( poFldDefn->GetWidth() > 0 && nLength > poFldDefn->GetWidth() )
             {
@@ -521,7 +521,7 @@ OGRErr OGROCILoaderLayer::WriteFeatureVariableMode( OGRFeature *poFeature )
 /*                       WriteFeatureBinaryMode()                       */
 /************************************************************************/
 
-OGRErr OGROCILoaderLayer::WriteFeatureBinaryMode( OGRFeature *poFeature )
+OGRErr OGROCILoaderLayer::WriteFeatureBinaryMode( OGRFeature * /*poFeature*/ )
 
 {
     return OGRERR_UNSUPPORTED_OPERATION;
@@ -592,7 +592,7 @@ int OGROCILoaderLayer::TestCapability( const char * pszCap )
 /*      way of counting features matching a spatial query.              */
 /************************************************************************/
 
-GIntBig OGROCILoaderLayer::GetFeatureCount( int bForce )
+GIntBig OGROCILoaderLayer::GetFeatureCount( int /* bForce */ )
 
 {
     return iNextFIDToWrite - 1;
@@ -677,7 +677,7 @@ void OGROCILoaderLayer::FinalizeNewLayer()
 
     sDimUpdate.Append( ")" );
 
-    sDimUpdate.Appendf( strlen(poFeatureDefn->GetName()) + 100,
+    sDimUpdate.Appendf( static_cast<int>(strlen(poFeatureDefn->GetName()) + 100),
                         " WHERE table_name = UPPER('%s')",
                         poFeatureDefn->GetName() );
 

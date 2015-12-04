@@ -133,6 +133,7 @@ GDALWarpOperation::GDALWarpOperation()
 
     bReportTimings = FALSE;
     nLastTimeReported = 0;
+    psThreadData = NULL;
 }
 
 /************************************************************************/
@@ -151,6 +152,8 @@ GDALWarpOperation::~GDALWarpOperation()
     }
 
     WipeChunkList();
+    if( psThreadData )
+        GWKThreadsEnd(psThreadData);
 }
 
 /************************************************************************/
@@ -575,6 +578,14 @@ CPLErr GDALWarpOperation::Initialize( const GDALWarpOptions *psNewOptions )
 
     if( eErr != CE_None )
         WipeOptions();
+    else
+    {
+        psThreadData = GWKThreadsCreate(psOptions->papszWarpOptions,
+                                        psOptions->pfnTransformer,
+                                        psOptions->pTransformerArg);
+        if( psThreadData == NULL )
+            eErr = CE_Failure;
+    }
 
     return eErr;
 }
@@ -670,7 +681,8 @@ CPLErr GDALWarpOperation::ChunkAndWarpImage(
     CollectChunkList( nDstXOff, nDstYOff, nDstXSize, nDstYSize );
     
     /* Sort chucks from top to bottom, and for equal y, from left to right */
-    qsort(pasChunkList, nChunkListCount, sizeof(GDALWarpChunk), OrderWarpChunk); 
+    if( pasChunkList )
+        qsort(pasChunkList, nChunkListCount, sizeof(GDALWarpChunk), OrderWarpChunk); 
 
 /* -------------------------------------------------------------------- */
 /*      Total up output pixels to process.                              */
@@ -753,7 +765,7 @@ typedef struct
     CPLMutex          *hIOMutex;
 
     CPLMutex          *hCondMutex;
-    int                bIOMutexTaken;
+    volatile int       bIOMutexTaken;
     CPLCond           *hCond;
 } ChunkThreadData;
 
@@ -845,7 +857,8 @@ CPLErr GDALWarpOperation::ChunkAndWarpMulti(
     CollectChunkList( nDstXOff, nDstYOff, nDstXSize, nDstYSize );
 
     /* Sort chucks from top to bottom, and for equal y, from left to right */
-    qsort(pasChunkList, nChunkListCount, sizeof(GDALWarpChunk), OrderWarpChunk); 
+    if( pasChunkList )
+        qsort(pasChunkList, nChunkListCount, sizeof(GDALWarpChunk), OrderWarpChunk); 
 
 /* -------------------------------------------------------------------- */
 /*      Process them one at a time, updating the progress               */
@@ -1273,12 +1286,9 @@ CPLErr GDALWarpOperation::WarpRegion( int nDstXOff, int nDstYOff,
         return CE_Failure;
     }
 
-    pDstBuffer = VSIMalloc( nBandSize * psOptions->nBandCount );
+    pDstBuffer = VSI_MALLOC_VERBOSE( nBandSize * psOptions->nBandCount );
     if( pDstBuffer == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory,
-                  "Out of memory allocating %d byte destination buffer.",
-                  nBandSize * psOptions->nBandCount );
         return CE_Failure;
     }
 
@@ -1535,6 +1545,7 @@ CPLErr GDALWarpOperation::WarpRegionToBuffer(
     oWK.dfProgressScale = dfProgressScale;
 
     oWK.papszWarpOptions = psOptions->papszWarpOptions;
+    oWK.psThreadData = psThreadData;
     
     oWK.padfDstNoDataReal = psOptions->padfDstNoDataReal;
 
@@ -1564,13 +1575,10 @@ CPLErr GDALWarpOperation::WarpRegionToBuffer(
     oWK.papabySrcImage = (GByte **) 
         CPLCalloc(sizeof(GByte*),psOptions->nBandCount);
     oWK.papabySrcImage[0] = (GByte *)
-        VSIMalloc( nWordSize * (nSrcXSize * nSrcYSize + WARP_EXTRA_ELTS) * psOptions->nBandCount );
+        VSI_MALLOC_VERBOSE( nWordSize * (nSrcXSize * nSrcYSize + WARP_EXTRA_ELTS) * psOptions->nBandCount );
 
     if( nSrcXSize != 0 && nSrcYSize != 0 && oWK.papabySrcImage[0] == NULL )
     {
-        CPLError( CE_Failure, CPLE_OutOfMemory, 
-                  "Failed to allocate %d byte source buffer.",
-                  nWordSize * (nSrcXSize * nSrcYSize + WARP_EXTRA_ELTS) * psOptions->nBandCount );
         eErr = CE_Failure;
     }
         
@@ -1652,13 +1660,11 @@ CPLErr GDALWarpOperation::WarpRegionToBuffer(
     {
         if( oWK.pafUnifiedSrcDensity == NULL )
         {
-            int j = oWK.nSrcXSize * oWK.nSrcYSize;
-
             eErr = CreateKernelMask( &oWK, 0, "UnifiedSrcDensity" );
 
             if( eErr == CE_None )
             {
-                for( j = oWK.nSrcXSize * oWK.nSrcYSize - 1; j >= 0; j-- )
+                for( int j = oWK.nSrcXSize * oWK.nSrcYSize - 1; j >= 0; j-- )
                     oWK.pafUnifiedSrcDensity[j] = 1.0;
             }
         }
@@ -2061,13 +2067,10 @@ CPLErr GDALWarpOperation::CreateKernelMask( GDALWarpKernel *poKernel,
         else
             nBytes = (nXSize * nYSize + nExtraElts + 31) / 8;
 
-        *ppMask = VSIMalloc( nBytes );
+        *ppMask = VSI_MALLOC_VERBOSE( nBytes );
 
         if( *ppMask == NULL )
         {
-            CPLError( CE_Failure, CPLE_OutOfMemory, 
-                      "Out of memory allocating %d bytes for %s mask.", 
-                      nBytes, pszType );
             return CE_Failure;
         }
 
@@ -2142,8 +2145,8 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(int nDstXOff, int nDstYOff,
         nSampleMax = nStepCount * 4;
     }
 
-    pabSuccess = (int *) VSIMalloc2(sizeof(int), nSampleMax);
-    padfX = (double *) VSIMalloc2(sizeof(double) * 3, nSampleMax);
+    pabSuccess = (int *) VSI_MALLOC2_VERBOSE(sizeof(int), nSampleMax);
+    padfX = (double *) VSI_MALLOC2_VERBOSE(sizeof(double) * 3, nSampleMax);
     if (pabSuccess == NULL || padfX == NULL)
     {
         CPLFree( padfX );
@@ -2284,6 +2287,30 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(int nDstXOff, int nDstYOff,
                   nFailedCount, nSamplePoints );
 
 /* -------------------------------------------------------------------- */
+/*   Early exit to avoid crazy values to cause a huge nResWinSize that  */
+/*   would result in a result window wrongly covering the whole raster. */
+/* -------------------------------------------------------------------- */
+    const int nRasterXSize = GDALGetRasterXSize(psOptions->hSrcDS);
+    const int nRasterYSize = GDALGetRasterYSize(psOptions->hSrcDS);
+    if( dfMinXOut > nRasterXSize ||
+        dfMaxXOut < 0 ||
+        dfMinYOut > nRasterYSize ||
+        dfMaxYOut < 0 )
+    {
+        *pnSrcXOff = 0;
+        *pnSrcYOff = 0;
+        *pnSrcXSize = 0;
+        *pnSrcYSize = 0;
+        if( pnSrcXExtraSize )
+            *pnSrcXExtraSize = 0;
+        if( pnSrcYExtraSize )
+            *pnSrcYExtraSize = 0;
+        if( pdfSrcFillRatio )
+            *pdfSrcFillRatio = 0;
+        return CE_None;
+    }
+
+/* -------------------------------------------------------------------- */
 /*      How much of a window around our source pixel might we need      */
 /*      to collect data from based on the resampling kernel?  Even      */
 /*      if the requested central pixel falls off the source image,      */
@@ -2325,8 +2352,8 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(int nDstXOff, int nDstYOff,
     */
     *pnSrcXOff = MAX(0,(int) floor( dfMinXOut ) );
     *pnSrcYOff = MAX(0,(int) floor( dfMinYOut ) );
-    *pnSrcXOff = MIN(*pnSrcXOff,GDALGetRasterXSize(psOptions->hSrcDS));
-    *pnSrcYOff = MIN(*pnSrcYOff,GDALGetRasterYSize(psOptions->hSrcDS));
+    *pnSrcXOff = MIN(*pnSrcXOff,nRasterXSize);
+    *pnSrcYOff = MIN(*pnSrcYOff,nRasterYSize);
 
     double dfCeilMaxXOut = ceil(dfMaxXOut);
     if( dfCeilMaxXOut > INT_MAX )
@@ -2335,21 +2362,21 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(int nDstXOff, int nDstYOff,
     if( dfCeilMaxYOut > INT_MAX )
         dfCeilMaxYOut = INT_MAX;
 
-    int nSrcXSizeRaw = MIN( GDALGetRasterXSize(psOptions->hSrcDS) - *pnSrcXOff,
+    int nSrcXSizeRaw = MIN( nRasterXSize - *pnSrcXOff,
                        ((int) dfCeilMaxXOut) - *pnSrcXOff );
-    int nSrcYSizeRaw = MIN( GDALGetRasterYSize(psOptions->hSrcDS) - *pnSrcYOff,
+    int nSrcYSizeRaw = MIN( nRasterYSize - *pnSrcYOff,
                        ((int) dfCeilMaxYOut) - *pnSrcYOff );
     nSrcXSizeRaw = MAX(0,nSrcXSizeRaw);
     nSrcYSizeRaw = MAX(0,nSrcYSizeRaw);
     
     *pnSrcXOff = MAX(0,(int) floor( dfMinXOut ) - nResWinSize );
     *pnSrcYOff = MAX(0,(int) floor( dfMinYOut ) - nResWinSize );
-    *pnSrcXOff = MIN(*pnSrcXOff,GDALGetRasterXSize(psOptions->hSrcDS));
-    *pnSrcYOff = MIN(*pnSrcYOff,GDALGetRasterYSize(psOptions->hSrcDS));
+    *pnSrcXOff = MIN(*pnSrcXOff,nRasterXSize);
+    *pnSrcYOff = MIN(*pnSrcYOff,nRasterYSize);
 
-    *pnSrcXSize = MIN( GDALGetRasterXSize(psOptions->hSrcDS) - *pnSrcXOff,
+    *pnSrcXSize = MIN( nRasterXSize - *pnSrcXOff,
                        ((int) dfCeilMaxXOut) - *pnSrcXOff + nResWinSize );
-    *pnSrcYSize = MIN( GDALGetRasterYSize(psOptions->hSrcDS) - *pnSrcYOff,
+    *pnSrcYSize = MIN( nRasterYSize - *pnSrcYOff,
                        ((int) dfCeilMaxYOut) - *pnSrcYOff + nResWinSize );
     *pnSrcXSize = MAX(0,*pnSrcXSize);
     *pnSrcYSize = MAX(0,*pnSrcYSize);

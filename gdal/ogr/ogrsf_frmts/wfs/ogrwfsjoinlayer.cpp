@@ -431,7 +431,7 @@ GDALDataset* OGRWFSJoinLayer::FetchGetFeature()
     {
         const char* pszStreamingName = CPLSPrintf("/vsicurl_streaming/%s",
                                                     osURL.c_str());
-        if( strncmp(osURL, "/vsimem/", strlen("/vsimem/")) == 0 &&
+        if( STARTS_WITH(osURL, "/vsimem/") &&
             CSLTestBoolean(CPLGetConfigOption("CPL_CURL_ENABLE_VSIMEM", "FALSE")) )
         {
             pszStreamingName = osURL.c_str();
@@ -541,7 +541,7 @@ GDALDataset* OGRWFSJoinLayer::FetchGetFeature()
 
 OGRFeature* OGRWFSJoinLayer::GetNextFeature()
 {
-    while(TRUE)
+    while( true )
     {
         if (bPagingActive && nFeatureRead == nPagingStartIndex + nFeatureCountRequested)
         {
@@ -620,7 +620,7 @@ OGRFeature* OGRWFSJoinLayer::GetNextFeature()
                     else
                     {
                         const char* pszStr = poNewFeature->GetFieldAsString(i);
-                        cvs_MD5Update( &sMD5Context, (const GByte*)pszStr, strlen(pszStr));
+                        cvs_MD5Update( &sMD5Context, (const GByte*)pszStr, static_cast<int>(strlen(pszStr)));
                     }
                 }
             }
@@ -634,7 +634,6 @@ OGRFeature* OGRWFSJoinLayer::GetNextFeature()
                 if( poGeom )
                 {
                     poGeom->assignSpatialReference(poFeatureDefn->GetGeomFieldDefn(i)->GetSpatialRef());
-                    poNewFeature->SetGeomFieldDirectly(i, poGeom);
 
                     if( bDistinct )
                     {
@@ -644,6 +643,8 @@ OGRFeature* OGRWFSJoinLayer::GetNextFeature()
                         cvs_MD5Update( &sMD5Context, (const GByte*)pabyGeom, nSize);
                         CPLFree(pabyGeom);
                     }
+
+                    poNewFeature->SetGeomFieldDirectly(i, poGeom);
                 }
             }
         }
