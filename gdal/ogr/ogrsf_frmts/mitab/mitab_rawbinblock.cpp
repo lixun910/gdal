@@ -139,7 +139,7 @@ int     TABRawBinBlock::ReadFromFile(VSILFILE *fpSrc, int nOffset,
     m_nFileOffset = nOffset;
     m_nCurPos = 0;
     m_bModified = FALSE;
-    
+
     /*----------------------------------------------------------------
      * Alloc a buffer to contain the data
      *---------------------------------------------------------------*/
@@ -231,7 +231,7 @@ int     TABRawBinBlock::CommitToFile()
                 nCurPos++;
             }
         }
-            
+
         if (nCurPos != m_nFileOffset)
             nStatus = -1; // Error message will follow below
 
@@ -244,7 +244,7 @@ int     TABRawBinBlock::CommitToFile()
      * we write only the part of the block that was used.
      *---------------------------------------------------------------*/
     int numBytesToWrite = m_bHardBlockSize?m_nBlockSize:m_nSizeUsed;
-    
+
     /*CPLDebug("MITAB", "Commiting to offset %d", m_nFileOffset);*/
 
     if (nStatus != 0 ||
@@ -404,7 +404,7 @@ int     TABRawBinBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize,
         m_nFileOffset = nFileOffset;
     else
         m_nFileOffset = 0;
-    
+
     if( m_fp != NULL && m_nFileSize < 0 && m_eAccess == TABReadWrite )
     {
         int nCurPos = (int)VSIFTellL(m_fp);
@@ -478,7 +478,7 @@ int     TABRawBinBlock::GotoByteInBlock(int nOffset)
     }
 
     m_nCurPos = nOffset;
-    
+
     m_nSizeUsed = MAX(m_nSizeUsed, m_nCurPos);
 
     return 0;
@@ -503,7 +503,7 @@ int     TABRawBinBlock::GotoByteRel(int nOffset)
  *
  * Move the block pointer to the specified position relative to the 
  * beginning of the file.  
- * 
+ *
  * In read access, the current block may be reloaded to contain a right
  * block of binary data if necessary.
  *
@@ -516,10 +516,10 @@ int     TABRawBinBlock::GotoByteRel(int nOffset)
  *
  * bOffsetIsEndOfData is set to TRUE to indicate that the nOffset
  * to which we are attempting to go is the end of the used data in this
- * block (we are positioninig ourselves to append data), so if the nOffset 
- * corresponds to the beginning of a 512 bytes block then we should really 
- * be positioning ourselves at the end of the block that ends at this 
- * address instead of at the beginning of the blocks that starts at this 
+ * block (we are positioning ourselves to append data), so if the nOffset
+ * corresponds to the beginning of a 512 bytes block then we should really
+ * be positioning ourselves at the end of the block that ends at this
+ * address instead of at the beginning of the blocks that starts at this
  * address. This case can happen when going back and forth to write collection
  * objects to a Coordblock and is documented in bug 1657.
  *
@@ -820,7 +820,7 @@ double  TABRawBinBlock::ReadDouble()
  * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
-int  TABRawBinBlock::WriteBytes(int nBytesToWrite, GByte *pabySrcBuf)
+int  TABRawBinBlock::WriteBytes(int nBytesToWrite, const GByte *pabySrcBuf)
 {
     /*----------------------------------------------------------------
      * Make sure block is initialized with Write access and that the
@@ -921,11 +921,11 @@ int  TABRawBinBlock::WriteDouble(double dValue)
 /**********************************************************************
  *                    TABRawBinBlock::WriteZeros()
  *
- * Write a number of zeros (sepcified in bytes) at the current position 
+ * Write a number of zeros (specified in bytes) at the current position
  * in the file.
  *
- * If a problem happens, then CPLError() will be called and 
- * CPLGetLastErrNo() can be used to test if a write operation was 
+ * If a problem happens, then CPLError() will be called and
+ * CPLGetLastErrNo() can be used to test if a write operation was
  * successful.
  **********************************************************************/
 int  TABRawBinBlock::WriteZeros(int nBytesToWrite)

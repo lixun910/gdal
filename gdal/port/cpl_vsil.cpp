@@ -473,7 +473,7 @@ int VSIIsCaseSensitiveFS( const char * pszFilename )
 {
     VSIFilesystemHandler *poFSHandler =
         VSIFileManager::GetHandler( pszFilename );
-        
+
     return poFSHandler->IsCaseSensitive( pszFilename );
 }
 
@@ -488,13 +488,13 @@ int VSIIsCaseSensitiveFS( const char * pszFilename )
  * than 2GB) should be supported.  Binary access is always implied and
  * the "b" does not need to be included in the pszAccess string.
  *
- * Note that the "VSILFILE *" returned since GDAL 1.8.0 by this function is 
- * *NOT* a standard C library FILE *, and cannot be used with any functions 
+ * Note that the "VSILFILE *" returned since GDAL 1.8.0 by this function is
+ * *NOT* a standard C library FILE *, and cannot be used with any functions
  * other than the "VSI*L" family of functions.  They aren't "real" FILE objects.
  *
- * On windows it is possible to define the configuration option 
+ * On windows it is possible to define the configuration option
  * GDAL_FILE_IS_UTF8 to have pszFilename treated as being in the local
- * encoding instead of UTF-8, retoring the pre-1.8.0 behavior of VSIFOpenL().
+ * encoding instead of UTF-8, restoring the pre-1.8.0 behavior of VSIFOpenL().
  *
  * This method goes through the VSIFileHandler virtualization and may
  * work on unusual filesystems such as in memory.
@@ -544,11 +544,11 @@ int VSIFCloseL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     VSIDebug1( "VSICloseL(%p)", fp );
-    
+
     int nResult = poFileHandle->Close();
-    
+
     delete poFileHandle;
 
     return nResult;
@@ -579,7 +579,7 @@ int VSIFSeekL( VSILFILE * fp, vsi_l_offset nOffset, int nWhence )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Seek( nOffset, nWhence );
 }
 
@@ -607,7 +607,7 @@ vsi_l_offset VSIFTellL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Tell();
 }
 
@@ -655,7 +655,7 @@ int VSIFFlushL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Flush();
 }
 
@@ -687,7 +687,7 @@ size_t VSIFReadL( void * pBuffer, size_t nSize, size_t nCount, VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Read( pBuffer, nSize, nCount );
 }
 
@@ -756,7 +756,7 @@ size_t VSIFWriteL( const void *pBuffer, size_t nSize, size_t nCount, VSILFILE *f
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Write( pBuffer, nSize, nCount );
 }
 
@@ -767,7 +767,7 @@ size_t VSIFWriteL( const void *pBuffer, size_t nSize, size_t nCount, VSILFILE *f
 /**
  * \brief Test for end of file.
  *
- * Returns TRUE (non-zero) if an end-of-file condition occured during the
+ * Returns TRUE (non-zero) if an end-of-file condition occurred during the
  * previous read operation. The end-of-file flag is cleared by a successful
  * VSIFSeekL() call.
  *
@@ -776,7 +776,7 @@ size_t VSIFWriteL( const void *pBuffer, size_t nSize, size_t nCount, VSILFILE *f
  *
  * Analog of the POSIX feof() call.
  *
- * @param fp file handle opened with VSIFOpenL(). 
+ * @param fp file handle opened with VSIFOpenL().
  *
  * @return TRUE if at EOF else FALSE.
  */
@@ -785,7 +785,7 @@ int VSIFEofL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Eof();
 }
 
@@ -1083,10 +1083,31 @@ int VSIIngestFile( VSILFILE* fp,
 void *VSIFGetNativeFileDescriptorL( VSILFILE* fp )
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->GetNativeFileDescriptor();
 }
 
+/************************************************************************/
+/*                      VSIGetDiskFreeSpace()                           */
+/************************************************************************/
+
+/**
+ * \brief Return free disk space available on the filesystem.
+ *
+ * This function returns the free disk space available on the filesystem.
+ *
+ * @param pszDirname a directory of the filesystem to query.
+ * @return The free space in bytes. Or -1 in case of error.
+ * @since GDAL 2.1
+ */
+
+GIntBig VSIGetDiskFreeSpace(const char *pszDirname)
+{
+    VSIFilesystemHandler *poFSHandler = 
+        VSIFileManager::GetHandler( pszDirname );
+
+    return poFSHandler->GetDiskFreeSpace( pszDirname );
+}
 
 /************************************************************************/
 /* ==================================================================== */
@@ -1190,7 +1211,7 @@ VSIFileManager *VSIFileManager::Get()
         //printf("Thread %d: VSIFileManager construction finished\n", nConstructerPID);
         nConstructerPID = 0;
     }
-    
+
     return poManager;
 }
 
@@ -1226,7 +1247,7 @@ VSIFilesystemHandler *VSIFileManager::GetHandler( const char *pszPath )
             && strncmp(pszPath,pszIterKey,nPathLen) == 0 )
             return iter->second;
     }
-    
+
     return poThis->poDefaultHandler;
 }
 

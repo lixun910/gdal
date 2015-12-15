@@ -545,7 +545,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
         return NULL;
 
 /* -------------------------------------------------------------------- */
-/*      Now we need to tear apart tfhe filename to form a .HDR           */
+/*      Now we need to tear apart the filename to form a .HDR           */
 /*      filename.                                                       */
 /* -------------------------------------------------------------------- */
     const CPLString osPath = CPLGetPath( poOpenInfo->pszFilename );
@@ -762,7 +762,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( pszInterleaving == NULL )
         pszInterleaving = "BIL";
-    
+
     if( EQUAL(pszInterleaving,"BSQ") || EQUAL(pszInterleaving,"NA") )
     {
         nPixelOffset = nItemSize;

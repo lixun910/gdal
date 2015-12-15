@@ -30,7 +30,7 @@
 #include "ogr_gtm.h"
 
 
-GTMTrackLayer::GTMTrackLayer( const char* pszName,
+GTMTrackLayer::GTMTrackLayer( const char* pszNameIn,
                               OGRSpatialReference* poSRSIn,
                               CPL_UNUSED int bWriterIn,
                               OGRGTMDataSource* poDSIn )
@@ -78,6 +78,8 @@ GTMTrackLayer::GTMTrackLayer( const char* pszName,
     nNextFID = 0;
     nTotalFCount = poDS->getNTracks();
 
+    this->pszName = CPLStrdup(pszNameIn);
+
     poFeatureDefn = new OGRFeatureDefn( pszName );
     SetDescription( poFeatureDefn->GetName() );
     poFeatureDefn->Reference();
@@ -95,8 +97,7 @@ GTMTrackLayer::GTMTrackLayer( const char* pszName,
 
     OGRFieldDefn oFieldColor( "color", OFTInteger );
     poFeatureDefn->AddFieldDefn( &oFieldColor );
-  
-    this->pszName = CPLStrdup(pszName);
+
 }
 
 GTMTrackLayer::~GTMTrackLayer()
@@ -119,15 +120,15 @@ void GTMTrackLayer::WriteFeatureAttributes( OGRFeature *poFeature )
         OGRFieldDefn *poFieldDefn = poFeatureDefn->GetFieldDefn( i );
         if( poFeature->IsFieldSet( i ) )
         {
-            const char* pszName = poFieldDefn->GetNameRef();
+            const char* l_pszName = poFieldDefn->GetNameRef();
             /* track name */
-            if (STARTS_WITH(pszName, "name"))
+            if (STARTS_WITH(l_pszName, "name"))
             {
                 CPLFree(psztrackname);
                 psztrackname = CPLStrdup( poFeature->GetFieldAsString( i ) );
             }
             /* track type */
-            else if (STARTS_WITH(pszName, "type"))
+            else if (STARTS_WITH(l_pszName, "type"))
             {
                 type = poFeature->GetFieldAsInteger( i );
                 // Check if it is a valid type
@@ -135,7 +136,7 @@ void GTMTrackLayer::WriteFeatureAttributes( OGRFeature *poFeature )
                     type = 1;
             }
             /* track color */
-            else if (STARTS_WITH(pszName, "color"))
+            else if (STARTS_WITH(l_pszName, "color"))
             {
                 color = (unsigned int) poFeature->GetFieldAsInteger( i );
                 if (color > 0xFFFFFF)
@@ -233,13 +234,13 @@ OGRErr GTMTrackLayer::ICreateFeature (OGRFeature *poFeature)
                   "Features without geometry not supported by GTM writer in track layer." );
         return OGRERR_FAILURE;
     }
-   
+
     if (NULL != poCT)
     {
         poGeom = poGeom->clone();
         poGeom->transform( poCT );
     }
-    
+
     switch( poGeom->getGeometryType() )
     {
     case wkbLineString:
@@ -283,7 +284,7 @@ OGRErr GTMTrackLayer::ICreateFeature (OGRFeature *poFeature)
         }
         break;
     }
-    
+
     default:
     {
         CPLError( CE_Failure, CPLE_NotSupported,
@@ -294,7 +295,7 @@ OGRErr GTMTrackLayer::ICreateFeature (OGRFeature *poFeature)
         return OGRERR_FAILURE;
     }
     }
-    
+
     if (NULL != poCT)
         delete poGeom;
 
@@ -306,7 +307,7 @@ OGRFeature* GTMTrackLayer::GetNextFeature()
 {
     if (bError)
         return NULL;
-        
+
     while (poDS->hasNextTrack())
     {
         Track* poTrack = poDS->fetchNextTrack();
@@ -319,7 +320,7 @@ OGRFeature* GTMTrackLayer::GetNextFeature()
         }
         OGRFeature* poFeature = new OGRFeature( poFeatureDefn );
         OGRLineString* lineString = new OGRLineString ();
-    
+
         for (int i = 0; i < poTrack->getNumPoints(); ++i)
         {
             const TrackPoint* psTrackPoint = poTrack->getPoint(i);
@@ -350,7 +351,7 @@ GIntBig GTMTrackLayer::GetFeatureCount(int bForce)
 {
     if (m_poFilterGeom == NULL && m_poAttrQuery == NULL)
         return poDS->getNTracks();
-        
+
     return OGRLayer::GetFeatureCount(bForce);
 }
 

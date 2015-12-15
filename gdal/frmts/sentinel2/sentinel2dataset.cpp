@@ -148,7 +148,7 @@ class SENTINEL2DatasetContainer: public GDALPamDataset
 class SENTINEL2Dataset : public VRTDataset
 {
         std::vector<CPLString>   aosNonJP2Files;
-        
+
         void   AddL1CL2ABandMetadata(SENTINEL2Level eLevel,
                                      CPLXMLNode* psRoot,
                                      const std::vector<CPLString>& aosBands);
@@ -164,7 +164,7 @@ class SENTINEL2Dataset : public VRTDataset
                 const std::vector<CPLString>& aosBands,
                 int nSaturatedVal,
                 int nNodataVal);
-        
+
     public:
                     SENTINEL2Dataset(int nXSize, int nYSize);
                     ~SENTINEL2Dataset();
@@ -627,7 +627,7 @@ static bool SENTINEL2GetGranuleInfo(SENTINEL2Level eLevel,
     int nEPSGCode = atoi(pszCSCode + strlen("EPSG:"));
     if( pnEPSGCode != NULL )
         *pnEPSGCode = nEPSGCode;
-    
+
     for(CPLXMLNode* psIter = psTileGeocoding->psChild; psIter != NULL;
                                                        psIter = psIter->psNext)
     {
@@ -977,7 +977,7 @@ char** SENTINEL2GetUserProductMetadata( CPLXMLNode* psMainMTD,
         if( pszRefBand != NULL )
         {
             int nIdx = atoi(pszRefBand);
-            if( nIdx >= 0 || nIdx < (int)NB_BANDS )
+            if( nIdx >= 0 && nIdx < (int)NB_BANDS )
                 aosList.AddNameValue("REFERENCE_BAND", asBandDesc[nIdx].pszBandName );
         }
     }
@@ -1015,7 +1015,7 @@ char** SENTINEL2GetUserProductMetadata( CPLXMLNode* psMainMTD,
             }
         }
     }
-    
+
     CPLXMLNode* psL2A_QII = CPLGetXMLNode(psRoot, "L2A_Quality_Indicators_Info");
     if( psL2A_QII != NULL )
     {
@@ -1692,7 +1692,10 @@ static void SENTINEL2SetBandMetadata(GDALRasterBand* poBand,
         const SENTINEL2_L2A_BandDescription* psL2ABandDesc =
                                         SENTINEL2GetL2ABandDesc(osBandName);
         if(psL2ABandDesc != NULL )
+        {
+            osBandDesc += ", ";
             osBandDesc += psL2ABandDesc->pszBandDescription;
+        }
 
         poBand->SetMetadataItem("BANDNAME", osBandName);
     }
@@ -2748,7 +2751,7 @@ void SENTINEL2Dataset::AddL1CL2ABandMetadata(SENTINEL2Level eLevel,
                 if( pszBandId != NULL && pszUnit != NULL && pszValue != NULL )
                 {
                     int nIdx = atoi(pszBandId);
-                    if( nIdx >= 0 || nIdx < (int)NB_BANDS )
+                    if( nIdx >= 0 && nIdx < (int)NB_BANDS )
                     {
                         for(int i=0;i<nBands;i++)
                         {

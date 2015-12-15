@@ -100,17 +100,19 @@ struct CPLVirtualMem
 /* Linux specific (i.e. non POSIX compliant) features used :
    - returning from a SIGSEGV handler is clearly a POSIX violation, but in
      practice most POSIX systems should be happy.
-   - mremap() with 5 args is Linux specific. It is used when the user callback is invited
-     to fill a page, we currently mmap() a writable page, let it filled it,
-     and afterwards mremap() that temporary page onto the location where the
-     fault occured.
+   - mremap() with 5 args is Linux specific. It is used when the user
+     callback is invited to fill a page, we currently mmap() a
+     writable page, let it filled it, and afterwards mremap() that
+     temporary page onto the location where the fault occurred.
      If we have no mremap(), the workaround is to pause other threads that
      consume the current view while we are updating the faulted page, otherwise
      a non-paused thread could access a page that is in the middle of being
      filled... The way we pause those threads is quite original : we send them
      a SIGUSR1 and wait that they are stuck in the temporary SIGUSR1 handler...
-   - MAP_ANONYMOUS isn't documented in Posix, but very commonly found (sometimes called MAP_ANON)
-   - dealing with the limitation of number of memory mapping regions, and the 65536 limit.
+   - MAP_ANONYMOUS isn't documented in POSIX, but very commonly found
+     (sometimes called MAP_ANON)
+   - dealing with the limitation of number of memory mapping regions,
+     and the 65536 limit.
    - other things I've not identified
 */
 
@@ -155,7 +157,7 @@ typedef struct
 
     int          iLastPage;              /* last page accessed */
     int          nRetry;                 /* number of consecutive retries to that last page */
-    
+
     CPLVirtualMemCachePageCbk     pfnCachePage;       /* called when a page is mapped */
     CPLVirtualMemUnCachePageCbk   pfnUnCachePage;     /* called when a (writable) page is unmapped */
 
@@ -695,7 +697,7 @@ void CPLVirtualMemAddPage(CPLVirtualMemVMA* ctxt, void* target_addr, void* pPage
             assert(mprotect(target_addr, ctxt->sBase.nPageSize, PROT_READ | PROT_WRITE) == 0);
             /*fprintfstderr("memcpying page %d\n", iPage);*/
             memcpy(target_addr, pPageToFill, ctxt->sBase.nPageSize);
-            
+
             if( opType == OP_STORE && ctxt->sBase.eAccessMode == VIRTUALMEM_READWRITE )
             {
                 /* let (and mark) the page writable since the instruction that triggered */
@@ -1716,9 +1718,9 @@ static void CPLVirtualMemManagerThread(void* unused_param)
         }
         else
         {
-            /* Warn the segfault handler that we have finished our job */
-            /* but that the fault didn't occur in a memory range that is under */
-            /* our responsability */
+            // Warn the segfault handler that we have finished our job
+            // but that the fault didn't occur in a memory range that
+            // is under our responsibility.
             CPLError(CE_Failure, CPLE_AppDefined,
                      "CPLVirtualMemManagerThread: no mapping found");
             assert(write(pVirtualMemManager->pipefd_from_thread[1],
@@ -1935,7 +1937,7 @@ CPLVirtualMem *CPLVirtualMemFileMapNew( VSILFILE* fp,
     CPLVirtualMem* ctxt = (CPLVirtualMem* )VSI_CALLOC_VERBOSE(1, sizeof(CPLVirtualMem));
     if( ctxt == NULL )
         return NULL;
-    
+
     void* addr = mmap(NULL, nMappingSize,
                       (eAccessMode == VIRTUALMEM_READWRITE) ? PROT_READ | PROT_WRITE : PROT_READ,
                       MAP_SHARED, fd, nAlignedOffset);

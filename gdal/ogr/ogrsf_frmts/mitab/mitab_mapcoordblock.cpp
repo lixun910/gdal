@@ -112,7 +112,7 @@ TABMAPCoordBlock::TABMAPCoordBlock(TABAccess eAccessMode /*= TABRead*/):
     m_nComprOrgX = m_nComprOrgY = m_nNextCoordBlock = m_numDataBytes = 0;
 
     m_numBlocksInChain = 1;  // Current block counts as 1
- 
+
     m_poBlockManagerRef = NULL;
 
     m_nTotalDataSize = 0;
@@ -289,7 +289,7 @@ int     TABMAPCoordBlock::InitNewBlock(VSILFILE *fpSrc, int nBlockSize,
      * maintained between blocks in the same chain.
      *----------------------------------------------------------------*/
     m_nNextCoordBlock = 0;
- 
+
     m_numDataBytes = 0;
 
     // m_nMin/Max are used to keep track of current block MBR
@@ -750,7 +750,7 @@ int     TABMAPCoordBlock::ReadBytes(int numBytes, GByte *pabyDstBuf)
  * Returns 0 if successful or -1 if an error happened, in which case
  * CPLError() will have been called.
  **********************************************************************/
-int  TABMAPCoordBlock::WriteBytes(int nBytesToWrite, GByte *pabySrcBuf)
+int  TABMAPCoordBlock::WriteBytes(int nBytesToWrite, const GByte *pabySrcBuf)
 {
     if (m_eAccess != TABWrite && m_eAccess != TABReadWrite )
     {

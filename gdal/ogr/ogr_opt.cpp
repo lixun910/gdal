@@ -33,7 +33,7 @@
 
 CPL_CVSID("$Id$");
 
-static const char *papszParameterDefinitions[] = {
+static const char * const papszParameterDefinitions[] = {
     SRS_PP_CENTRAL_MERIDIAN,    "Central Meridian",     "Long",  "0.0",
     SRS_PP_SCALE_FACTOR,        "Scale Factor",         "Ratio", "1.0",
     SRS_PP_STANDARD_PARALLEL_1, "Standard Parallel 1",  "Lat",   "0.0",
@@ -56,7 +56,7 @@ static const char *papszParameterDefinitions[] = {
     NULL
 };
 
-static const char *papszProjectionDefinitions[] = {
+static const char * const papszProjectionDefinitions[] = {
 
     "*", 
     SRS_PT_TRANSVERSE_MERCATOR,
@@ -142,35 +142,35 @@ static const char *papszProjectionDefinitions[] = {
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_ECKERT_II,
     "Eckert II",
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_ECKERT_III,
     "Eckert III",
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_ECKERT_IV,
     "Eckert IV",
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_ECKERT_V,
     "Eckert V",
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_ECKERT_VI,
     "Eckert VI",
@@ -355,7 +355,7 @@ static const char *papszProjectionDefinitions[] = {
     SRS_PP_CENTRAL_MERIDIAN, 
     SRS_PP_FALSE_EASTING, 
     SRS_PP_FALSE_NORTHING,
-    
+
     "*",
     SRS_PT_POLAR_STEREOGRAPHIC,
     "Polar Stereographic",
@@ -556,7 +556,7 @@ char **OPTGetParameterList( const char *pszProjectionMethod,
             return papszList;
         }
     }
-    
+
     return NULL;
 }
 

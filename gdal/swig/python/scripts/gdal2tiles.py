@@ -147,13 +147,13 @@ class GlobalMercator(object):
       Microsoft is referencing tiles by a QuadTree name, defined on the website:
       http://msdn2.microsoft.com/en-us/library/bb259689.aspx
 
-    The lat/lon coordinates are using WGS84 datum, yeh?
+    The lat/lon coordinates are using WGS84 datum, yes?
 
       Yes, all lat/lon we are mentioning should use WGS84 Geodetic Datum.
       Well, the web clients like Google Maps are projecting those coordinates by
       Spherical Mercator, so in fact lat/lon coordinates on sphere are treated as if
       the were on the WGS84 ellipsoid.
-     
+
       From MSDN documentation:
       To simplify the calculations, we use the spherical form of projection, not
       the ellipsoidal form. Since the projection is used only for map display,
@@ -2087,7 +2087,7 @@ gdal2tiles temp.vrt""" % self.input )
         // Add base layers
         L.control.layers(basemaps, overlaymaps, {collapsed: false}).addTo(map);
 
-        // Fit to overlayer bounds (SW and NE points with (lat, lon))
+        // Fit to overlay bounds (SW and NE points with (lat, lon))
         map.fitBounds([[%(south)s, %(east)s], [%(north)s, %(west)s]]);
 
         </script>

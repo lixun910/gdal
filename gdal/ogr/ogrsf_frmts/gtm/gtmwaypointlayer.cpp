@@ -31,7 +31,7 @@
 #include "ogr_gtm.h"
 #include "cpl_time.h"
 
-GTMWaypointLayer::GTMWaypointLayer( const char* pszName,
+GTMWaypointLayer::GTMWaypointLayer( const char* pszNameIn,
                                     OGRSpatialReference* poSRSIn,
                                     CPL_UNUSED int bWriterIn,
                                     OGRGTMDataSource* poDSIn )
@@ -79,6 +79,8 @@ GTMWaypointLayer::GTMWaypointLayer( const char* pszName,
     nNextFID = 0;
     nTotalFCount = poDS->getNWpts();
 
+    this->pszName = CPLStrdup(pszNameIn);
+
     poFeatureDefn = new OGRFeatureDefn( pszName );
     SetDescription( poFeatureDefn->GetName() );
     poFeatureDefn->Reference();
@@ -95,11 +97,9 @@ GTMWaypointLayer::GTMWaypointLayer( const char* pszName,
 
     OGRFieldDefn oFieldIcon( "icon", OFTInteger );
     poFeatureDefn->AddFieldDefn( &oFieldIcon );
-  
+
     OGRFieldDefn oFieldTime( "time", OFTDateTime );
     poFeatureDefn->AddFieldDefn( &oFieldTime );
-    
-    this->pszName = CPLStrdup(pszName);
 }
 
 GTMWaypointLayer::~GTMWaypointLayer()
@@ -122,21 +122,21 @@ void GTMWaypointLayer::WriteFeatureAttributes( OGRFeature *poFeature, float alti
         OGRFieldDefn *poFieldDefn = poFeatureDefn->GetFieldDefn( i );
         if( poFeature->IsFieldSet( i ) )
         {
-            const char* pszName = poFieldDefn->GetNameRef();
+            const char* l_pszName = poFieldDefn->GetNameRef();
             /* Waypoint name */
-            if (STARTS_WITH(pszName, "name"))
+            if (STARTS_WITH(l_pszName, "name"))
             {
                 strncpy (psNameField, poFeature->GetFieldAsString( i ), 10);
                 CPLStrlcat (psNameField, "          ", sizeof(psNameField));
             }
             /* Waypoint comment */
-            else if (STARTS_WITH(pszName, "comment"))
+            else if (STARTS_WITH(l_pszName, "comment"))
             {
                 CPLFree(pszcomment);
                 pszcomment = CPLStrdup( poFeature->GetFieldAsString( i ) );
             }
             /* Waypoint icon */
-            else if (STARTS_WITH(pszName, "icon"))
+            else if (STARTS_WITH(l_pszName, "icon"))
             {
                 icon = poFeature->GetFieldAsInteger( i );
                 // Check if it is a valid icon
@@ -144,7 +144,7 @@ void GTMWaypointLayer::WriteFeatureAttributes( OGRFeature *poFeature, float alti
                     icon = 48;
             }
             /* Waypoint date */
-            else if (EQUAL(pszName, "time"))
+            else if (EQUAL(l_pszName, "time"))
             {
                 struct tm brokendowndate;
                 int year, month, day, hour, min, sec, TZFlag;
@@ -239,7 +239,7 @@ OGRErr GTMWaypointLayer::ICreateFeature (OGRFeature *poFeature)
                   "Features without geometry not supported by GTM writer in waypoints layer." );
         return OGRERR_FAILURE;
     }
-    
+
     if (NULL != poCT)
     {
         poGeom = poGeom->clone();
@@ -266,7 +266,7 @@ OGRErr GTMWaypointLayer::ICreateFeature (OGRFeature *poFeature)
         WriteFeatureAttributes(poFeature, altitude);
         break;
     }
-            
+
     default:
     {
         CPLError( CE_Failure, CPLE_NotSupported,
@@ -275,10 +275,10 @@ OGRErr GTMWaypointLayer::ICreateFeature (OGRFeature *poFeature)
         return OGRERR_FAILURE;
     }
     }
-    
+
     if (NULL != poCT)
         delete poGeom;
-        
+
     return OGRERR_NONE;
 
 }
@@ -310,13 +310,13 @@ OGRFeature* GTMWaypointLayer::GetNextFeature()
                                            (poWaypoint->getLongitude(),
                                             poWaypoint->getLatitude(),
                                             altitude));
-                                            
+
         if (poSRS)
             poFeature->GetGeometryRef()->assignSpatialReference(poSRS);
         poFeature->SetField( NAME, poWaypoint->getName());
         poFeature->SetField( COMMENT, poWaypoint->getComment());
         poFeature->SetField( ICON, poWaypoint->getIcon());
-        
+
         GIntBig wptdate = poWaypoint->getDate();
         if (wptdate != 0)
         {
@@ -330,7 +330,7 @@ OGRFeature* GTMWaypointLayer::GetNextFeature()
                                  brokendownTime.tm_min,
                                  static_cast<float>(brokendownTime.tm_sec));
         }
-        
+
         poFeature->SetFID( nNextFID++ );
         delete poWaypoint;
         if( (m_poFilterGeom == NULL
@@ -348,7 +348,7 @@ GIntBig GTMWaypointLayer::GetFeatureCount(int bForce)
 {
     if (m_poFilterGeom == NULL && m_poAttrQuery == NULL)
         return poDS->getNWpts();
-        
+
     return OGRLayer::GetFeatureCount(bForce);
 }
 

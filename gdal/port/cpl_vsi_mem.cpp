@@ -140,6 +140,7 @@ public:
     virtual int      Rmdir( const char *pszDirname );
     virtual char   **ReadDir( const char *pszDirname );
     virtual int      Rename( const char *oldpath, const char *newpath );
+    virtual GIntBig  GetDiskFreeSpace( const char* pszDirname );
 
     static  void     NormalizePath( CPLString & );
 
@@ -290,7 +291,7 @@ int VSIMemHandle::Seek( vsi_l_offset nOffset, int nWhence )
             errno = EACCES;
             return -1;
         }
-        else // Writeable files are zero-extended by seek past end.
+        else // Writable files are zero-extended by seek past end.
         {
             bExtendFileAtNextWrite = TRUE;
         }
@@ -747,6 +748,18 @@ void VSIMemFilesystemHandler::NormalizePath( CPLString &oPath )
             oPath[i] = '/';
     }
 
+}
+
+/************************************************************************/
+/*                        GetDiskFreeSpace()                            */
+/************************************************************************/
+
+GIntBig VSIMemFilesystemHandler::GetDiskFreeSpace( const char* /*pszDirname*/ )
+{
+    GIntBig nRet = CPLGetUsablePhysicalRAM();
+    if( nRet <= 0 )
+        nRet = -1;
+    return nRet;
 }
 
 /************************************************************************/

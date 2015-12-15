@@ -126,9 +126,9 @@ class OGRCSWDataSource : public OGRDataSource
 /*                           OGRCSWLayer()                              */
 /************************************************************************/
 
-OGRCSWLayer::OGRCSWLayer(OGRCSWDataSource* poDS)
+OGRCSWLayer::OGRCSWLayer(OGRCSWDataSource* poDSIn)
 {
-    this->poDS = poDS;
+    this->poDS = poDSIn;
     poFeatureDefn = new OGRFeatureDefn("records");
     SetDescription(poFeatureDefn->GetName());
     poFeatureDefn->Reference();
@@ -508,7 +508,7 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
 
     CPLHTTPDestroyResult(psResult);
 
-    GDALDataset* poBaseDS = NULL;
+    GDALDataset* l_poBaseDS = NULL;
 
     if( poDS->GetOutputSchema().size() )
     {
@@ -536,8 +536,8 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
             return NULL;
         }
 
-        poBaseDS = poDrv->Create("", 0, 0, 0, GDT_Unknown, NULL);
-        OGRLayer* poLyr = poBaseDS->CreateLayer("records");
+        l_poBaseDS = poDrv->Create("", 0, 0, 0, GDT_Unknown, NULL);
+        OGRLayer* poLyr = l_poBaseDS->CreateLayer("records");
         OGRFieldDefn oField("raw_xml", OFTString);
         poLyr->CreateField(&oField);
         for( CPLXMLNode* psIter = psSearchResults->psChild; psIter; psIter = psIter->psNext )
@@ -617,8 +617,8 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
     }
     else
     {
-        poBaseDS = (GDALDataset*) OGROpen(osTmpFileName, FALSE, NULL);
-        if (poBaseDS == NULL)
+        l_poBaseDS = (GDALDataset*) OGROpen(osTmpFileName, FALSE, NULL);
+        if (l_poBaseDS == NULL)
         {
             if( strstr((const char*)pabyData, "<csw:GetRecordsResponse") == NULL &&
                 strstr((const char*)pabyData, "<GetRecordsResponse") == NULL )
@@ -632,14 +632,14 @@ GDALDataset* OGRCSWLayer::FetchGetRecords()
         }
     }
 
-    OGRLayer* poLayer = poBaseDS->GetLayer(0);
+    OGRLayer* poLayer = l_poBaseDS->GetLayer(0);
     if (poLayer == NULL)
     {
-        GDALClose(poBaseDS);
+        GDALClose(l_poBaseDS);
         return NULL;
     }
 
-    return poBaseDS;
+    return l_poBaseDS;
 }
 
 /************************************************************************/
@@ -736,7 +736,7 @@ OGRErr OGRCSWLayer::SetAttributeFilter( const char * pszFilter )
 
     delete m_poAttrQuery;
     m_poAttrQuery = NULL;
-    
+
     if( pszFilter != NULL )
     {
         m_poAttrQuery = new OGRFeatureQuery();
@@ -897,9 +897,9 @@ CPLHTTPResult* OGRCSWDataSource::SendGetCapabilities()
 /************************************************************************/
 
 int OGRCSWDataSource::Open( const char * pszFilename,
-                            char** papszOpenOptions )
+                            char** papszOpenOptionsIn )
 {
-    const char* pszBaseURL = CSLFetchNameValue(papszOpenOptions, "URL");
+    const char* pszBaseURL = CSLFetchNameValue(papszOpenOptionsIn, "URL");
     if( pszBaseURL == NULL )
     {
         pszBaseURL = pszFilename;
@@ -912,17 +912,17 @@ int OGRCSWDataSource::Open( const char * pszFilename,
         }
     }
     osBaseURL = pszBaseURL;
-    osElementSetName = CSLFetchNameValueDef(papszOpenOptions, "ELEMENTSETNAME",
+    osElementSetName = CSLFetchNameValueDef(papszOpenOptionsIn, "ELEMENTSETNAME",
                                             "full");
-    bFullExtentRecordsAsNonSpatial = CSLFetchBoolean(papszOpenOptions,
+    bFullExtentRecordsAsNonSpatial = CSLFetchBoolean(papszOpenOptionsIn,
                                                      "FULL_EXTENT_RECORDS_AS_NON_SPATIAL",
                                                      FALSE);
-    osOutputSchema = CSLFetchNameValueDef(papszOpenOptions, "OUTPUT_SCHEMA", "");
+    osOutputSchema = CSLFetchNameValueDef(papszOpenOptionsIn, "OUTPUT_SCHEMA", "");
     if( EQUAL(osOutputSchema, "gmd") )
         osOutputSchema = "http://www.isotc211.org/2005/gmd";
     else if( EQUAL(osOutputSchema, "csw") )
         osOutputSchema = "http://www.opengis.net/cat/csw/2.0.2";
-    nMaxRecords = atoi(CSLFetchNameValueDef(papszOpenOptions, "MAX_RECORDS", "500"));
+    nMaxRecords = atoi(CSLFetchNameValueDef(papszOpenOptionsIn, "MAX_RECORDS", "500"));
 
     if (!STARTS_WITH(osBaseURL, "http://") &&
         !STARTS_WITH(osBaseURL, "https://") &&
@@ -932,7 +932,7 @@ int OGRCSWDataSource::Open( const char * pszFilename,
     CPLHTTPResult* psResult = SendGetCapabilities();
     if( psResult == NULL )
         return FALSE;
-    
+
     CPLXMLNode* psXML = CPLParseXMLString( (const char*) psResult->pabyData );
     if (psXML == NULL)
     {
@@ -1050,22 +1050,20 @@ static GDALDataset *OGRCSWDriverOpen( GDALOpenInfo* poOpenInfo )
 void RegisterOGRCSW()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "CSW" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "CSW" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver  *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "CSW" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                                   "OGC CSW (Catalog  Service for the Web)" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                                   "drv_csw.html" );
+    poDriver->SetDescription( "CSW" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "OGC CSW (Catalog  Service for the Web)" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "drv_csw.html" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_CONNECTION_PREFIX, "CSW:" );
+    poDriver->SetMetadataItem( GDAL_DMD_CONNECTION_PREFIX, "CSW:" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
 "<OpenOptionList>"
 "  <Option name='URL' type='string' description='URL to the CSW server endpoint' required='true'/>"
 "  <Option name='ELEMENTSETNAME' type='string-select' description='Level of details of properties' default='full'>"
@@ -1078,10 +1076,9 @@ void RegisterOGRCSW()
 "  <Option name='MAX_RECORDS' type='int' description='Maximum number of records to retrieve in a single time' default='500'/>"
 "</OpenOptionList>" );
 
-        poDriver->pfnIdentify = OGRCSWDriverIdentify;
-        poDriver->pfnOpen = OGRCSWDriverOpen;
+    poDriver->pfnIdentify = OGRCSWDriverIdentify;
+    poDriver->pfnOpen = OGRCSWDriverOpen;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }
 

@@ -119,7 +119,7 @@ int CPL_DLL VSIStat( const char *, VSIStatBuf * ) CPL_WARN_UNUSED_RESULT;
 
 /* ==================================================================== */
 /*      64bit stdio file access functions.  If we have a big size       */
-/*      defined, then provide protypes for the large file API,          */
+/*      defined, then provide prototypes for the large file API,        */
 /*      otherwise redefine to use the regular api.                      */
 /* ==================================================================== */
 typedef GUIntBig vsi_l_offset;
@@ -237,6 +237,7 @@ int CPL_DLL VSIRmdir( const char * pathname );
 int CPL_DLL VSIUnlink( const char * pathname );
 int CPL_DLL VSIRename( const char * oldpath, const char * newpath );
 char CPL_DLL *VSIStrerror( int );
+GIntBig CPL_DLL VSIGetDiskFreeSpace(const char *pszDirname);
 
 /* ==================================================================== */
 /*      Install special file access handlers.                           */
@@ -270,7 +271,7 @@ typedef size_t (*VSIWriteFunction)(const void* ptr, size_t size, size_t nmemb, F
 void CPL_DLL VSIStdoutSetRedirection( VSIWriteFunction pFct, FILE* stream );
 
 /* ==================================================================== */
-/*      Time quering.                                                   */
+/*      Time querying.                                                  */
 /* ==================================================================== */
 
 unsigned long CPL_DLL VSITime( unsigned long * );

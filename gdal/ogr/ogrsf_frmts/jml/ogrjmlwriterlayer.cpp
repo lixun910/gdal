@@ -37,25 +37,25 @@ CPL_CVSID("$Id$");
 /************************************************************************/
 
 OGRJMLWriterLayer::OGRJMLWriterLayer( const char* pszLayerName,
-                                                OGRJMLDataset* poDS,
-                                                VSILFILE* fp,
-                                                int bAddRGBField,
-                                                int bAddOGRStyleField,
-                                                int bClassicGML )
+                                                OGRJMLDataset* poDSIn,
+                                                VSILFILE* fpIn,
+                                                int bAddRGBFieldIn,
+                                                int bAddOGRStyleFieldIn,
+                                                int bClassicGMLIn )
 
 {
-    this->poDS = poDS;
-    this->fp = fp;
+    this->poDS = poDSIn;
+    this->fp = fpIn;
     bFeaturesWritten = FALSE;
-    this->bAddRGBField = bAddRGBField;
-    this->bAddOGRStyleField = bAddOGRStyleField;
-    this->bClassicGML = bClassicGML;
+    this->bAddRGBField = bAddRGBFieldIn;
+    this->bAddOGRStyleField = bAddOGRStyleFieldIn;
+    this->bClassicGML = bClassicGMLIn;
     nNextFID = 0;
 
     poFeatureDefn = new OGRFeatureDefn( pszLayerName );
     SetDescription( poFeatureDefn->GetName() );
     poFeatureDefn->Reference();
-    
+
     VSIFPrintfL(fp, "<?xml version='1.0' encoding='UTF-8'?>\n"
                     "<JCSDataFile xmlns:gml=\"http://www.opengis.net/gml\" "
                     "xmlns:xsi=\"http://www.w3.org/2000/10/XMLSchema-instance\" >\n"
@@ -234,7 +234,7 @@ OGRErr OGRJMLWriterLayer::ICreateFeature( OGRFeature *poFeature )
         else
             VSIFPrintfL(fp, "</property>\n");
     }
-    
+
     /* Derive R_G_B field from feature style string */
     if( bAddRGBField && poFeatureDefn->GetFieldIndex("R_G_B") < 0 )
     {
@@ -244,7 +244,6 @@ OGRErr OGRJMLWriterLayer::ICreateFeature( OGRFeature *poFeature )
             VSIFPrintfL(fp, "          <property name=\"%s\">", "R_G_B");
         if( poFeature->GetStyleString() != NULL )
         {
-            OGRGeometry* poGeom = poFeature->GetGeometryRef();
             OGRwkbGeometryType eGeomType =
                 poGeom ? wkbFlatten(poGeom->getGeometryType()) : wkbUnknown;
             OGRStyleMgr oMgr;
@@ -302,7 +301,7 @@ OGRErr OGRJMLWriterLayer::CreateField( OGRFieldDefn *poFieldDefn,
 {
     if( bFeaturesWritten )
         return OGRERR_FAILURE;
-    
+
     if( !bAddRGBField && strcmp( poFieldDefn->GetNameRef(), "R_G_B" ) == 0 )
         return OGRERR_FAILURE;
 

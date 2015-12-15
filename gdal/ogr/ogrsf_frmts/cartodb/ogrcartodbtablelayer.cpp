@@ -79,9 +79,9 @@ CPLString OGRCARTODBEscapeLiteral(const char* pszStr)
 /*                        OGRCARTODBTableLayer()                        */
 /************************************************************************/
 
-OGRCARTODBTableLayer::OGRCARTODBTableLayer(OGRCARTODBDataSource* poDS,
+OGRCARTODBTableLayer::OGRCARTODBTableLayer(OGRCARTODBDataSource* poDSIn,
                                            const char* pszName) :
-                                           OGRCARTODBLayer(poDS)
+                                           OGRCARTODBLayer(poDSIn)
 
 {
     osName = pszName;
@@ -103,7 +103,7 @@ OGRCARTODBTableLayer::~OGRCARTODBTableLayer()
 
 {
     if( bDeferedCreation ) RunDeferedCreationIfNecessary();
-    FlushDeferedInsert();
+    CPL_IGNORE_RET_VAL(FlushDeferedInsert());
     RunDeferedCartoDBfy();
 }
 
@@ -231,20 +231,20 @@ OGRFeatureDefn * OGRCARTODBTableLayer::GetLayerDefnInternal(CPL_UNUSED json_obje
                             new OGRCartoDBGeomFieldDefn(pszAttname, eType);
                         if( bNotNull )
                             poFieldDefn->SetNullable(FALSE);
-                        OGRSpatialReference* poSRS = NULL;
+                        OGRSpatialReference* l_poSRS = NULL;
                         if( pszSRText != NULL )
                         {
-                            poSRS = new OGRSpatialReference();
+                            l_poSRS = new OGRSpatialReference();
                             char* pszTmp = (char* )pszSRText;
-                            if( poSRS->importFromWkt(&pszTmp) != OGRERR_NONE )
+                            if( l_poSRS->importFromWkt(&pszTmp) != OGRERR_NONE )
                             {
-                                delete poSRS;
-                                poSRS = NULL;
+                                delete l_poSRS;
+                                l_poSRS = NULL;
                             }
-                            if( poSRS != NULL )
+                            if( l_poSRS != NULL )
                             {
-                                poFieldDefn->SetSpatialRef(poSRS);
-                                poSRS->Release();
+                                poFieldDefn->SetSpatialRef(l_poSRS);
+                                l_poSRS->Release();
                             }
                         }
                         poFieldDefn->nSRID = nSRID;
@@ -311,7 +311,7 @@ OGRFeatureDefn * OGRCARTODBTableLayer::GetLayerDefnInternal(CPL_UNUSED json_obje
 /*                        FetchNewFeatures()                            */
 /************************************************************************/
 
-json_object* OGRCARTODBTableLayer::FetchNewFeatures(GIntBig iNext)
+json_object* OGRCARTODBTableLayer::FetchNewFeatures(GIntBig iNextIn)
 {
     if( osFIDColName.size() > 0 )
     {
@@ -326,7 +326,7 @@ json_object* OGRCARTODBTableLayer::FetchNewFeatures(GIntBig iNext)
         return poDS->RunSQL(osSQL);
     }
     else
-        return OGRCARTODBLayer::FetchNewFeatures(iNext);
+        return OGRCARTODBLayer::FetchNewFeatures(iNextIn);
 }
 
 /************************************************************************/
@@ -475,7 +475,7 @@ OGRErr OGRCARTODBTableLayer::CreateField( OGRFieldDefn *poFieldIn,
                  "Operation not available in read-only mode");
         return OGRERR_FAILURE;
     }
-    
+
     if( eDeferedInsertState == INSERT_MULTIPLE_FEATURE )
     {
         if( FlushDeferedInsert() != OGRERR_NONE )
@@ -518,6 +518,50 @@ OGRErr OGRCARTODBTableLayer::CreateField( OGRFieldDefn *poFieldIn,
     poFeatureDefn->AddFieldDefn( &oField );
 
     return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                            DeleteField()                             */
+/************************************************************************/
+
+OGRErr OGRCARTODBTableLayer::DeleteField( int iField )
+{
+    CPLString           osSQL;
+
+    if (!poDS->IsReadWrite())
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Operation not available in read-only mode");
+        return OGRERR_FAILURE;
+    }
+
+    if (iField < 0 || iField >= poFeatureDefn->GetFieldCount())
+    {
+        CPLError( CE_Failure, CPLE_NotSupported,
+                  "Invalid field index");
+        return OGRERR_FAILURE;
+    }
+
+    if( eDeferedInsertState == INSERT_MULTIPLE_FEATURE )
+    {
+        if( FlushDeferedInsert() != OGRERR_NONE )
+            return OGRERR_FAILURE;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Drop the field.                                                 */
+/* -------------------------------------------------------------------- */
+
+    osSQL.Printf( "ALTER TABLE %s DROP COLUMN %s",
+                  OGRCARTODBEscapeIdentifier(osName).c_str(),
+                  OGRCARTODBEscapeIdentifier(poFeatureDefn->GetFieldDefn(iField)->GetNameRef()).c_str() );
+
+    json_object* poObj = poDS->RunSQL(osSQL);
+    if( poObj == NULL )
+        return OGRERR_FAILURE;
+    json_object_put(poObj);
+
+    return poFeatureDefn->DeleteFieldDefn( iField );
 }
 
 /************************************************************************/
@@ -570,7 +614,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
         if( poObj != NULL )
             json_object_put(poObj);
     }
-    
+
     // Check if we can go on with multiple insertion mode
     if( eDeferedInsertState == INSERT_MULTIPLE_FEATURE )
     {
@@ -581,7 +625,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
                 return OGRERR_FAILURE;
         }
     }
-    
+
     bool bWriteInsertInto = (eDeferedInsertState != INSERT_MULTIPLE_FEATURE);
     bool bResetToUninitInsertStateAfterwards = false;
     if( eDeferedInsertState == INSERT_UNINIT )
@@ -644,7 +688,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 
             osSQL += OGRCARTODBEscapeIdentifier(poFeatureDefn->GetGeomFieldDefn(i)->GetNameRef());
         }
-        
+
         if( !bHasUserFieldMatchingFID &&
             osFIDColName.size() && (poFeature->GetFID() != OGRNullFID || (nNextFID >= 0 && bHasJustGotNextFID)) )
         {
@@ -658,7 +702,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 
             osSQL += OGRCARTODBEscapeIdentifier(osFIDColName);
         }
-        
+
         if( !bMustComma && eDeferedInsertState == INSERT_MULTIPLE_FEATURE )
             eDeferedInsertState = INSERT_SINGLE_FEATURE;
     }
@@ -687,12 +731,12 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
                 }
                 continue;
             }
-        
+
             if( bMustComma )
                 osSQL += ", ";
             else
                 bMustComma = TRUE;
-            
+
             OGRFieldType eType = poFeatureDefn->GetFieldDefn(i)->GetType();
             if( eType == OFTString || eType == OFTDateTime || eType == OFTDate || eType == OFTTime )
             {
@@ -708,7 +752,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
             else
                 osSQL += poFeature->GetFieldAsString(i);
         }
-        
+
         for(i = 0; i < poFeatureDefn->GetGeomFieldCount(); i++)
         {
             OGRGeometry* poGeom = poFeature->GetGeomFieldRef(i);
@@ -724,7 +768,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
                 }
                 continue;
             }
-        
+
             if( bMustComma )
                 osSQL += ", ";
             else
@@ -783,7 +827,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 
         osSQL += ")";
     }
-    
+
     if( !bHasUserFieldMatchingFID && osFIDColName.size() && nNextFID >= 0 )
     {
         poFeature->SetFID(nNextFID);
@@ -814,7 +858,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 
         return eRet;
     }
-    
+
     if( osFIDColName.size() )
     {
         osSQL += " RETURNING ";
@@ -891,7 +935,7 @@ OGRErr OGRCARTODBTableLayer::ISetFeature( OGRFeature *poFeature )
                   "FID required on features given to SetFeature()." );
         return OGRERR_FAILURE;
     }
-    
+
     CPLString osSQL;
     osSQL.Printf("UPDATE %s SET ", OGRCARTODBEscapeIdentifier(osName).c_str());
     int bMustComma = FALSE;
@@ -1006,10 +1050,10 @@ OGRErr OGRCARTODBTableLayer::DeleteFeature( GIntBig nFID )
                  "Operation not available in read-only mode");
         return OGRERR_FAILURE;
     }
-    
+
     if( osFIDColName.size() == 0 )
         return OGRERR_FAILURE;
-    
+
     CPLString osSQL;
     osSQL.Printf("DELETE FROM %s WHERE %s = " CPL_FRMT_GIB,
                     OGRCARTODBEscapeIdentifier(osName).c_str(),
@@ -1122,7 +1166,7 @@ OGRFeature* OGRCARTODBTableLayer::GetFeature( GIntBig nFeatureId )
         return NULL;
 
     GetLayerDefn();
-    
+
     if( osFIDColName.size() == 0 )
         return OGRCARTODBLayer::GetFeature(nFeatureId);
 
@@ -1315,7 +1359,8 @@ int OGRCARTODBTableLayer::TestCapability( const char * pszCap )
     if( EQUAL(pszCap,OLCSequentialWrite)
      || EQUAL(pszCap,OLCRandomWrite)
      || EQUAL(pszCap,OLCDeleteFeature)
-     || EQUAL(pszCap,OLCCreateField) )
+     || EQUAL(pszCap,OLCCreateField)
+     || EQUAL(pszCap,OLCDeleteField) )
     {
         return poDS->IsReadWrite();
     }
@@ -1328,14 +1373,14 @@ int OGRCARTODBTableLayer::TestCapability( const char * pszCap )
 /************************************************************************/
 
 void OGRCARTODBTableLayer::SetDeferedCreation (OGRwkbGeometryType eGType,
-                                               OGRSpatialReference* poSRS,
+                                               OGRSpatialReference* poSRSIn,
                                                int bGeomNullable,
-                                               int bCartoDBify)
+                                               int bCartoDBifyIn)
 {
     bDeferedCreation = TRUE;
     nNextFID = 1;
     CPLAssert(poFeatureDefn == NULL);
-    this->bCartoDBify = bCartoDBify;
+    this->bCartoDBify = bCartoDBifyIn;
     poFeatureDefn = new OGRFeatureDefn(osName);
     poFeatureDefn->Reference();
     poFeatureDefn->SetGeomType(wkbNone);
@@ -1349,11 +1394,11 @@ void OGRCARTODBTableLayer::SetDeferedCreation (OGRwkbGeometryType eGType,
             new OGRCartoDBGeomFieldDefn("the_geom", eGType);
         poFieldDefn->SetNullable(bGeomNullable);
         poFeatureDefn->AddGeomFieldDefn(poFieldDefn, FALSE);
-        if( poSRS != NULL )
+        if( poSRSIn != NULL )
         {
-            poFieldDefn->nSRID = poDS->FetchSRSId( poSRS );
+            poFieldDefn->nSRID = poDS->FetchSRSId( poSRSIn );
             poFeatureDefn->GetGeomFieldDefn(
-                poFeatureDefn->GetGeomFieldCount() - 1)->SetSpatialRef(poSRS);
+                poFeatureDefn->GetGeomFieldCount() - 1)->SetSpatialRef(poSRSIn);
         }
     }
     osFIDColName = "cartodb_id";
@@ -1419,7 +1464,7 @@ OGRErr OGRCARTODBTableLayer::RunDeferedCreationIfNecessary()
     }
 
     osSQL += CPLSPrintf("PRIMARY KEY (%s) )", osFIDColName.c_str());
-    
+
     CPLString osSeqName(OGRCARTODBEscapeIdentifier(CPLSPrintf("%s_%s_seq",
                                 osName.c_str(), osFIDColName.c_str())));
 

@@ -81,7 +81,7 @@ bool GetSimpleTypeProperties(CPLXMLNode *psTypeNode,
         *pnPrecision = atoi(pszPrecision);
         return true;
     }
-    
+
      else if( EQUAL(pszBase,"float") )
     {
         *pGMLType = GMLPT_Float;
@@ -364,7 +364,7 @@ GMLFeatureClass* GMLParseFeatureType(CPLXMLNode *psSchemaNode,
             delete poClass;
             return NULL;
         }
-        
+
         /* Parse stuff like :
         <xs:choice>
             <xs:element ref="gml:polygonProperty"/>
@@ -649,8 +649,8 @@ GMLFeatureClass* GMLParseFeatureType(CPLXMLNode *psSchemaNode,
                 </xs:complexType>
             </xs:element>
             */
-            CPLXMLNode* psComplexType = GetSingleChildElement( psAttrDef, "complexType" );
-            CPLXMLNode* psComplexTypeSequence = GetSingleChildElement( psComplexType, "sequence" );
+            CPLXMLNode* l_psComplexType = GetSingleChildElement( psAttrDef, "complexType" );
+            CPLXMLNode* psComplexTypeSequence = GetSingleChildElement( l_psComplexType, "sequence" );
             CPLXMLNode* psComplexTypeSequenceElement = GetSingleChildElement( psComplexTypeSequence, "element" );
 
             if( pszElementName != NULL &&
@@ -879,7 +879,7 @@ bool GMLParseXSD( const char *pszFile,
 /*      Load the raw XML file.                                          */
 /* -------------------------------------------------------------------- */
     CPLXMLNode *psXSDTree = GMLParseXMLFile( pszFile );
-    
+
     if( psXSDTree == NULL )
         return false;
 
@@ -937,7 +937,7 @@ bool GMLParseXSD( const char *pszFile,
         {
             continue;
         }
-        
+
 /* -------------------------------------------------------------------- */
 /*      Get name                                                        */
 /* -------------------------------------------------------------------- */

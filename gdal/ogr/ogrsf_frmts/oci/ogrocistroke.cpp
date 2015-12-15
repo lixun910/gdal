@@ -43,7 +43,7 @@ OGROCIArcCenterFromEdgePoints( double x_c0, double y_c0,
                                double x_c1, double y_c1, 
                                double x_c2, double y_c2, 
                                double *x_center, double *y_center )
-    
+
 {
 
 /* -------------------------------------------------------------------- */
@@ -93,29 +93,29 @@ OGROCIArcCenterFromEdgePoints( double x_c0, double y_c0,
 /* -------------------------------------------------------------------- */
 /*      Turn these into the Ax+By+C = 0 form of the lines.              */
 /* -------------------------------------------------------------------- */
-    double      a1, a2, b1, b2, c1, c2;
+    double      a1, a2, l_b1, l_b2, c1, c2;
 
     a1 = m1;
     a2 = m2;
 
-    b1 = -1.0;
-    b2 = -1.0;
-    
+    l_b1 = -1.0;
+    l_b2 = -1.0;
+
     c1 = (y1 - m1*x1);
     c2 = (y2 - m2*x2);
-    
+
 /* -------------------------------------------------------------------- */
 /*      Compute the intersection of the two lines through the center    */
 /*      of the circle, using Kramers rule.                              */
 /* -------------------------------------------------------------------- */
     double      det_inv;
 
-    if( a1*b2 - a2*b1 == 0.0 )
+    if( a1*l_b2 - a2*l_b1 == 0.0 )
         return FALSE;
 
-    det_inv = 1 / (a1*b2 - a2*b1);
+    det_inv = 1 / (a1*l_b2 - a2*l_b1);
 
-    *x_center = (b1*c2 - b2*c1) * det_inv;
+    *x_center = (l_b1*c2 - l_b2*c1) * det_inv;
     *y_center = (a2*c1 - a1*c2) * det_inv;
 
     return TRUE;
@@ -187,7 +187,7 @@ OGROCIStrokeArcToOGRGeometry_Points( double dfStartX, double dfStartY,
                                      double dfMaxAngleStepSizeDegrees,
                                      int bForceWholeCircle,
                                      OGRLineString *poLine )
-    
+
 {
     double      dfStartAngle, dfEndAngle, dfAlongAngle;
     double      dfCenterX, dfCenterY, dfRadius;
@@ -231,7 +231,7 @@ OGROCIStrokeArcToOGRGeometry_Points( double dfStartX, double dfStartY,
         {
             while( dfAlongAngle > dfStartAngle )
                 dfAlongAngle -= 360.0;
-            
+
             while( dfEndAngle > dfAlongAngle )
                 dfEndAngle -= 360.0;
         }

@@ -6,10 +6,10 @@
 # Project:  GDAL/OGR Test Suite
 # Purpose:  Test read functionality for PDS driver.
 # Author:   Even Rouault <even dot rouault at spatialys dot com>
-# 
+#
 ###############################################################################
 # Copyright (c) 2015, Even Rouault <even dot rouault at spatialys dot com>
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
 # to deal in the Software without restriction, including without limitation
@@ -19,7 +19,7 @@
 #
 # The above copyright notice and this permission notice shall be included
 # in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -64,10 +64,8 @@ def vicar_1():
             gdaltest.post_reason('failure')
             print(got_gt)
             print(expected_gt)
-            # FIXME: remove this once we have found the reason for random failures
-            if gdal.GetConfigOption('TRAVIS', None) is None and gdal.GetConfigOption('APPVEYOR', None) is None:
-                return 'fail'
-    
+            return 'fail'
+
     if ds.GetRasterBand(1).GetNoDataValue() != 0:
         gdaltest.post_reason('fail')
         return 'fail'

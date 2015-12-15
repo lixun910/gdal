@@ -148,7 +148,7 @@ static const char *GetElementText( const CPLXMLNode *psElement )
 
         psChild = psChild->psNext;
     }
-    
+
     return NULL;
 }
 
@@ -195,7 +195,7 @@ static bool GetElementOrientation( const CPLXMLNode *psElement )
 
         psChild = psChild->psNext;
     }
-    
+
     return true;
 }
 
@@ -599,7 +599,7 @@ static bool ParseGMLCoordinates( const CPLXMLNode *psGeomNode, OGRGeometry *poGe
 /*                                                                      */
 /*      Identifies the "good" Polygon whithin the collection returned   */
 /*      by GEOSPolygonize()                                             */
-/*      short rationale: GEOSPolygonize() will possibily return a       */
+/*      short rationale: GEOSPolygonize() will possibly return a        */
 /*      collection of many Polygons; only one is the "good" one,        */
 /*      (including both exterior- and interior-rings)                   */
 /*      any other simply represents a single "hole", and should be      */
@@ -823,7 +823,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
     const char* pszSRSDimension = CPLGetXMLValue( (CPLXMLNode*) psNode, "srsDimension", NULL);
     if( pszSRSDimension != NULL )
         nSRSDimension = atoi(pszSRSDimension);
-    
+
     if( pszSRSName == NULL )
         pszSRSName = CPLGetXMLValue( (CPLXMLNode*) psNode, "srsName", NULL);
 
@@ -1206,7 +1206,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
             }
             return poRing;
         }
-        
+
         if( poCC == NULL )
             return NULL;
 
@@ -1601,7 +1601,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
 
         double dfCenterX = p.getX();
         double dfCenterY = p.getY();
-        
+
         if( bSRSUnitIsDegree && pszUnits != NULL &&
             (EQUAL(pszUnits, "m") || EQUAL(pszUnits, "nm") ||
              EQUAL(pszUnits, "mi") || EQUAL(pszUnits, "ft")) )
@@ -1637,7 +1637,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
                 }
                 poLS->addPoint(&p);             
             }
-            
+
             double dfLong, dfLat;
             if( bInvertedAxisOrder )
             {
@@ -1713,7 +1713,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
 
         double dfCenterX = p.getX();
         double dfCenterY = p.getY();
-        
+
         if( bSRSUnitIsDegree && pszUnits != NULL &&
             (EQUAL(pszUnits, "m") || EQUAL(pszUnits, "nm") ||
              EQUAL(pszUnits, "mi") || EQUAL(pszUnits, "ft")) )
@@ -1840,7 +1840,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
             CSLDestroy(papszUpperCorner);
             return NULL;
         }
-        
+
         double dfLLX = CPLAtof(papszLowerCorner[0]);
         double dfLLY = CPLAtof(papszLowerCorner[1]);
         double dfURX = CPLAtof(papszUpperCorner[0]);
@@ -2304,7 +2304,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
         else
             return poCC;
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Curve                                                           */
 /* -------------------------------------------------------------------- */
@@ -2578,7 +2578,7 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
             poMP = new OGRMultiPoint();
             poMP->addGeometryDirectly( poNegativeNode );
             poMP->addGeometryDirectly( poPositiveNode );
-            
+
             return poMP;
 
             nonode:;
@@ -3308,8 +3308,8 @@ OGRGeometry *GML2OGRGeometry_XMLNode_Internal( const CPLXMLNode *psNode,
         return poMP;
     }
 
-    CPLError( CE_Failure, CPLE_AppDefined, 
-              "Unrecognised geometry type <%.500s>.", 
+    CPLError( CE_Failure, CPLE_AppDefined,
+              "Unrecognized geometry type <%.500s>.",
               pszBaseGeometry );
 
     return NULL;
@@ -3386,6 +3386,6 @@ OGRGeometryH OGR_G_CreateFromGML( const char *pszGML )
     poGeometry = GML2OGRGeometry_XMLNode( psGML, -1, 0, 0, false, true, bFaceHoleNegative );
 
     CPLDestroyXMLNode( psGML );
-    
+
     return (OGRGeometryH) poGeometry;
 }

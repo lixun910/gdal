@@ -125,7 +125,7 @@ void DDFModule::Close()
     nMaxCloneCount = 0;
     CPLFree( papoClones );
     papoClones = NULL;
-    
+
 /* -------------------------------------------------------------------- */
 /*      Cleanup the field definitions.                                  */
 /* -------------------------------------------------------------------- */
@@ -169,7 +169,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
 /* -------------------------------------------------------------------- */
     if( fpDDF != NULL )
         Close();
-    
+
 /* -------------------------------------------------------------------- */
 /*      Open the file.                                                  */
 /* -------------------------------------------------------------------- */
@@ -188,7 +188,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
 /*      Read the 24 byte leader.                                        */
 /* -------------------------------------------------------------------- */
     char        achLeader[nLeaderSize];
-    
+
     if( (int)VSIFReadL( achLeader, 1, nLeaderSize, fpDDF ) != nLeaderSize )
     {
         VSIFCloseL( fpDDF );
@@ -198,7 +198,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
             CPLError( CE_Failure, CPLE_FileIO,
                       "Leader is short on DDF file `%s'.",
                       pszFilename );
-        
+
         return FALSE;
     }
 
@@ -283,7 +283,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
             CPLError( CE_Failure, CPLE_FileIO,
                       "Header record is short on DDF file `%s'.",
                       pszFilename );
-        
+
         return FALSE;
     }
 
@@ -311,13 +311,13 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
         int     nEntryOffset = nLeaderSize + i*nFieldEntryWidth;
         int     nFieldLength, nFieldPos;
         DDFFieldDefn *poFDefn;
-        
+
         strncpy( szTag, pachRecord+nEntryOffset, _sizeFieldTag );
         szTag[_sizeFieldTag] = '\0';
 
         nEntryOffset += _sizeFieldTag;
         nFieldLength = DDFScanInt( pachRecord+nEntryOffset, _sizeFieldLength );
-        
+
         nEntryOffset += _sizeFieldLength;
         nFieldPos = DDFScanInt( pachRecord+nEntryOffset, _sizeFieldPos );
 
@@ -332,7 +332,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
             CPLFree( pachRecord );
             return FALSE;
         }
-        
+
         poFDefn = new DDFFieldDefn();
         if( poFDefn->Initialize( this, szTag, nFieldLength,
                                  pachRecord+_fieldAreaStart+nFieldPos ) )
@@ -342,13 +342,13 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
     }
 
     CPLFree( pachRecord );
-    
+
 /* -------------------------------------------------------------------- */
 /*      Record the current file offset, the beginning of the first      */
 /*      data record.                                                    */
 /* -------------------------------------------------------------------- */
     nFirstRecordOffset = (long)VSIFTellL( fpDDF );
-    
+
     return TRUE;
 }
 
@@ -388,7 +388,7 @@ int DDFModule::Create( const char *pszFilename )
 
 {
     CPLAssert( fpDDF == NULL );
-    
+
 /* -------------------------------------------------------------------- */
 /*      Create the file on disk.                                        */
 /* -------------------------------------------------------------------- */
@@ -400,7 +400,7 @@ int DDFModule::Create( const char *pszFilename )
                   pszFilename );
         return FALSE;
     }
-    
+
     bReadOnly = FALSE;
 
 /* -------------------------------------------------------------------- */
@@ -412,7 +412,7 @@ int DDFModule::Create( const char *pszFilename )
     _recLength = 24 
         + nFieldDefnCount * (_sizeFieldLength+_sizeFieldPos+_sizeFieldTag) 
         + 1;
-    
+
     _fieldAreaStart = _recLength;
 
     for( iField=0; iField < nFieldDefnCount; iField++ )
@@ -428,19 +428,19 @@ int DDFModule::Create( const char *pszFilename )
 /* -------------------------------------------------------------------- */
     char achLeader[25];
 
-    sprintf( achLeader+0, "%05d", (int) _recLength );
+    snprintf( achLeader+0, sizeof(achLeader)-0, "%05d", (int) _recLength );
     achLeader[5] = _interchangeLevel;
     achLeader[6] = _leaderIden;
     achLeader[7] = _inlineCodeExtensionIndicator;
     achLeader[8] = _versionNumber;
     achLeader[9] = _appIndicator;
-    sprintf( achLeader+10, "%02d", (int) _fieldControlLength );
-    sprintf( achLeader+12, "%05d", (int) _fieldAreaStart );
+    snprintf( achLeader+10, sizeof(achLeader)-10, "%02d", (int) _fieldControlLength );
+    snprintf( achLeader+12, sizeof(achLeader)-12, "%05d", (int) _fieldAreaStart );
     strncpy( achLeader+17, _extendedCharSet, 3 );
-    sprintf( achLeader+20, "%1d", (int) _sizeFieldLength );
-    sprintf( achLeader+21, "%1d", (int) _sizeFieldPos );
+    snprintf( achLeader+20, sizeof(achLeader)-20, "%1d", (int) _sizeFieldLength );
+    snprintf( achLeader+21, sizeof(achLeader)-21, "%1d", (int) _sizeFieldPos );
     achLeader[22] = '0';
-    sprintf( achLeader+23, "%1d", (int) _sizeFieldTag );
+    snprintf( achLeader+23, sizeof(achLeader)-23, "%1d", (int) _sizeFieldTag );
     int bRet = VSIFWriteL( achLeader, 24, 1, fpDDF ) > 0;
 
 /* -------------------------------------------------------------------- */
@@ -459,11 +459,13 @@ int DDFModule::Create( const char *pszFilename )
 
         CPLAssert( (int)strlen(papoFieldDefns[iField]->GetName()) == _sizeFieldTag );
         strcpy( achDirEntry, papoFieldDefns[iField]->GetName() );
-        sprintf(szFormat, "%%0%dd", (int)_sizeFieldLength);
-        sprintf( achDirEntry + _sizeFieldTag, szFormat, nLength );
-        sprintf(szFormat, "%%0%dd", (int)_sizeFieldTag);
-        sprintf( achDirEntry + _sizeFieldTag + _sizeFieldLength, 
-                 szFormat, nOffset );
+        snprintf(szFormat, sizeof(szFormat), "%%0%dd", (int)_sizeFieldLength);
+        snprintf( achDirEntry + _sizeFieldTag, sizeof(achDirEntry) - _sizeFieldTag,
+                  szFormat, nLength );
+        snprintf(szFormat, sizeof(szFormat), "%%0%dd", (int)_sizeFieldTag);
+        snprintf( achDirEntry + _sizeFieldTag + _sizeFieldLength,
+                  sizeof(achDirEntry) - _sizeFieldTag - _sizeFieldLength,
+                  szFormat, nOffset );
         nOffset += nLength;
 
         bRet &= VSIFWriteL( achDirEntry, _sizeFieldLength + _sizeFieldPos + _sizeFieldTag, 1, fpDDF ) > 0;
@@ -548,7 +550,7 @@ DDFFieldDefn *DDFModule::FindFieldDefn( const char *pszFieldName )
 
 {
     int         i;
-    
+
 /* -------------------------------------------------------------------- */
 /*      This pass tries to reduce the cost of comparing strings by      */
 /*      first checking the first character, and by using strcmp()       */
@@ -556,7 +558,7 @@ DDFFieldDefn *DDFModule::FindFieldDefn( const char *pszFieldName )
     for( i = 0; i < nFieldDefnCount; i++ )
     {
         const char *pszThisName = papoFieldDefns[i]->GetName();
-        
+
         if( *pszThisName == *pszFieldName
             && strcmp( pszFieldName+1, pszThisName+1) == 0 )
             return papoFieldDefns[i];
@@ -590,7 +592,7 @@ DDFFieldDefn *DDFModule::FindFieldDefn( const char *pszFieldName )
  * @return A pointer to a DDFRecord object is returned, or NULL if a read
  * error, or end of file occurs.  The returned record is owned by the
  * module, and should not be deleted by the application.  The record is
- * only valid untill the next ReadRecord() at which point it is overwritten.
+ * only valid until the next ReadRecord() at which point it is overwritten.
  */
 
 DDFRecord *DDFModule::ReadRecord()
@@ -647,7 +649,7 @@ DDFFieldDefn *DDFModule::GetField(int i)
     else
         return papoFieldDefns[i];
 }
-    
+
 /************************************************************************/
 /*                           AddCloneRecord()                           */
 /*                                                                      */
@@ -682,7 +684,7 @@ void DDFModule::RemoveCloneRecord( DDFRecord * poRecordIn )
 
 {
     int         i;
- 
+
     for( i = 0; i < nCloneCount; i++ )
     {
         if( papoClones[i] == poRecordIn )
@@ -702,7 +704,7 @@ void DDFModule::RemoveCloneRecord( DDFRecord * poRecordIn )
 
 /**
  * Return to first record.
- * 
+ *
  * The next call to ReadRecord() will read the first data record in the file.
  *
  * @param nOffset the offset in the file to return to.  By default this is
@@ -718,11 +720,10 @@ void DDFModule::Rewind( long nOffset )
 
     if( fpDDF == NULL )
         return;
-    
+
     if( VSIFSeekL( fpDDF, nOffset, SEEK_SET ) < 0 )
         return;
 
     if( nOffset == nFirstRecordOffset && poRecord != NULL )
         poRecord->Clear();
-        
 }

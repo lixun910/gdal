@@ -35,8 +35,8 @@ CPL_CVSID("$Id$");
 /*                        OGRGFTResultLayer()                           */
 /************************************************************************/
 
-OGRGFTResultLayer::OGRGFTResultLayer(OGRGFTDataSource* poDS,
-                                     const char* pszSQL) : OGRGFTLayer(poDS)
+OGRGFTResultLayer::OGRGFTResultLayer(OGRGFTDataSource* poDSIn,
+                                     const char* pszSQL) : OGRGFTLayer(poDSIn)
 
 {
     osSQL = PatchSQL(pszSQL);
@@ -47,7 +47,7 @@ OGRGFTResultLayer::OGRGFTResultLayer(OGRGFTDataSource* poDS,
     poFeatureDefn->Reference();
     poFeatureDefn->SetGeomType( wkbUnknown );
     poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(poSRS);
-    
+
     SetDescription( poFeatureDefn->GetName() );
 }
 

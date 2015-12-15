@@ -33,6 +33,8 @@
 
 CPL_CVSID("$Id$");
 
+using namespace OGRPDS;
+
 /************************************************************************/
 /*                           OGRPDSDataSource()                         */
 /************************************************************************/
@@ -93,7 +95,7 @@ const char * OGRPDSDataSource::GetKeywordSub( const char *pszPath,
 
 {
     const char *pszResult = oKeywords.GetKeyword( pszPath, NULL );
-    
+
     if( pszResult == NULL )
         return pszDefault;
 
@@ -135,7 +137,7 @@ void OGRPDSDataSource::CleanString( CPLString &osInput )
     int i;
 
     pszWrk[strlen(pszWrk)-1] = '\0';
-    
+
     for( i = 0; pszWrk[i] != '\0'; i++ )
     {
         if( pszWrk[i] == ' ' )
@@ -162,10 +164,10 @@ int OGRPDSDataSource::LoadTable(const char* pszFilename,
 
     CPLString osTableFilename;
     int nStartBytes;
-    
+
     CPLString osTableLink = "^";
     osTableLink += osTableID;
-    
+
     CPLString osTable = oKeywords.GetKeyword( osTableLink, "" );
     if( osTable[0] == '(' )
     {
@@ -223,7 +225,7 @@ int OGRPDSDataSource::LoadTable(const char* pszFilename,
                  "One of TABLE.INTERCHANGE_FORMAT or TABLE.ROWS is missing");
         return FALSE;
     }
-    
+
     CleanString(osTableInterchangeFormat);
     if (osTableInterchangeFormat.compare("ASCII") != 0 &&
         osTableInterchangeFormat.compare("BINARY") != 0)
@@ -330,7 +332,7 @@ int OGRPDSDataSource::Open( const char * pszFilename )
         LoadTable(pszFilename, nRecordSize, "TABLE");
     else
     {
-        VSILFILE* fp = VSIFOpenL(pszFilename, "rb");
+        fp = VSIFOpenL(pszFilename, "rb");
         if (fp == NULL)
             return FALSE;
 

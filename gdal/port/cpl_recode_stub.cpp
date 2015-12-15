@@ -148,9 +148,9 @@ char *CPLRecodeStub( const char *pszSource,
     {
         int nCharCount = static_cast<int>(strlen(pszSource));
         char *pszResult = (char *) CPLCalloc(1,nCharCount*2+1);
-        
+
         utf8froma( pszResult, nCharCount*2+1, pszSource, nCharCount );
-        
+
         return pszResult;
     }
 
@@ -162,9 +162,9 @@ char *CPLRecodeStub( const char *pszSource,
     {
         int nCharCount = static_cast<int>(strlen(pszSource));
         char *pszResult = (char *) CPLCalloc(1,nCharCount+1);
-        
+
         utf8toa( pszSource, nCharCount, pszResult, nCharCount+1 );
-        
+
         return pszResult;
     }
 
@@ -233,7 +233,7 @@ char *CPLRecodeStub( const char *pszSource,
         }
 
         utf8froma( pszResult, nCharCount*2+1, pszSource, nCharCount );
-        
+
         return pszResult;
     }
 
@@ -254,9 +254,9 @@ char *CPLRecodeStub( const char *pszSource,
                       "Recode from UTF-8 to %s not supported, treated as UTF-8 to ISO8859-1.", 
                       pszDstEncoding );
         }
-        
+
         utf8toa( pszSource, nCharCount, pszResult, nCharCount+1 );
-        
+
         return pszResult;
     }
 
@@ -271,7 +271,7 @@ char *CPLRecodeStub( const char *pszSource,
                       "Recode from %s to %s not supported, no change applied.",
                       pszSrcEncoding, pszDstEncoding );
         }
-        
+
         return CPLStrdup(pszSource);
     }
 }
@@ -367,7 +367,7 @@ char *CPLRecodeFromWCharStub( const wchar_t *pwszSource,
         CPLRecodeStub( pszResult, CPL_ENC_UTF8, pszDstEncoding );
 
     CPLFree( pszResult );
-    
+
     return pszFinalResult;
 }
 
@@ -504,7 +504,7 @@ int CPLIsUTF8Stub(const char* pabyData, int nLen)
 #if ERRORS_TO_CP1252
 // Codes 0x80..0x9f from the Microsoft CP1252 character set, translated
 // to Unicode:
-static unsigned short cp1252[32] = {
+static const unsigned short cp1252[32] = {
   0x20ac, 0x0081, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021,
   0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008d, 0x017d, 0x008f,
   0x0090, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,

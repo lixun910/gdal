@@ -156,7 +156,7 @@ void OGRGeometry::dumpReadable( FILE * fp, const char * pszPrefix, char** papszO
 
 {
     char        *pszWkt = NULL;
-    
+
     if( pszPrefix == NULL )
         pszPrefix = "";
 
@@ -383,8 +383,8 @@ void OGR_G_AssignSpatialReference( OGRGeometryH hGeom,
  * \brief Do these features intersect?
  *
  * Determines whether two geometries intersect.  If GEOS is enabled, then
- * this is done in rigerous fashion otherwise TRUE is returned if the
- * envelopes (bounding boxes) of the two features overlap. 
+ * this is done in rigorous fashion otherwise TRUE is returned if the
+ * envelopes (bounding boxes) of the two features overlap.
  *
  * The poOtherGeom argument may be safely NULL, but in this case the method
  * will always return TRUE.   That is, a NULL geometry is treated as being
@@ -444,7 +444,7 @@ OGRBoolean OGRGeometry::Intersects( const OGRGeometry *poOtherGeom ) const
 #endif /* HAVE_GEOS */
 }
 
-// Old API compatibility function.                                 
+// Old API compatibility function.
 
 OGRBoolean OGRGeometry::Intersect( OGRGeometry *poOtherGeom ) const
 
@@ -458,9 +458,9 @@ OGRBoolean OGRGeometry::Intersect( OGRGeometry *poOtherGeom ) const
 /**
  * \brief Do these features intersect?
  *
- * Currently this is not implemented in a rigerous fashion, and generally
+ * Currently this is not implemented in a rigorous fashion, and generally
  * just tests whether the envelopes of the two features intersect.  Eventually
- * this will be made rigerous.
+ * this will be made rigorous.
  *
  * This function is the same as the CPP method OGRGeometry::Intersects.
  *
@@ -881,7 +881,7 @@ int OGR_G_Equals( OGRGeometryH hGeom, OGRGeometryH hOther )
         CPLError ( CE_Failure, CPLE_ObjectNull, "hOther was NULL in OGR_G_Equals");
         return 0;
     }
-    
+
     return ((OGRGeometry *) hGeom)->Equals( (OGRGeometry *) hOther );
 }
 
@@ -1316,7 +1316,7 @@ OGRErr OGRGeometry::importPreambuleFromWkt( char ** ppszInput,
             }
         }
     }
-    
+
     *ppszInput = (char*) pszInput;
 
     return OGRERR_NONE;
@@ -1652,7 +1652,7 @@ OGRGeometry::IsValid(  ) const
 
     OGRBoolean bResult = FALSE;
     GEOSGeom hThisGeosGeom = NULL;
-    
+
     GEOSContextHandle_t hGEOSCtxt = createGEOSContext();
     hThisGeosGeom = exportToGEOS(hGEOSCtxt);
 
@@ -1725,7 +1725,7 @@ OGRGeometry::IsSimple(  ) const
 
     OGRBoolean bResult = FALSE;
     GEOSGeom hThisGeosGeom = NULL;
-    
+
     GEOSContextHandle_t hGEOSCtxt = createGEOSContext();
     hThisGeosGeom = exportToGEOS(hGEOSCtxt);
 
@@ -1798,7 +1798,7 @@ OGRGeometry::IsRing(  ) const
 
     OGRBoolean bResult = FALSE;
     GEOSGeom hThisGeosGeom = NULL;
-    
+
     GEOSContextHandle_t hGEOSCtxt = createGEOSContext();
     hThisGeosGeom = exportToGEOS(hGEOSCtxt);
 
@@ -2038,13 +2038,7 @@ const char *OGRGeometryTypeToName( OGRwkbGeometryType eType )
 
       default:
       {
-          // OGRThreadSafety: This static is judged to be a very low risk 
-          // for thread safety because it is only used in case of error, 
-          // and the worst that can happen is reporting the wrong code
-          // in the generated message.
-          static char szWorkName[33];
-          sprintf( szWorkName, "Unrecognised: %d", (int) eType );
-          return szWorkName;
+          return CPLSPrintf( "Unrecognized: %d", (int) eType );
       }
     }
 }
@@ -2531,7 +2525,7 @@ double OGRGeometry::Distance( const OGRGeometry *poOtherGeom ) const
     GEOSContextHandle_t hGEOSCtxt = createGEOSContext();
     hOther = poOtherGeom->exportToGEOS(hGEOSCtxt);
     hThis = exportToGEOS(hGEOSCtxt);
-   
+
     int bIsErr = 0;
     double dfDistance = 0.0;
 
@@ -2728,7 +2722,7 @@ OGRGeometry *OGRGeometry::Boundary() const
     return NULL;
 
 #else
-    
+
     GEOSGeom hGeosGeom = NULL;
     GEOSGeom hGeosProduct = NULL;
     OGRGeometry *poOGRProduct = NULL;
@@ -2825,14 +2819,14 @@ OGRGeometryH OGR_G_GetBoundary( OGRGeometryH hTarget )
  *
  * Builds a new geometry containing the buffer region around the geometry
  * on which it is invoked.  The buffer is a polygon containing the region within
- * the buffer distance of the original geometry.  
+ * the buffer distance of the original geometry.
  *
  * Some buffer sections are properly described as curves, but are converted to
- * approximate polygons.  The nQuadSegs parameter can be used to control how many
- * segements should be used to define a 90 degree curve - a quadrant of a circle. 
- * A value of 30 is a reasonable default.  Large values result in large numbers
- * of vertices in the resulting buffer geometry while small numbers reduce the 
- * accuracy of the result. 
+ * approximate polygons.  The nQuadSegs parameter can be used to control how
+ * many segments should be used to define a 90 degree curve - a quadrant of a
+ * circle.  A value of 30 is a reasonable default.  Large values result in
+ * large numbers of vertices in the resulting buffer geometry while small
+ * numbers reduce the accuracy of the result.
  *
  * This method is the same as the C function OGR_G_Buffer().
  *
@@ -2898,14 +2892,14 @@ OGRGeometry *OGRGeometry::Buffer( UNUSED_IF_NO_GEOS double dfDist,
  *
  * Builds a new geometry containing the buffer region around the geometry
  * on which it is invoked.  The buffer is a polygon containing the region within
- * the buffer distance of the original geometry.  
+ * the buffer distance of the original geometry.
  *
  * Some buffer sections are properly described as curves, but are converted to
- * approximate polygons.  The nQuadSegs parameter can be used to control how many
- * segements should be used to define a 90 degree curve - a quadrant of a circle. 
- * A value of 30 is a reasonable default.  Large values result in large numbers
- * of vertices in the resulting buffer geometry while small numbers reduce the 
- * accuracy of the result. 
+ * approximate polygons.  The nQuadSegs parameter can be used to control how
+ * many segments should be used to define a 90 degree curve - a quadrant of a
+ * circle.  A value of 30 is a reasonable default.  Large values result in
+ * large numbers of vertices in the resulting buffer geometry while small
+ * numbers reduce the accuracy of the result.
  *
  * This function is the same as the C++ method OGRGeometry::Buffer().
  *
@@ -3250,7 +3244,7 @@ OGRGeometry *OGRGeometry::Difference( UNUSED_IF_NO_GEOS const OGRGeometry *poOth
     return NULL;
 
 #else
-    
+
     GEOSGeom hThisGeosGeom = NULL;
     GEOSGeom hOtherGeosGeom = NULL;
     GEOSGeom hGeosProduct = NULL;
@@ -4035,7 +4029,7 @@ OGRErr OGRGeometry::Centroid( OGRPoint *poPoint ) const
 
     GEOSGeom hThisGeosGeom = NULL;
     GEOSGeom hOtherGeosGeom = NULL;
-    
+
     GEOSContextHandle_t hGEOSCtxt = createGEOSContext();
     hThisGeosGeom = exportToGEOS(hGEOSCtxt);
 
@@ -4129,7 +4123,7 @@ int OGR_G_Centroid( OGRGeometryH hGeom, OGRGeometryH hCentroidPoint )
 
     OGRGeometry *poGeom = ((OGRGeometry *) hGeom);
     OGRPoint *poCentroid = ((OGRPoint *) hCentroidPoint);
-    
+
     if( poCentroid == NULL )
         return OGRERR_FAILURE;
 
@@ -4157,12 +4151,12 @@ int OGR_G_Centroid( OGRGeometryH hGeom, OGRGeometryH hCentroidPoint )
  *
  * This method is built on the GEOS library, check it for the definition
  * of the geometry operation.
- * If OGR is built without the GEOS library, this method will always fail, 
- * issuing a CPLE_NotSupported error. 
+ * If OGR is built without the GEOS library, this method will always fail,
+ * issuing a CPLE_NotSupported error.
  *
- * @param hGeom the geometry to operate on. 
+ * @param hGeom the geometry to operate on.
  * @return a point guaranteed to lie on the surface or NULL if an error
- *         occured.
+ *         occurred.
  *
  * @since OGR 1.10
  */
@@ -4183,7 +4177,7 @@ OGRGeometryH OGR_G_PointOnSurface( OGRGeometryH hGeom )
 
     GEOSContextHandle_t hGEOSCtxt = OGRGeometry::createGEOSContext();
     hThisGeosGeom = poThis->exportToGEOS(hGEOSCtxt);
- 
+
     if( hThisGeosGeom != NULL )
     {
         hOtherGeosGeom = GEOSPointOnSurface_r( hGEOSCtxt, hThisGeosGeom );
@@ -4197,7 +4191,7 @@ OGRGeometryH OGR_G_PointOnSurface( OGRGeometryH hGeom )
 
         OGRGeometry *poInsidePointGeom = (OGRGeometry *) 
             OGRGeometryFactory::createFromGEOS(hGEOSCtxt,  hOtherGeosGeom );
- 
+
         GEOSGeom_destroy_r( hGEOSCtxt, hOtherGeosGeom );
 
         if (poInsidePointGeom == NULL)
@@ -4530,7 +4524,7 @@ OGRGeometryH OGR_G_DelaunayTriangulation( OGRGeometryH hThis, double dfTolerance
  * A new geometry object is created and returned containing a collection
  * of reassembled Polygons: NULL will be returned if the input collection
  * doesn't corresponds to a MultiLinestring, or when reassembling Edges
- * into Polygons is impossible due to topogical inconsistencies.
+ * into Polygons is impossible due to topological inconsistencies.
  *
  * This method is the same as the C function OGR_G_Polygonize().
  *
@@ -4624,7 +4618,7 @@ OGRGeometry *OGRGeometry::Polygonize() const
  * A new geometry object is created and returned containing a collection
  * of reassembled Polygons: NULL will be returned if the input collection
  * doesn't corresponds to a MultiLinestring, or when reassembling Edges
- * into Polygons is impossible due to topogical inconsistencies.  
+ * into Polygons is impossible due to topological inconsistencies.
  *
  * This function is the same as the C++ method OGRGeometry::Polygonize().
  *
@@ -4787,7 +4781,7 @@ OGRGeometry *OGRGeometryFromEWKB( GByte *pabyWKB, int nLength, int* pnSRID,
 {
     OGRGeometry *poGeometry = NULL;
     unsigned int ewkbFlags = 0;
-    
+
     if (nLength < 5)
     {
         CPLError( CE_Failure, CPLE_AppDefined,
@@ -5037,7 +5031,7 @@ OGRErr OGRGeometry::importPreambuleOfCollectionFromWkb( unsigned char * pabyData
 /*      Get the sub-geometry count.                                     */
 /* -------------------------------------------------------------------- */
     memcpy( &nGeomCount, pabyData + 5, 4 );
-    
+
     if( OGR_SWAP( eByteOrder ) )
         nGeomCount = CPL_SWAP32(nGeomCount);
 
@@ -5174,7 +5168,7 @@ OGRErr OGRGeometry::importCurveCollectionFromWkt( char ** ppszInput,
 
     if( szToken[0] != ')' )
         return OGRERR_CORRUPT_DATA;
-    
+
     *ppszInput = (char *) pszInput;
     return OGRERR_NONE;
 }
@@ -5364,7 +5358,7 @@ OGRwkbGeometryType OGR_GT_GetCollection( OGRwkbGeometryType eType )
 
     else if( OGR_GT_IsSurface(eFGType) )
         eType = wkbMultiSurface;
-    
+
     else
         return wkbUnknown;
 

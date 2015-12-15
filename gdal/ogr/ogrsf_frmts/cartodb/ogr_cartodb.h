@@ -49,8 +49,8 @@ class OGRCartoDBGeomFieldDefn: public OGRGeomFieldDefn
     public:
         int nSRID;
 
-        OGRCartoDBGeomFieldDefn(const char* pszName, OGRwkbGeometryType eType) :
-                OGRGeomFieldDefn(pszName, eType), nSRID(0)
+        OGRCartoDBGeomFieldDefn(const char* pszNameIn, OGRwkbGeometryType eType) :
+                OGRGeomFieldDefn(pszNameIn, eType), nSRID(0)
         {
         }
 };
@@ -66,7 +66,6 @@ protected:
     OGRCARTODBDataSource* poDS;
 
     OGRFeatureDefn      *poFeatureDefn;
-    OGRSpatialReference *poSRS;
     CPLString            osBaseSQL;
     CPLString            osFIDColName;
 
@@ -94,7 +93,7 @@ protected:
     virtual OGRFeatureDefn *    GetLayerDefn();
     virtual OGRFeatureDefn *    GetLayerDefnInternal(json_object* poObjIn) = 0;
     virtual json_object*        FetchNewFeatures(GIntBig iNext);
-    
+
     virtual const char*         GetFIDColumn() { return osFIDColName.c_str(); }
 
     virtual int                 TestCapability( const char * );
@@ -126,7 +125,7 @@ class OGRCARTODBTableLayer : public OGRCARTODBLayer
     InsertState         eDeferedInsertState;
     CPLString           osDeferedInsertSQL;
     GIntBig             nNextFID;
-    
+
     int                 bDeferedCreation;
     int                 bCartoDBify;
     int                 nMaxChunkSize;
@@ -150,6 +149,8 @@ class OGRCARTODBTableLayer : public OGRCARTODBLayer
 
     virtual OGRErr      CreateField( OGRFieldDefn *poField,
                                      int bApproxOK = TRUE );
+
+    virtual OGRErr		DeleteField( int iField );
 
     virtual OGRFeature  *GetNextRawFeature();
 
@@ -195,7 +196,7 @@ class OGRCARTODBResultLayer : public OGRCARTODBLayer
 
     virtual OGRFeatureDefn *GetLayerDefnInternal(json_object* poObjIn);
     virtual OGRFeature  *GetNextRawFeature();
-    
+
     int                 IsOK();
 };
 
@@ -219,11 +220,11 @@ class OGRCARTODBDataSource : public OGRDataSource
     CPLString           osAPIKey;
 
     int                 bMustCleanPersistant;
-    
+
     CPLString           osCurrentSchema;
-    
+
     int                 bHasOGRMetadataFunction;
-    
+
     int                 nPostGISMajor, nPostGISMinor;
 
   public:
@@ -264,7 +265,7 @@ class OGRCARTODBDataSource : public OGRDataSource
     int                         IsAuthenticatedConnection() { return osAPIKey.size() != 0; }
     int                         HasOGRMetadataFunction() { return bHasOGRMetadataFunction; }
     void                        SetOGRMetadataFunction(int bFlag) { bHasOGRMetadataFunction = bFlag; }
-    
+
     OGRLayer *                  ExecuteSQLInternal( const char *pszSQLCommand,
                                                     OGRGeometry *poSpatialFilter = NULL,
                                                     const char *pszDialect = NULL,

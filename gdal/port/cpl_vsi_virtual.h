@@ -86,6 +86,7 @@ public:
                       { (void) oldpath; (void)newpath; errno=ENOENT; return -1; }
     virtual int IsCaseSensitive( const char* pszFilename )
                       { (void) pszFilename; return TRUE; }
+    virtual GIntBig GetDiskFreeSpace( const char* /* pszDirname */ ) { return -1; }
 };
 
 /************************************************************************/
@@ -141,7 +142,7 @@ public:
     vsi_l_offset nFileSize;
     int nEntries;
     VSIArchiveEntry* entries;
-    
+
     VSIArchiveContent() : mTime(0), nFileSize(0), nEntries(0), entries(NULL) {}
     ~VSIArchiveContent();
 };

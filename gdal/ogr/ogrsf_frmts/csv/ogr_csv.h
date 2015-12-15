@@ -83,10 +83,13 @@ class OGRCSVLayer : public OGRLayer
     int                 bHiddenWKTColumn;
 
     /*http://www.faa.gov/airports/airport_safety/airportdata_5010/menu/index.cfm specific */
-    int                 iNfdcLongitudeS, iNfdcLatitudeS;
+    int                 iNfdcLongitudeS;
+    int                 iNfdcLatitudeS;
     int                 bDontHonourStrings;
 
-    int                 iLongitudeField, iLatitudeField, iZField;
+    int                 iLongitudeField;
+    int                 iLatitudeField;
+    int                 iZField;
 
     int                 bIsEurostatTSV;
     int                 nEurostatDims;
@@ -94,24 +97,24 @@ class OGRCSVLayer : public OGRLayer
     GIntBig             nTotalFeatures;
 
     char              **AutodetectFieldTypes(char** papszOpenOptions, int nFieldCount);
-    
+
     int                 bWarningBadTypeOrWidth;
     int                 bKeepSourceColumns;
     int                 bKeepGeomColumns;
-    
+
     int                 bMergeDelimiter;
-    
+
     int                 bEmptyStringNull;
-    
+
     char              **GetNextLineTokens();
-    
+
     static int          Matches(const char* pszFieldName, char** papszPossibleNames);
 
   public:
     OGRCSVLayer( const char *pszName, VSILFILE *fp, const char *pszFilename,
                  int bNew, int bInWriteMode, char chDelimiter );
    ~OGRCSVLayer();
-  
+
     void                BuildFeatureDefn( const char* pszNfdcGeomField = NULL,
                                           const char* pszGeonamesGeomFieldPrefix = NULL,
                                           char** papszOpenOptions = NULL );
@@ -157,7 +160,7 @@ class OGRCSVDataSource : public OGRDataSource
     int                 bUpdate;
 
     CPLString           osDefaultCSVName;
-    
+
     int                 bEnableGeometryFields;
 
   public:
@@ -171,7 +174,7 @@ class OGRCSVDataSource : public OGRDataSource
                                    char** papszOpenOptions,
                                    const char* pszNfdcRunwaysGeomField = NULL,
                                    const char* pszGeonamesGeomFieldPrefix = NULL);
-    
+
     const char          *GetName() { return pszName; }
 
     int                 GetLayerCount() { return nLayers; }

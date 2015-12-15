@@ -86,7 +86,7 @@ void OGROCIStatement::Clean()
 
     CPLFree( papszCurImage );
     papszCurImage = NULL;
-    
+
     CPLFree( panCurColumnInd );
     panCurColumnInd = NULL;
 
@@ -177,7 +177,7 @@ CPLErr OGROCIStatement::BindObject( const char *pszPlaceName,
                            (ub4)OCI_DEFAULT),
             "OCIBindByName()") )
         return CE_Failure;
-    
+
     if( poSession->Failed(
             OCIBindObject( hBindOrd, poSession->hError, hTDO,
                            (dvoid **) pahObjects, (ub4 *)0, 
@@ -247,7 +247,7 @@ CPLErr OGROCIStatement::Execute( const char *pszSQLStatement,
                     &nStmtType, 0, OCI_ATTR_STMT_TYPE, poSession->hError ),
         "OCIAttrGet(ATTR_STMT_TYPE)") )
         return CE_Failure;
-    
+
     int bSelect = (nStmtType == OCI_STMT_SELECT);
 
 /* -------------------------------------------------------------------- */
@@ -296,12 +296,12 @@ CPLErr OGROCIStatement::Execute( const char *pszSQLStatement,
                          (ub4) nRawColumnCount+1 ) != OCI_SUCCESS )
             break;
     }
-    
+
     panFieldMap = (int *) CPLCalloc(sizeof(int),nRawColumnCount);
-    
+
     papszCurColumn = (char **) CPLCalloc(sizeof(char*),nRawColumnCount+1);
     panCurColumnInd = (sb2 *) CPLCalloc(sizeof(sb2),nRawColumnCount+1);
-        
+
 /* ==================================================================== */
 /*      Establish result column definitions, and setup parameter        */
 /*      defines.                                                        */
@@ -311,7 +311,7 @@ CPLErr OGROCIStatement::Execute( const char *pszSQLStatement,
     poDefn->Reference();
 
     for( int iParm = 0; iParm < nRawColumnCount; iParm++ )
-    {                                                           
+    {
         OGRFieldDefn oField( "", OFTString );
         OCIParam     *hParmDesc;
         ub2          nOCIType;
@@ -391,7 +391,7 @@ char **OGROCIStatement::SimpleFetchRow()
 
 {
     int nStatus, i;
-    
+
     if( papszCurImage == NULL )
     {
         papszCurImage = (char **) 

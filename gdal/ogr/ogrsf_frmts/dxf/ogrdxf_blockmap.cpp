@@ -136,7 +136,7 @@ OGRGeometry *OGRDXFDataSource::SimplifyBlockGeometry(
 /*      polygon, multipolygon, multilinestring or multipoint but        */
 /*      I'll put that off till it would be meaningful.                  */
 /* -------------------------------------------------------------------- */
-    
+
     return poCollection;
 }
 
@@ -152,12 +152,12 @@ OGRGeometry *OGRDXFDataSource::SimplifyBlockGeometry(
 DXFBlockDefinition *OGRDXFDataSource::LookupBlock( const char *pszName )
 
 {
-    CPLString osName = pszName;
+    CPLString l_osName = pszName;
 
-    if( oBlockMap.count( osName ) == 0 )
+    if( oBlockMap.count( l_osName ) == 0 )
         return NULL;
     else
-        return &(oBlockMap[osName]);
+        return &(oBlockMap[l_osName]);
 }
 
 /************************************************************************/

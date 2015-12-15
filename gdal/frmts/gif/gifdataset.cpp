@@ -187,27 +187,7 @@ GDALDataset *GIFDataset::Open( GDALOpenInfo * poOpenInfo )
     /* -------------------------------------------------------------------- */
     /*      Find the first image record.                                    */
     /* -------------------------------------------------------------------- */
-    GifRecordType RecordType = TERMINATE_RECORD_TYPE;
-
-    while( DGifGetRecordType(hGifFile, &RecordType) != GIF_ERROR
-        && RecordType != TERMINATE_RECORD_TYPE
-        && RecordType != IMAGE_DESC_RECORD_TYPE )
-    {
-        /* Skip extension records found before IMAGE_DESC_RECORD_TYPE */
-        if (RecordType == EXTENSION_RECORD_TYPE)
-        {
-            int nFunction;
-            GifByteType *pExtData;
-            if (DGifGetExtension(hGifFile, &nFunction, &pExtData) == GIF_ERROR)
-                break;
-            while (pExtData != NULL)
-            {
-                if (DGifGetExtensionNext(hGifFile, &pExtData) == GIF_ERROR)
-                    break;
-            }
-        }
-    }
-
+    GifRecordType RecordType = FindFirstImage(hGifFile);
     if( RecordType == IMAGE_DESC_RECORD_TYPE  &&
         DGifGetImageDesc(hGifFile) != GIF_ERROR)
     {
@@ -630,9 +610,9 @@ GIFDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 /* -------------------------------------------------------------------- */
     if( CSLFetchBoolean( papszOptions, "WORLDFILE", FALSE ) )
     {
-    	double      adfGeoTransform[6];
+        double      adfGeoTransform[6];
 
-	if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
+        if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
             GDALWriteWorldFile( pszFilename, "wld", adfGeoTransform );
     }
 
@@ -640,7 +620,7 @@ GIFDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 /*      Re-open dataset, and copy any auxiliary pam information.         */
 /* -------------------------------------------------------------------- */
 
-    /* If outputing to stdout, we can't reopen it, so we'll return */
+    /* If writing to stdout, we can't reopen it, so return */
     /* a fake dataset to make the caller happy */
     CPLPushErrorHandler(CPLQuietErrorHandler);
     poDS = (GDALPamDataset*) GDALOpen(pszFilename, GA_ReadOnly);

@@ -191,7 +191,6 @@ default:
    else
       papszFilterReturnNums = CSLTokenizeString(poxmlFilter->psChild->pszValue);
 
-   
    CPLXMLNode * poxmlAggregation = CPLGetXMLNode(poxmlBand, "AggregationMethod");
    if( poxmlAggregation == NULL )
       poxmlAggregation = CPLGetXMLNode(pods->poXMLPCView, "AggregationMethod");
@@ -317,7 +316,7 @@ bool MG4LidarRasterBand::ElementPassesFilter(const PointData &pointdata, size_t 
    // Check if classification code is ok:  it was requested and it does match one of the requested codes
    const int classcode = GetChannelElement<int>(*pointdata.getChannel(CHANNEL_NAME_ClassId), i);
    char bufCode[16];
-   sprintf(bufCode, "%d", classcode);
+   snprintf(bufCode, sizeof(bufCode), "%d", classcode);
    bClassificationOK = (papszFilterClassCodes == NULL ? true :
       (CSLFindString(papszFilterClassCodes,bufCode)!=-1));
 
@@ -325,7 +324,7 @@ bool MG4LidarRasterBand::ElementPassesFilter(const PointData &pointdata, size_t 
    {
       // Check if return num is ok:  it was requested and it does match one of the requested return numbers
       const long returnnum= static_cast<const unsigned char *>(pointdata.getChannel(CHANNEL_NAME_ReturnNum)->getData())[i];
-      sprintf(bufCode, "%d", (int)returnnum);
+      snprintf(bufCode, sizeof(bufCode), "%d", (int)returnnum);
       bReturnNumOK = (papszFilterReturnNums == NULL ? true :
          (CSLFindString(papszFilterReturnNums, bufCode)!=-1));
       if (!bReturnNumOK && CSLFindString(papszFilterReturnNums, "Last")!=-1)
@@ -435,7 +434,7 @@ CPLErr   MG4LidarRasterBand::doReadBlock(int nBlockXOff, int nBlockYOff, void * 
          }
       }
    }
-   
+
    delete[] Accumulator;
    return CE_None;
 }
@@ -641,7 +640,7 @@ CPLErr MG4LidarDataset::OpenZoomLevel( int iZoom )
       const char * name = "Z";
       if (xmlChannel && xmlChannel->psChild && xmlChannel->psChild->pszValue)
          name = xmlChannel->psChild->pszValue;
-      
+
       BandCount++;
       MG4LidarRasterBand *band = new MG4LidarRasterBand(this, BandCount, xmlBand, name);
       SetBand(BandCount, band);

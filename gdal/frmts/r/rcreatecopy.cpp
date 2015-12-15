@@ -54,7 +54,7 @@ static void RWriteInteger( VSILFILE *fp, int bASCII, int nValue )
     if( bASCII )
     {
         char szOutput[50];
-        sprintf( szOutput, "%d\n", nValue );
+        snprintf( szOutput, sizeof(szOutput), "%d\n", nValue );
         VSIFWriteL( szOutput, 1, strlen(szOutput), fp );
     }
     else
@@ -73,7 +73,7 @@ static void RWriteString( VSILFILE *fp, int bASCII, const char *pszValue )
 {
     RWriteInteger( fp, bASCII, 4105 );
     RWriteInteger( fp, bASCII, (int) strlen(pszValue) );
-    
+
     if( bASCII )
     {
         VSIFWriteL( pszValue, 1, strlen(pszValue), fp );

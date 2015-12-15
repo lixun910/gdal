@@ -164,7 +164,7 @@ class VSIGZipHandle : public VSIVirtualHandle
                   uLong expected_crc = 0,
                   int transparent = 0);
     ~VSIGZipHandle();
-    
+
     bool              IsInitOK() const { return inbuf != NULL; }
 
     virtual int       Seek( vsi_l_offset nOffset, int nWhence );
@@ -1069,7 +1069,8 @@ VSIGZipWriteHandle::VSIGZipWriteHandle( VSIVirtualHandle *poBaseHandle,
 
             /* Write a very simple .gz header:
             */
-            sprintf( header, "%c%c%c%c%c%c%c%c%c%c", gz_magic[0], gz_magic[1],
+            snprintf( header, sizeof(header),
+                      "%c%c%c%c%c%c%c%c%c%c", gz_magic[0], gz_magic[1],
                     Z_DEFLATED, 0 /*flags*/, 0,0,0,0 /*time*/, 0 /*xflags*/,
                     0x03 );
             m_poBaseHandle->Write( header, 1, 10 );
@@ -1769,7 +1770,7 @@ class VSIZipFilesystemHandler : public VSIArchiveFilesystemHandler
 
 public:
     virtual ~VSIZipFilesystemHandler();
-    
+
     virtual const char* GetPrefix() { return "/vsizip"; }
     virtual std::vector<CPLString> GetExtensions();
     virtual VSIArchiveReader* CreateReader(const char* pszZipFileName);

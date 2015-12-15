@@ -151,12 +151,12 @@ OGRFeatureDefn* OGRVRTLayer::GetSrcLayerDefn()
 /*                         FastInitialize()                             */
 /************************************************************************/
 
-int OGRVRTLayer::FastInitialize( CPLXMLNode *psLTree, const char *pszVRTDirectory,
-                             int bUpdate)
+int OGRVRTLayer::FastInitialize( CPLXMLNode *psLTreeIn, const char *pszVRTDirectory,
+                             int bUpdateIn)
 
 {
-    this->psLTree = psLTree;
-    this->bUpdate = bUpdate;
+    this->psLTree = psLTreeIn;
+    this->bUpdate = bUpdateIn;
     osVRTDirectory = pszVRTDirectory;
 
     if( !EQUAL(psLTree->pszValue,"OGRVRTLayer") )
@@ -187,9 +187,9 @@ int OGRVRTLayer::FastInitialize( CPLXMLNode *psLTree, const char *pszVRTDirector
      OGRwkbGeometryType eGeomType = wkbUnknown;
      if( pszGType != NULL )
      {
-         int bError;
-         eGeomType = OGRVRTGetGeometryType(pszGType, &bError);
-         if( bError )
+         int l_bError;
+         eGeomType = OGRVRTGetGeometryType(pszGType, &l_bError);
+         if( l_bError )
          {
              CPLError( CE_Failure, CPLE_AppDefined,
                        "GeometryType %s not recognised.",
@@ -287,9 +287,9 @@ int OGRVRTLayer::ParseGeometryField(CPLXMLNode* psNode,
         pszGType = CPLGetXMLValue( psNodeParent, "GeometryType", NULL );
     if( pszGType != NULL )
     {
-        int bError;
-        poProps->eGeomType = OGRVRTGetGeometryType(pszGType, &bError);
-        if( bError )
+        int l_bError;
+        poProps->eGeomType = OGRVRTGetGeometryType(pszGType, &l_bError);
+        if( l_bError )
         {
             CPLError( CE_Failure, CPLE_AppDefined,
                      "GeometryType %s not recognised.",
@@ -537,7 +537,7 @@ int OGRVRTLayer::FullInitialize()
     if( CSLTestBoolean(CPLGetXMLValue( psLTree, "SrcDataSource.relativetoVRT", 
                                        "0")) )
     {
-        static const char* apszPrefixes[] = { "CSV:", "GPSBABEL:" };
+        static const char* const apszPrefixes[] = { "CSV:", "GPSBABEL:" };
         int bDone = FALSE;
         for( size_t i = 0; i < sizeof(apszPrefixes) / sizeof(apszPrefixes[0]); i ++)
         {
@@ -615,9 +615,9 @@ try_again:
         else
         {
             char** papszOpenOptions = GDALDeserializeOpenOptionsFromXML(psLTree);
-            int nFlags = GDAL_OF_VECTOR | GDAL_OF_SHARED;
-            if( bUpdate ) nFlags |= GDAL_OF_UPDATE;
-            poSrcDS = (GDALDataset*) GDALOpenEx( pszSrcDSName, nFlags, NULL,
+            int l_nFlags = GDAL_OF_VECTOR | GDAL_OF_SHARED;
+            if( bUpdate ) l_nFlags |= GDAL_OF_UPDATE;
+            poSrcDS = (GDALDataset*) GDALOpenEx( pszSrcDSName, l_nFlags, NULL,
                                 (const char* const* )papszOpenOptions, NULL );
             CSLDestroy(papszOpenOptions);
             /* Is it a VRT datasource ? */
@@ -633,9 +633,9 @@ try_again:
         if (poDS->GetCallLevel() < 32)
         {
             char** papszOpenOptions = GDALDeserializeOpenOptionsFromXML(psLTree);
-            int nFlags = GDAL_OF_VECTOR;
-            if( bUpdate ) nFlags |= GDAL_OF_UPDATE;
-            poSrcDS = (GDALDataset*) GDALOpenEx( pszSrcDSName, nFlags, NULL,
+            int l_nFlags = GDAL_OF_VECTOR;
+            if( bUpdate ) l_nFlags |= GDAL_OF_UPDATE;
+            poSrcDS = (GDALDataset*) GDALOpenEx( pszSrcDSName, l_nFlags, NULL,
                                 (const char* const* )papszOpenOptions, NULL );
             CSLDestroy(papszOpenOptions);
             /* Is it a VRT datasource ? */
@@ -1519,7 +1519,7 @@ retry:
                 pabyWKB = CPLHexToBinary( pszWKT, &nBytes );
                 bNeedFree = TRUE;
             }
-            
+
             if( pabyWKB != NULL )
             {
                 OGRGeometry *poGeom = NULL;
@@ -1552,8 +1552,8 @@ retry:
             /* add other options here. */
         }
 
-        /* In the non direct case, we need to check that the geometry intersects the source */
-        /* region before an optionnal clipping */
+        // In the non-direct case, we need to check that the geometry
+        // intersects the source region before an optional clipping.
         if( bUseSrcRegion &&
             apoGeomFieldProps[i]->eGeometryStyle != VGS_Direct &&
             apoGeomFieldProps[i]->poSrcRegion != NULL )
@@ -1633,28 +1633,28 @@ OGRFeature *OGRVRTLayer::GetFeature( GIntBig nFeatureId )
 /*      to setup an appropriate query to get it.                        */
 /* -------------------------------------------------------------------- */
     OGRFeature      *poSrcFeature, *poFeature;
-    
+
     if( iFIDField == -1 )
     {
         poSrcFeature = poSrcLayer->GetFeature( nFeatureId );
     }
-    else 
+    else
     {
         const char* pszFID = poSrcLayer->GetLayerDefn()->GetFieldDefn(iFIDField)->GetNameRef();
         char* pszFIDQuery = (char*)CPLMalloc(strlen(pszFID) + 64);
 
         poSrcLayer->ResetReading();
-        sprintf( pszFIDQuery, "%s = " CPL_FRMT_GIB, pszFID, nFeatureId );
+        snprintf( pszFIDQuery, strlen(pszFID) + 64, "%s = " CPL_FRMT_GIB, pszFID, nFeatureId );
         poSrcLayer->SetSpatialFilter( NULL );
         poSrcLayer->SetAttributeFilter( pszFIDQuery );
         CPLFree(pszFIDQuery);
-        
+
         poSrcFeature = poSrcLayer->GetNextFeature();
     }
 
     if( poSrcFeature == NULL )
         return NULL;
-    
+
 /* -------------------------------------------------------------------- */
 /*      Translate feature and return it.                                */
 /* -------------------------------------------------------------------- */
@@ -1718,7 +1718,7 @@ OGRFeature* OGRVRTLayer::TranslateVRTFeatureToSrcFeature( OGRFeature* poVRTFeatu
         if( poVRTFeature->GetStyleString() != NULL )
             poSrcFeat->SetStyleString(poVRTFeature->GetStyleString());
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Handle the geometry.  Eventually there will be several more     */
 /*      supported options.                                              */
@@ -2318,7 +2318,7 @@ OGRErr OGRVRTLayer::SetIgnoredFields( const char **papszFields )
 
     const char** papszIter = papszFields;
     char** papszFieldsSrc = NULL;
-    OGRFeatureDefn* poSrcFeatureDefn = poSrcLayer->GetLayerDefn();
+    poSrcLayer->GetLayerDefn();
 
     /* Translate explicitly ignored fields of VRT layers to their equivalent */
     /* source fields. */

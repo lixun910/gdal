@@ -42,7 +42,7 @@ extern void OGRsnPrintDouble( char * pszStrBuf, size_t size, double dfValue );
 int EPSGGetWGS84Transform( int nGeogCS, std::vector<CPLString>& asTransform );
 void OGREPSGDatumNameMassage( char ** ppszDatum );
 
-static const char *papszDatumEquiv[] =
+static const char * const apszDatumEquiv[] =
 {
     "Militar_Geographische_Institut",
     "Militar_Geographische_Institute",
@@ -106,12 +106,12 @@ void OGREPSGDatumNameMassage( char ** ppszDatum )
 /*      Search for datum equivelences.  Specific massaged names get     */
 /*      mapped to OpenGIS specified names.                              */
 /* -------------------------------------------------------------------- */
-    for( i = 0; papszDatumEquiv[i] != NULL; i += 2 )
+    for( i = 0; apszDatumEquiv[i] != NULL; i += 2 )
     {
-        if( EQUAL(*ppszDatum,papszDatumEquiv[i]) )
+        if( EQUAL(*ppszDatum,apszDatumEquiv[i]) )
         {
             CPLFree( *ppszDatum );
-            *ppszDatum = CPLStrdup( papszDatumEquiv[i+1] );
+            *ppszDatum = CPLStrdup( apszDatumEquiv[i+1] );
             break;
         }
     }
@@ -132,7 +132,7 @@ EPSGAngleStringToDD( const char * pszAngle, int nUOMAngle )
     if( nUOMAngle == 9110 )             /* DDD.MMSSsss */
     {
         char    *pszDecimal;
-        
+
         dfAngle = ABS(atoi(pszAngle));
         pszDecimal = (char *) strchr(pszAngle,'.');
         if( pszDecimal != NULL && strlen(pszDecimal) > 1 )
@@ -145,7 +145,7 @@ EPSGAngleStringToDD( const char * pszAngle, int nUOMAngle )
                 szMinutes[1] = pszDecimal[2];
             else
                 szMinutes[1] = '0';
-            
+
             szMinutes[2] = '\0';
             dfAngle += atoi(szMinutes) / 60.0;
 
@@ -187,7 +187,7 @@ EPSGAngleStringToDD( const char * pszAngle, int nUOMAngle )
     {
         dfAngle = CPLAtof(pszAngle) / 3600;
     }
-    else /* decimal degrees ... some cases missing but seeminly never used */
+    else /* decimal degrees ... some cases missing but seemingly never used */
     {
         CPLAssert( nUOMAngle == 9102 || nUOMAngle == 0 );
 
@@ -223,7 +223,7 @@ static int EPSGGetUOMAngleInfo( int nUOMAngleCode,
     const char *pszFilename = CSVFilename( "unit_of_measure.csv" );
 
     char szSearchKey[24];
-    sprintf( szSearchKey, "%d", nUOMAngleCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nUOMAngleCode );
 
     const char *pszUOMName = CSVGetField( pszFilename,
                               "UOM_CODE", szSearchKey, CC_Integer,
@@ -348,7 +348,7 @@ EPSGGetUOMLengthInfo( int nUOMLengthCode,
 /*      Search the units database for this unit.  If we don't find      */
 /*      it return failure.                                              */
 /* -------------------------------------------------------------------- */
-    sprintf( szSearchKey, "%d", nUOMLengthCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nUOMLengthCode );
     papszUnitsRecord =
         CSVScanFileByName( UOM_FILENAME, "UOM_CODE", szSearchKey, CC_Integer );
 
@@ -363,7 +363,7 @@ EPSGGetUOMLengthInfo( int nUOMLengthCode,
         iNameField = CSVGetFileFieldId( UOM_FILENAME, "UNIT_OF_MEAS_NAME" );
         *ppszUOMName = CPLStrdup( CSLGetField(papszUnitsRecord, iNameField) );
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get the A and B factor fields, and create the multiplicative    */
 /*      factor.                                                         */
@@ -371,7 +371,7 @@ EPSGGetUOMLengthInfo( int nUOMLengthCode,
     if( pdfInMeters != NULL )
     {
         int     iBFactorField, iCFactorField;
-        
+
         iBFactorField = CSVGetFileFieldId( UOM_FILENAME, "FACTOR_B" );
         iCFactorField = CSVGetFileFieldId( UOM_FILENAME, "FACTOR_C" );
 
@@ -381,7 +381,7 @@ EPSGGetUOMLengthInfo( int nUOMLengthCode,
         else
             *pdfInMeters = 0.0;
     }
-    
+
     return( TRUE );
 }
 
@@ -431,14 +431,14 @@ int EPSGGetWGS84Transform( int nGeogCS, std::vector<CPLString>& asTransform )
 /*      Fetch the line from the GCS table.                              */
 /* -------------------------------------------------------------------- */
     pszFilename = CSVFilename("gcs.override.csv");
-    sprintf( szCode, "%d", nGeogCS );
+    snprintf( szCode, sizeof(szCode), "%d", nGeogCS );
     papszLine = CSVScanFileByName( pszFilename,
                                    "COORD_REF_SYS_CODE", 
                                    szCode, CC_Integer );
     if( papszLine == NULL )
     {
         pszFilename = CSVFilename("gcs.csv");
-        sprintf( szCode, "%d", nGeogCS );
+        snprintf( szCode, sizeof(szCode), "%d", nGeogCS );
         papszLine = CSVScanFileByName( pszFilename,
                                        "COORD_REF_SYS_CODE", 
                                        szCode, CC_Integer );
@@ -485,7 +485,7 @@ int EPSGGetWGS84Transform( int nGeogCS, std::vector<CPLString>& asTransform )
         EPSGNegateString(asTransform[4]);
         EPSGNegateString(asTransform[5]);
     }
-        
+
     return TRUE;
 }
 
@@ -522,7 +522,7 @@ EPSGGetPMInfo( int nPMCode, char ** ppszName, double *pdfOffset )
 /* -------------------------------------------------------------------- */
 /*      Search the database for the corresponding datum code.           */
 /* -------------------------------------------------------------------- */
-    sprintf( szSearchKey, "%d", nPMCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nPMCode );
 
     nUOMAngle =
         atoi(CSVGetField( PM_FILENAME,
@@ -543,7 +543,7 @@ EPSGGetPMInfo( int nPMCode, char ** ppszName, double *pdfOffset )
                              "GREENWICH_LONGITUDE" ),
                 nUOMAngle );
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get the name, if requested.                                     */
 /* -------------------------------------------------------------------- */
@@ -553,7 +553,7 @@ EPSGGetPMInfo( int nPMCode, char ** ppszName, double *pdfOffset )
                 CSVGetField( PM_FILENAME, 
                              "PRIME_MERIDIAN_CODE", szSearchKey, CC_Integer,
                              "PRIME_MERIDIAN_NAME" ));
-    
+
     return( TRUE );
 }
 
@@ -580,7 +580,7 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
 /*      Search the database for the corresponding datum code.           */
 /* -------------------------------------------------------------------- */
     pszFilename = CSVFilename("gcs.override.csv");
-    sprintf( szSearchKey, "%d", nGCSCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nGCSCode );
 
     nDatum = atoi(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                                szSearchKey, CC_Integer,
@@ -589,8 +589,8 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
     if( nDatum < 1 )
     {
         pszFilename = CSVFilename("gcs.csv");
-        sprintf( szSearchKey, "%d", nGCSCode );
-        
+        snprintf( szSearchKey, sizeof(szSearchKey), "%d", nGCSCode );
+
         nDatum = atoi(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                                    szSearchKey, CC_Integer,
                                    "DATUM_CODE" ) );
@@ -601,7 +601,7 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
 
     if( pnDatum != NULL )
         *pnDatum = nDatum;
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get the PM.                                                     */
 /* -------------------------------------------------------------------- */
@@ -649,7 +649,7 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
             CPLStrdup(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                                    szSearchKey, CC_Integer,
                                    "COORD_REF_SYS_NAME" ));
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get the datum name, if requested.                               */
 /* -------------------------------------------------------------------- */
@@ -658,7 +658,7 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
             CPLStrdup(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                                    szSearchKey, CC_Integer,
                                    "DATUM_NAME" ));
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get the CoordSysCode                                            */
 /* -------------------------------------------------------------------- */
@@ -667,7 +667,7 @@ EPSGGetGCSInfo( int nGCSCode, char ** ppszName,
     nCSC = atoi(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                              szSearchKey, CC_Integer,
                              "COORD_SYS_CODE" ) );
-    
+
     if( pnCoordSysCode != NULL )
         *pnCoordSysCode = nCSC;
 
@@ -824,7 +824,7 @@ EPSGGetProjTRFInfo( int nPCS, int * pnProjMethod,
     CPLString osFilename = CSVFilename( "pcs.override.csv" );
 
     char szTRFCode[16];
-    sprintf( szTRFCode, "%d", nPCS );
+    snprintf( szTRFCode, sizeof(szTRFCode), "%d", nPCS );
     int nProjMethod =
         atoi( CSVGetField( osFilename,
                            "COORD_REF_SYS_CODE", szTRFCode, CC_Integer,
@@ -832,7 +832,7 @@ EPSGGetProjTRFInfo( int nPCS, int * pnProjMethod,
     if( nProjMethod == 0 )
     {
         osFilename = CSVFilename( "pcs.csv" );
-        sprintf( szTRFCode, "%d", nPCS );
+        snprintf( szTRFCode, sizeof(szTRFCode), "%d", nPCS );
         nProjMethod =
             atoi( CSVGetField( osFilename,
                                "COORD_REF_SYS_CODE", szTRFCode, CC_Integer,
@@ -850,9 +850,9 @@ EPSGGetProjTRFInfo( int nPCS, int * pnProjMethod,
     {
         char    szParamUOMID[32], szParamValueID[32], szParamCodeID[32];
 
-        sprintf( szParamCodeID, "PARAMETER_CODE_%d", i+1 );
-        sprintf( szParamUOMID, "PARAMETER_UOM_%d", i+1 );
-        sprintf( szParamValueID, "PARAMETER_VALUE_%d", i+1 );
+        snprintf( szParamCodeID, sizeof(szParamCodeID), "PARAMETER_CODE_%d", i+1 );
+        snprintf( szParamUOMID, sizeof(szParamUOMID), "PARAMETER_UOM_%d", i+1 );
+        snprintf( szParamValueID, sizeof(szParamValueID), "PARAMETER_VALUE_%d", i+1 );
 
         if( panParmIds == NULL )
         {
@@ -933,23 +933,23 @@ EPSGGetPCSInfo( int nPCSCode, char **ppszEPSGName,
     char        **papszRecord;
     char        szSearchKey[24];
     const char  *pszFilename;
-    
+
 /* -------------------------------------------------------------------- */
 /*      Search the units database for this unit.  If we don't find      */
 /*      it return failure.                                              */
 /* -------------------------------------------------------------------- */
     pszFilename = CSVFilename( "pcs.override.csv" );
-    sprintf( szSearchKey, "%d", nPCSCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nPCSCode );
     papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                      szSearchKey, CC_Integer );
 
     if( papszRecord == NULL )
     {
         pszFilename = CSVFilename( "pcs.csv" );
-        sprintf( szSearchKey, "%d", nPCSCode );
+        snprintf( szSearchKey, sizeof(szSearchKey), "%d", nPCSCode );
         papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                          szSearchKey, CC_Integer );
-        
+
     }
 
     if( papszRecord == NULL )
@@ -964,7 +964,7 @@ EPSGGetPCSInfo( int nPCSCode, char **ppszEPSGName,
             CSLGetField( papszRecord,
                          CSVGetFileFieldId(pszFilename,
                                            "COORD_REF_SYS_NAME"));
-            
+
         const char *pszDeprecated = 
             CSLGetField( papszRecord,
                          CSVGetFileFieldId(pszFilename,
@@ -998,11 +998,11 @@ EPSGGetPCSInfo( int nPCSCode, char **ppszEPSGName,
     if( pnUOMAngleCode != NULL )
     {
         const char      *pszValue;
-        
+
         pszValue =
             CSLGetField( papszRecord,
                          CSVGetFileFieldId(pszFilename,"UOM_ANGLE_CODE") );
-        
+
         if( atoi(pszValue) > 0 )
             *pnUOMAngleCode = atoi(pszValue);
         else
@@ -1035,8 +1035,7 @@ EPSGGetPCSInfo( int nPCSCode, char **ppszEPSGName,
         pszValue =
             CSLGetField( papszRecord,
                          CSVGetFileFieldId(pszFilename,"COORD_OP_CODE"));
-                         
-        
+
         if( atoi(pszValue) > 0 )
             *pnTRFCode = atoi(pszValue);
         else
@@ -1051,7 +1050,7 @@ EPSGGetPCSInfo( int nPCSCode, char **ppszEPSGName,
     nCSC = atoi(CSVGetField( pszFilename, "COORD_REF_SYS_CODE", 
                              szSearchKey, CC_Integer,
                              "COORD_SYS_CODE" ) );
-    
+
     if( pnCoordSysCode != NULL )
         *pnCoordSysCode = nCSC;
 
@@ -1098,7 +1097,7 @@ static OGRErr SetEPSGAxisInfo( OGRSpatialReference *poSRS,
     const char *pszFilename;
 
     pszFilename = CSVFilename( "coordinate_axis.csv" );
-    sprintf( szSearchKey, "%d", nCoordSysCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nCoordSysCode );
     papszRecord = CSVScanFileByName( pszFilename, "COORD_SYS_CODE",
                                      szSearchKey, CC_Integer );
 
@@ -1179,7 +1178,7 @@ static OGRErr SetEPSGAxisInfo( OGRSpatialReference *poSRS,
 /* -------------------------------------------------------------------- */
     OGRAxisOrientation eOAxis1 = OAO_Other, eOAxis2 = OAO_Other;
     int iAO;
-    static int anCodes[7] = { -1, 9907, 9909, 9906, 9908, -1, -1 };
+    static const int anCodes[7] = { -1, 9907, 9909, 9906, 9908, -1, -1 };
 
     for( iAO = 0; iAO < 7; iAO++ )
     {
@@ -1228,7 +1227,7 @@ static OGRErr SetEPSGAxisInfo( OGRSpatialReference *poSRS,
 
     CSLDestroy( papszAxis1 );
     CSLDestroy( papszAxis2 );
-    
+
     return eResult;
 }
 
@@ -1430,7 +1429,7 @@ static OGRErr SetEPSGProjCS( OGRSpatialReference * poSRS, int nPCSCode )
     }
 
     poSRS->SetNode( "PROJCS", pszPCSName );
-    
+
 /* -------------------------------------------------------------------- */
 /*      Set GEOGCS.                                                     */
 /* -------------------------------------------------------------------- */
@@ -1518,13 +1517,13 @@ static OGRErr SetEPSGProjCS( OGRSpatialReference * poSRS, int nPCSCode )
                       OGR_FP( NatOriginScaleFactor ), 
                       OGR_FP( FalseEasting ), OGR_FP( FalseNorthing ) );
         break;
-        
+
       case 9808:
         poSRS->SetTMSO( OGR_FP( NatOriginLat ), OGR_FP( NatOriginLong ),
                         OGR_FP( NatOriginScaleFactor ), 
                         OGR_FP( FalseEasting ), OGR_FP( FalseNorthing ) );
         break;
-        
+
       case 9809:
         poSRS->SetOS( OGR_FP( NatOriginLat ), OGR_FP( NatOriginLong ),
                       OGR_FP( NatOriginScaleFactor ), 
@@ -1684,9 +1683,9 @@ static OGRErr SetEPSGVertCS( OGRSpatialReference * poSRS, int nVertCSCode )
     char        **papszRecord;
     char        szSearchKey[24];
     const char  *pszFilename;
-    
+
     pszFilename = CSVFilename( "vertcs.override.csv" );
-    sprintf( szSearchKey, "%d", nVertCSCode );
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nVertCSCode );
     papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                      szSearchKey, CC_Integer );
 
@@ -1695,7 +1694,7 @@ static OGRErr SetEPSGVertCS( OGRSpatialReference * poSRS, int nVertCSCode )
         pszFilename = CSVFilename( "vertcs.csv" );
         papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                          szSearchKey, CC_Integer );
-        
+
     }
 
     if( papszRecord == NULL )
@@ -1779,8 +1778,8 @@ static OGRErr SetEPSGCompdCS( OGRSpatialReference * poSRS, int nCCSCode )
     char        **papszRecord = NULL;
     char        szSearchKey[24];
     const char  *pszFilename;
-    
-    sprintf( szSearchKey, "%d", nCCSCode );
+
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nCCSCode );
 
 // So far no override file needed.    
 //    pszFilename = CSVFilename( "compdcs.override.csv" );
@@ -1792,7 +1791,7 @@ static OGRErr SetEPSGCompdCS( OGRSpatialReference * poSRS, int nCCSCode )
         pszFilename = CSVFilename( "compdcs.csv" );
         papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                          szSearchKey, CC_Integer );
-        
+
     }
 
     if( papszRecord == NULL )
@@ -1871,8 +1870,8 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
     char        **papszRecord = NULL;
     char        szSearchKey[24];
     const char  *pszFilename;
-    
-    sprintf( szSearchKey, "%d", nGCSCode );
+
+    snprintf( szSearchKey, sizeof(szSearchKey), "%d", nGCSCode );
 
 // So far no override file needed.    
 //    pszFilename = CSVFilename( "compdcs.override.csv" );
@@ -1884,7 +1883,7 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
         pszFilename = CSVFilename( "geoccs.csv" );
         papszRecord = CSVScanFileByName( pszFilename, "COORD_REF_SYS_CODE",
                                          szSearchKey, CC_Integer );
-        
+
     }
 
     if( papszRecord == NULL )
@@ -1903,11 +1902,11 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
 /* -------------------------------------------------------------------- */
     int nDatumCode, nEllipsoidCode, nPMCode;
     char *pszDatumName;
-    
+
     nDatumCode = atoi(CSLGetField( papszRecord,
                                    CSVGetFileFieldId(pszFilename,
                                                      "DATUM_CODE")));
-    
+
     pszDatumName = 
         CPLStrdup( CSLGetField( papszRecord,
                                 CSVGetFileFieldId(pszFilename,"DATUM_NAME") ) );
@@ -1917,11 +1916,11 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
     nEllipsoidCode = atoi(CSLGetField( papszRecord,
                                    CSVGetFileFieldId(pszFilename,
                                                      "ELLIPSOID_CODE")));
-    
+
     nPMCode = atoi(CSLGetField( papszRecord,
                                 CSVGetFileFieldId(pszFilename,
                                                   "PRIME_MERIDIAN_CODE")));
-    
+
 /* -------------------------------------------------------------------- */
 /*      Get prime meridian information.                                 */
 /* -------------------------------------------------------------------- */
@@ -2004,7 +2003,7 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
 
         for( int iCoeff = 0; iCoeff < 7; iCoeff++ )
         {
-            CPLsprintf( szValue, "%g", adfBursaTransform[iCoeff] );
+            CPLsnprintf( szValue, sizeof(szValue), "%g", adfBursaTransform[iCoeff] );
             poWGS84->AddChild( new OGR_SRSNode( szValue ) );
         }
 
@@ -2020,7 +2019,7 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
     int nUOMLength = atoi(CSLGetField( papszRecord,
                                        CSVGetFileFieldId(pszFilename,
                                                          "UOM_CODE")));
-    
+
     if( !EPSGGetUOMLengthInfo( nUOMLength, &pszUOMLengthName, &dfInMeters ) )
     {
         return OGRERR_UNSUPPORTED_SRS;
@@ -2040,14 +2039,14 @@ static OGRErr SetEPSGGeocCS( OGRSpatialReference * poSRS, int nGCSCode )
     poAxis->AddChild( new OGR_SRSNode( OSRAxisEnumToName(OAO_Other) ) );
 
     poSRS->GetRoot()->AddChild( poAxis );
-    
+
     poAxis = new OGR_SRSNode( "AXIS" );
 
     poAxis->AddChild( new OGR_SRSNode( "Geocentric Y" ) );
     poAxis->AddChild( new OGR_SRSNode( OSRAxisEnumToName(OAO_Other) ) );
 
     poSRS->GetRoot()->AddChild( poAxis );
-    
+
     poAxis = new OGR_SRSNode( "AXIS" );
 
     poAxis->AddChild( new OGR_SRSNode( "Geocentric Z" ) );
@@ -2219,7 +2218,7 @@ OGRErr OGRSpatialReference::importFromEPSGA( int nCode )
     if( eErr == OGRERR_UNSUPPORTED_SRS )
     {
         char szCode[32];
-        sprintf( szCode, "%d", nCode );
+        snprintf( szCode, sizeof(szCode), "%d", nCode );
         eErr = importFromDict( "epsg.wkt", szCode );
     }
 
@@ -2232,13 +2231,13 @@ OGRErr OGRSpatialReference::importFromEPSGA( int nCode )
         char szWrkDefn[100];
         char *pszNormalized;
 
-        sprintf( szWrkDefn, "+init=epsg:%d", nCode );
-        
+        snprintf( szWrkDefn, sizeof(szWrkDefn), "+init=epsg:%d", nCode );
+
         pszNormalized = OCTProj4Normalize( szWrkDefn );
 
         if( strstr(pszNormalized,"proj=") != NULL )
             eErr = importFromProj4( pszNormalized );
-        
+
         CPLFree( pszNormalized );
     }
 
@@ -2355,7 +2354,7 @@ OGRErr OGRSpatialReference::SetStatePlane( int nZone, int bNAD83,
 /*      PCS corresponding to each Proj_ code since the proj code        */
 /*      already effectively indicates NAD27 or NAD83.                   */
 /* -------------------------------------------------------------------- */
-    sprintf( szID, "%d", nAdjustedId );
+    snprintf( szID, sizeof(szID), "%d", nAdjustedId );
     nPCSCode =
         atoi( CSVGetField( CSVFilename( "stateplane.csv" ),
                            "ID", szID, CC_Integer,
@@ -2377,13 +2376,13 @@ OGRErr OGRSpatialReference::SetStatePlane( int nZone, int bNAD83,
         Clear();
         if( bNAD83 )
         {
-            sprintf( szName, "State Plane Zone %d / NAD83", nZone );
+            snprintf( szName, sizeof(szName), "State Plane Zone %d / NAD83", nZone );
             SetLocalCS( szName );
             SetLinearUnits( SRS_UL_METER, 1.0 );
         }
         else
         {
-            sprintf( szName, "State Plane Zone %d / NAD27", nZone );
+            snprintf( szName, sizeof(szName), "State Plane Zone %d / NAD27", nZone );
             SetLocalCS( szName );
             SetLinearUnits( SRS_UL_US_FOOT, CPLAtof(SRS_UL_US_FOOT_CONV) );
         }
@@ -2413,7 +2412,7 @@ OGRErr OGRSpatialReference::SetStatePlane( int nZone, int bNAD83,
         OGR_SRSNode *poPROJCS;
 
         SetLinearUnits( pszOverrideUnitName, dfOverrideUnit );
-        
+
         SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
         SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
 
@@ -2435,8 +2434,8 @@ OGRErr OGRSpatialReference::SetStatePlane( int nZone, int bNAD83,
  * \brief Set State Plane projection definition.
  *
  * This function is the same as OGRSpatialReference::SetStatePlane().
- */ 
- 
+ */
+
 OGRErr OSRSetStatePlane( OGRSpatialReferenceH hSRS, int nZone, int bNAD83 )
 
 {
@@ -2453,8 +2452,8 @@ OGRErr OSRSetStatePlane( OGRSpatialReferenceH hSRS, int nZone, int bNAD83 )
  * \brief Set State Plane projection definition.
  *
  * This function is the same as OGRSpatialReference::SetStatePlane().
- */ 
- 
+ */
+
 OGRErr OSRSetStatePlaneWithUnits( OGRSpatialReferenceH hSRS, 
                                   int nZone, int bNAD83,
                                   const char *pszOverrideUnitName,
@@ -2646,8 +2645,8 @@ OGRErr OGRSpatialReference::AutoIdentifyEPSG()
  * \brief Set EPSG authority info if possible.
  *
  * This function is the same as OGRSpatialReference::AutoIdentifyEPSG().
- */ 
- 
+ */
+
 OGRErr OSRAutoIdentifyEPSG( OGRSpatialReferenceH hSRS )
 
 {
@@ -2709,8 +2708,8 @@ int OGRSpatialReference::EPSGTreatsAsLatLong()
  * system should be treated as having lat/long coordinate ordering.
  *
  * This function is the same as OGRSpatialReference::OSREPSGTreatsAsLatLong().
- */ 
- 
+ */
+
 int OSREPSGTreatsAsLatLong( OGRSpatialReferenceH hSRS )
 
 {

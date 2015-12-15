@@ -136,6 +136,8 @@ void RingBuffer::Read(void* pBuffer, size_t nSize)
 
 /************************************************************************/
 
+namespace {
+
 typedef enum
 {
     EXIST_UNKNOWN = -1,
@@ -153,6 +155,18 @@ typedef struct
     unsigned int    nChecksumOfFirst1024Bytes;
 #endif
 } CachedFileProp;
+
+typedef struct
+{
+    char*           pBuffer;
+    size_t          nSize;
+    int             bIsHTTP;
+    int             bIsInHeader;
+    int             nHTTPCode;
+    int             bDownloadHeaderOnly;
+} WriteFuncStruct;
+
+} /* end of anoymous namespace */
 
 /************************************************************************/
 /*                       VSICurlStreamingFSHandler                      */
@@ -205,7 +219,7 @@ class VSICurlStreamingHandle : public VSIVirtualHandle
     int             bHasComputedFileSize;
     ExistStatus     eExists;
     int             bIsDirectory;
-    
+
     int             bCanTrustCandidateFileSize;
     int             bHasCandidateFileSize;
     vsi_l_offset    nCandidateFileSize;
@@ -406,16 +420,6 @@ int VSICurlStreamingHandle::Seek( vsi_l_offset nOffset, int nWhence )
     bEOF = FALSE;
     return 0;
 }
-
-typedef struct
-{
-    char*           pBuffer;
-    size_t          nSize;
-    int             bIsHTTP;
-    int             bIsInHeader;
-    int             nHTTPCode;
-    int             bDownloadHeaderOnly;
-} WriteFuncStruct;
 
 /************************************************************************/
 /*                  VSICURLStreamingInitWriteFuncStruct()                */
@@ -1528,7 +1532,7 @@ int VSICurlStreamingFSHandler::Stat( const char *pszFilename,
 
     int nRet = (poHandle->Exists()) ? 0 : -1;
     pStatBuf->st_mode = poHandle->IsDirectory() ? S_IFDIR : S_IFREG;
-    
+
     delete poHandle;
     return nRet;
 }
@@ -1612,7 +1616,7 @@ void VSIS3StreamingFSHandler::UpdateMapFromHandle(VSIS3HandleHelper * poS3Handle
 void VSIS3StreamingFSHandler::UpdateHandleFromMap(VSIS3HandleHelper * poS3HandleHelper)
 {
     CPLMutexHolder oHolder( &hMutex );
-    
+
     std::map< CPLString, VSIS3UpdateParams>::iterator oIter =
         oMapBucketsToS3Params.find(poS3HandleHelper->GetBucket());
     if( oIter != oMapBucketsToS3Params.end() )

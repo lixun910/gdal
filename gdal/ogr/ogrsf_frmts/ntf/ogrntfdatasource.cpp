@@ -111,12 +111,12 @@ int OGRNTFDataSource::TestCapability( const char * )
 /*                           GetNamedLayer()                            */
 /************************************************************************/
 
-OGRNTFLayer * OGRNTFDataSource::GetNamedLayer( const char * pszName )
+OGRNTFLayer * OGRNTFDataSource::GetNamedLayer( const char * pszNameIn )
 
 {
     for( int i = 0; i < nLayers; i++ )
     {
-        if( EQUAL(papoLayers[i]->GetLayerDefn()->GetName(),pszName) )
+        if( EQUAL(papoLayers[i]->GetLayerDefn()->GetName(),pszNameIn) )
             return (OGRNTFLayer *) papoLayers[i];
     }
 
@@ -132,7 +132,7 @@ void OGRNTFDataSource::AddLayer( OGRLayer * poNewLayer )
 {
     papoLayers = (OGRLayer **)
         CPLRealloc( papoLayers, sizeof(void*) * ++nLayers );
-    
+
     papoLayers[nLayers-1] = poNewLayer;
 }
 
@@ -191,7 +191,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
 
         return FALSE;
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Build a list of filenames we figure are NTF files.              */
 /* -------------------------------------------------------------------- */
@@ -214,13 +214,13 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
             {
                 continue;
             }
-            
+
             if( strlen(candidateFileList[i]) > 4
               && STARTS_WITH_CI(candidateFileList[i] + strlen(candidateFileList[i])-4, ".ntf") )
             {
                 char       fullFilename[2048];
 
-                sprintf( fullFilename, "%s%c%s", 
+                snprintf( fullFilename, sizeof(fullFilename), "%s%c%s", 
                          pszFilename,
 #ifdef WIN32
                          '\\',
@@ -258,7 +258,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
 
     papoNTFFileReader = (NTFFileReader **)
         CPLCalloc(sizeof(void*), CSLCount(papszFileList));
-    
+
     for( i = 0; papszFileList[i] != NULL; i++ )
     {
         if( bTestOpen )
@@ -270,7 +270,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
             fp = VSIFOpen( papszFileList[i], "rb" );
             if( fp == NULL )
                 continue;
-            
+
             if( VSIFRead( szHeader, 80, 1, fp ) < 1 )
             {
                 VSIFClose( fp );
@@ -278,7 +278,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
             }
 
             VSIFClose( fp );
-            
+
             if( !STARTS_WITH_CI(szHeader, "01") )
                 continue;
 
@@ -301,7 +301,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
         {
             delete poFR;
             CSLDestroy( papszFileList );
-            
+
             return FALSE;
         }
 
@@ -322,7 +322,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
 /*      Establish generic layers.                                       */
 /* -------------------------------------------------------------------- */
     EstablishGenericLayers();
-    
+
 /* -------------------------------------------------------------------- */
 /*      Loop over all the files, collecting a unique feature class      */
 /*      listing.                                                        */
@@ -330,14 +330,14 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
     for( int iSrcFile = 0; iSrcFile < nNTFFileCount; iSrcFile++ )
     {
         NTFFileReader   *poSrcReader = papoNTFFileReader[iSrcFile];
-        
+
         for( int iSrcFC = 0; iSrcFC < poSrcReader->GetFCCount(); iSrcFC++ )
         {
             int         iDstFC;
             char       *pszSrcFCName, *pszSrcFCNum;
 
             poSrcReader->GetFeatureClass( iSrcFC, &pszSrcFCNum, &pszSrcFCName);
-            
+
             for( iDstFC = 0; iDstFC < nFCCount; iDstFC++ )
             {
                 if( EQUAL(pszSrcFCNum,papszFCNum[iDstFC]) )
@@ -360,7 +360,7 @@ int OGRNTFDataSource::Open( const char * pszFilename, int bTestOpen,
         poFCLayer = new OGRNTFFeatureClassLayer( this );
     else
         poFCLayer = NULL;
-    
+
     return TRUE;
 }
 
@@ -425,7 +425,7 @@ OGRFeature *OGRNTFDataSource::GetNextFeature()
     if( nCurrentPos != -1 )
         papoNTFFileReader[iCurrentReader]->SetFPPos( nCurrentPos,
                                                      nCurrentFID );
-        
+
 /* -------------------------------------------------------------------- */
 /*      Read a feature.  If we get NULL the file must be all            */
 /*      consumed, advance to the next file.                             */
@@ -522,7 +522,7 @@ void OGRNTFDataSource::EnsureTileNameUnique( NTFFileReader *poNewReader )
         if( iSequenceNumber++ == -1 )
             strncpy( szCandidateName, poNewReader->GetTileName(), 10 );
         else
-            sprintf( szCandidateName, "%010d", iSequenceNumber );
+            snprintf( szCandidateName, sizeof(szCandidateName), "%010d", iSequenceNumber );
 
         for( int iReader = 0; iReader < nNTFFileCount && bIsUnique; iReader++ )
         {

@@ -58,7 +58,7 @@ OGRGmtDataSource::~OGRGmtDataSource()
 
     for( int i = 0; i < nLayers; i++ )
         delete papoLayers[i];
-    
+
     CPLFree( papoLayers );
 }
 
@@ -66,10 +66,10 @@ OGRGmtDataSource::~OGRGmtDataSource()
 /*                                Open()                                */
 /************************************************************************/
 
-int OGRGmtDataSource::Open( const char *pszFilename, int bUpdate )
+int OGRGmtDataSource::Open( const char *pszFilename, int bUpdateIn )
 
 {
-    this->bUpdate = bUpdate;
+    this->bUpdate = bUpdateIn;
 
     OGRGmtLayer *poLayer = new OGRGmtLayer( pszFilename, bUpdate );
     if( !poLayer->bValidFile )
@@ -209,7 +209,7 @@ OGRGmtDataSource::ICreateLayer( const char * pszLayerName,
         {
             char *pszEscapedWkt = CPLEscapeString( pszValue, -1,
                                                    CPLES_BackslashQuotable );
-                                                   
+
             VSIFPrintfL( fp, "# @Jw\"%s\"\n", pszEscapedWkt );
             CPLFree( pszValue );
             CPLFree( pszEscapedWkt );

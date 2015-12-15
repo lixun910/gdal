@@ -45,10 +45,10 @@ CPL_CVSID("$Id$");
 /************************************************************************/
 
 
-OGROSMLayer::OGROSMLayer(OGROSMDataSource* poDS, int nIdxLayer, const char* pszName )
+OGROSMLayer::OGROSMLayer(OGROSMDataSource* poDSIn, int nIdxLayerIn, const char* pszName )
 {
-    this->poDS = poDS;
-    this->nIdxLayer = nIdxLayer;
+    this->poDS = poDSIn;
+    this->nIdxLayer = nIdxLayerIn;
 
     poFeatureDefn = new OGRFeatureDefn( pszName );
     SetDescription( poFeatureDefn->GetName() );
@@ -63,7 +63,7 @@ OGROSMLayer::OGROSMLayer(OGROSMDataSource* poDS, int nIdxLayer, const char* pszN
     nFeatureArrayMaxSize = 0;
     nFeatureArrayIndex = 0;
     papoFeatures = NULL;
-    
+
     nFeatureCount = 0;
 
     bHasOSMId = FALSE;
@@ -95,9 +95,9 @@ OGROSMLayer::OGROSMLayer(OGROSMDataSource* poDS, int nIdxLayer, const char* pszN
 OGROSMLayer::~OGROSMLayer()
 {
     int i;
-    
+
     poFeatureDefn->Release();
-    
+
     if (poSRS)
         poSRS->Release();
 
@@ -115,12 +115,12 @@ OGROSMLayer::~OGROSMLayer()
 
     for(i=0;i<(int)apszIgnoreKeys.size();i++)
         CPLFree(apszIgnoreKeys[i]);
-    
+
     for(i=0; i<(int)oComputedAttributes.size();i++)
     {
         sqlite3_finalize(oComputedAttributes[i].hStmt);
     }
-    
+
     CPLFree(pszAllTags);
 
     CPLFree(papoFeatures);
@@ -282,13 +282,13 @@ OGRFeature *OGROSMLayer::GetNextFeature()
     }
 
     OGRFeature* poFeature = papoFeatures[nFeatureArrayIndex];
-    
+
     papoFeatures[nFeatureArrayIndex] = NULL;
     nFeatureArrayIndex++;
 
     if ( nFeatureArrayIndex == nFeatureArraySize)
         nFeatureArrayIndex = nFeatureArraySize = 0;
-    
+
     return poFeature;
 }
 
@@ -343,7 +343,7 @@ int  OGROSMLayer::AddToArray(OGRFeature* poFeature, int bCheckFeatureThreshold)
         papoFeatures = papoNewFeatures;
     }
     papoFeatures[nFeatureArraySize ++] = poFeature;
-    
+
     return TRUE;
 }
 
@@ -377,7 +377,7 @@ int  OGROSMLayer::AddFeature(OGRFeature* poFeature,
     OGRGeometry* poGeom = poFeature->GetGeometryRef();
     if (poGeom)
         poGeom->assignSpatialReference( poSRS );
-    
+
     if( (m_poFilterGeom == NULL
         || FilterGeometry( poFeature->GetGeometryRef() ) )
         && (m_poAttrQuery == NULL || bAttrFilterAlreadyEvaluated
@@ -396,7 +396,7 @@ int  OGROSMLayer::AddFeature(OGRFeature* poFeature,
         delete poFeature;
         return TRUE;
     }
-    
+
     if (pbFilteredOut)
         *pbFilteredOut = FALSE;
     return TRUE;
@@ -550,7 +550,7 @@ void OGROSMLayer::SetFieldsFromTags(OGRFeature* poFeature,
         if( bHasOSMId )
         {
             char szID[32];
-            sprintf(szID, CPL_FRMT_GIB, nID );
+            snprintf(szID, sizeof(szID), CPL_FRMT_GIB, nID );
             poFeature->SetField(nIndexOSMId, szID);
         }
     }
@@ -561,7 +561,7 @@ void OGROSMLayer::SetFieldsFromTags(OGRFeature* poFeature,
         if( nIndexOSMWayId >= 0 )
         {
             char szID[32];
-            sprintf(szID, CPL_FRMT_GIB, nID );
+            snprintf(szID, sizeof(szID), CPL_FRMT_GIB, nID );
             poFeature->SetField(nIndexOSMWayId, szID );
         }
     }
@@ -640,13 +640,13 @@ void OGROSMLayer::SetFieldsFromTags(OGRFeature* poFeature,
 
                 if( nAllTagsOff )
                     pszAllTags[nAllTagsOff++] = ',';
-                
+
                 nAllTagsOff += OGROSMFormatForHSTORE(pszK,
                                                      pszAllTags + nAllTagsOff);
 
                 pszAllTags[nAllTagsOff++] = '=';
                 pszAllTags[nAllTagsOff++] = '>';
-                
+
                 nAllTagsOff += OGROSMFormatForHSTORE(pszV,
                                                      pszAllTags + nAllTagsOff);
             }

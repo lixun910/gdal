@@ -36,12 +36,12 @@ CPL_CVSID("$Id$");
 /*                          OGRWFSJoinLayer()                           */
 /************************************************************************/
 
-OGRWFSJoinLayer::OGRWFSJoinLayer(OGRWFSDataSource* poDS,
+OGRWFSJoinLayer::OGRWFSJoinLayer(OGRWFSDataSource* poDSIn,
                                  const swq_select* psSelectInfo,
-                                 const CPLString& osGlobalFilter)
+                                 const CPLString& osGlobalFilterIn)
 {
-    this->poDS = poDS;
-    this->osGlobalFilter = osGlobalFilter;
+    this->poDS = poDSIn;
+    this->osGlobalFilter = osGlobalFilterIn;
     poFeatureDefn = NULL;
     bPagingActive = FALSE;
     nPagingStartIndex = 0;
@@ -66,7 +66,7 @@ OGRWFSJoinLayer::OGRWFSJoinLayer(OGRWFSDataSource* poDS,
         apoLayers.push_back((OGRWFSLayer*)poDS->GetLayerByName(osLayerName));
         osName += osLayerName;
     }
-    
+
     osFeatureTypes = "(";
     for(int i=0;i<(int)apoLayers.size();i++)
     {
@@ -245,7 +245,7 @@ OGRWFSJoinLayer* OGRWFSJoinLayer::Build(OGRWFSDataSource* poDS,
                                         const swq_select* psSelectInfo)
 {
     CPLString osGlobalFilter;
-    
+
     for( int i = 0; i < psSelectInfo->result_columns; i++ )
     {
         swq_col_def *def = psSelectInfo->column_defs + i;
@@ -374,7 +374,7 @@ CPLString OGRWFSJoinLayer::MakeGetFeatureURL(int bRequestHits)
 
     CPLString osFilter;
     osFilter = "<Filter xmlns=\"http://www.opengis.net/fes/2.0\"";
-    
+
     std::map<CPLString, CPLString> oMapNS;
     for(int i=0;i<(int)apoLayers.size();i++)
     {
@@ -509,10 +509,10 @@ GDALDataset* OGRWFSJoinLayer::FetchGetFeature()
 
     CPLHTTPDestroyResult(psResult);
 
-    OGRDataSource* poDS;
+    OGRDataSource* l_poDS;
 
-    poDS = (OGRDataSource*) OGROpen(osTmpFileName, FALSE, NULL);
-    if (poDS == NULL)
+    l_poDS = (OGRDataSource*) OGROpen(osTmpFileName, FALSE, NULL);
+    if (l_poDS == NULL)
     {
         if( strstr((const char*)pabyData, "<wfs:FeatureCollection") == NULL &&
             strstr((const char*)pabyData, "<gml:FeatureCollection") == NULL)
@@ -525,14 +525,14 @@ GDALDataset* OGRWFSJoinLayer::FetchGetFeature()
         return NULL;
     }
 
-    OGRLayer* poLayer = poDS->GetLayer(0);
+    OGRLayer* poLayer = l_poDS->GetLayer(0);
     if (poLayer == NULL)
     {
-        OGRDataSource::DestroyDataSource(poDS);
+        OGRDataSource::DestroyDataSource(l_poDS);
         return NULL;
     }
 
-    return poDS;
+    return l_poDS;
 }
 
 /************************************************************************/

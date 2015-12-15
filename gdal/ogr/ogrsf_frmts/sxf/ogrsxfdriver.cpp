@@ -36,7 +36,7 @@
 CPL_CVSID("$Id: ogrsxfdriver.cpp  $");
 
 
-extern "C" void RegisterOGRSXF();  
+extern "C" void RegisterOGRSXF();
 
 /************************************************************************/
 /*                       ~OGRSXFDriver()                         */
@@ -92,7 +92,7 @@ OGRErr OGRSXFDriver::DeleteDataSource(const char* pszName)
 {
     int iExt;
     //TODO: add more extensions if aplicable
-    static const char *apszExtensions[] = { "szf", "rsc", "SZF", "RSC", NULL };
+    static const char * const apszExtensions[] = { "szf", "rsc", "SZF", "RSC", NULL };
 
     VSIStatBufL sStatBuf;
     if (VSIStatL(pszName, &sStatBuf) != 0)
@@ -134,11 +134,12 @@ int OGRSXFDriver::TestCapability( const char * pszCap )
 void RegisterOGRSXF()
 {
     OGRSFDriver* poDriver = new OGRSXFDriver;
+
     poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                                "Storage and eXchange Format" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                                "drv_sxf.html" );
+                               "Storage and eXchange Format" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "drv_sxf.html" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "sxf" );
+
     OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver(poDriver);
 }
 

@@ -745,7 +745,7 @@ GDALColorInterp KEARasterBand::GetColorInterpretation()
     {
         return GCI_GrayIndex;
     }
-        
+
     GDALColorInterp egdalinterp;
     switch(ekeainterp)
     {
@@ -802,7 +802,7 @@ GDALColorInterp KEARasterBand::GetColorInterpretation()
             egdalinterp = GCI_GrayIndex;
             break;
     }
-        
+
     return egdalinterp;
 }
 
@@ -870,7 +870,7 @@ CPLErr KEARasterBand::SetColorInterpretation(GDALColorInterp egdalinterp)
     }
     catch(const kealib::KEAException &)
     {
-        // do nothing? The docs say CE_Failure only if unsupporte by format
+        // Do nothing? The docs say CE_Failure only if unsupported by format.
     }
     return CE_None;
 }

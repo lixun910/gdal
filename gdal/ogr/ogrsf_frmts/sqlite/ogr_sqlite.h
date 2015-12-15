@@ -65,6 +65,8 @@
 #define HAVE_SQLITE3_PREPARE_V2
 #endif
 
+#ifndef DO_NOT_INCLUDE_SQLITE_CLASSES
+
 #define UNINITIALIZED_SRID  -2
 
 /************************************************************************/
@@ -155,8 +157,8 @@ enum OGRSpatialiteGeomType
 class OGRSQLiteGeomFieldDefn : public OGRGeomFieldDefn
 {
     public:
-        OGRSQLiteGeomFieldDefn( const char* pszName, int iGeomColIn ) :
-            OGRGeomFieldDefn(pszName, wkbUnknown), nSRSId(-1),
+        OGRSQLiteGeomFieldDefn( const char* pszNameIn, int iGeomColIn ) :
+            OGRGeomFieldDefn(pszNameIn, wkbUnknown), nSRSId(-1),
             iCol(iGeomColIn), bTriedAsSpatiaLite(FALSE), eGeomFormat(OSGF_None),
             bHasM(FALSE), bCachedExtentIsValid(FALSE), bHasSpatialIndex(FALSE),
             bHasCheckedSpatialIndexTable(FALSE)
@@ -187,7 +189,7 @@ class OGRSQLiteFeatureDefn : public OGRFeatureDefn
         {
             SetGeomType(wkbNone);
         }
-            
+
         OGRSQLiteGeomFieldDefn* myGetGeomFieldDefn(int i)
         {
             return (OGRSQLiteGeomFieldDefn*) GetGeomFieldDefn(i);
@@ -289,7 +291,7 @@ class OGRSQLiteLayer : public OGRLayer, public IOGRSQLiteGetSpatialWhere
     virtual OGRFeature *GetNextFeature();
 
     virtual OGRFeature *GetFeature( GIntBig nFeatureId );
-    
+
     virtual OGRFeatureDefn *GetLayerDefn() { return poFeatureDefn; }
     virtual OGRSQLiteFeatureDefn *myGetLayerDefn() { return poFeatureDefn; }
 
@@ -353,11 +355,12 @@ class OGRSQLiteTableLayer : public OGRSQLiteLayer
     OGRErr              RecomputeOrdinals();
 
     OGRErr              AddColumnAncientMethod( OGRFieldDefn& oField);
-    void                AddColumnDef(char* pszNewFieldList,
+    void                AddColumnDef(char* pszNewFieldList, size_t nBufLen,
                                      OGRFieldDefn* poFldDefn);
 
     void                InitFieldListForRecrerate(char* & pszNewFieldList,
                                                   char* & pszFieldListForSelect,
+                                                  size_t& nBufLenOut,
                                                   int nExtraSpace = 0);
     OGRErr              RecreateTable(const char* pszFieldListForSelect,
                                       const char* pszNewFieldList,
@@ -377,7 +380,7 @@ class OGRSQLiteTableLayer : public OGRSQLiteLayer
     void                LoadStatisticsSpatialite4DB();
 
     CPLString           FieldDefnToSQliteFieldDefn( OGRFieldDefn* poFieldDefn );
-    
+
     int                 bDeferredCreation;
     OGRErr              RunAddGeometryColumn( OGRSQLiteGeomFieldDefn *poGeomField,
                                               int bAddColumnsForNonSpatialite );
@@ -599,7 +602,7 @@ class OGRSQLiteSelectLayer : public OGRSQLiteLayer, public IOGRSQLiteSelectLayer
     OGRSQLiteSelectLayerCommonBehaviour* poBehaviour;
 
     virtual OGRErr      ResetStatement();
- 
+
   public:
                         OGRSQLiteSelectLayer( OGRSQLiteDataSource *, 
                                               CPLString osSQL,
@@ -701,7 +704,7 @@ class OGRSQLiteBaseDataSource : public GDALPamDataset
 
     int                 bUserTransactionActive;
     int                 nSoftTransactionLevel;
-    
+
     OGRErr              DoTransactionCommand(const char* pszCommand);
 
   public:
@@ -722,7 +725,7 @@ class OGRSQLiteBaseDataSource : public GDALPamDataset
     virtual OGRErr      StartTransaction(int bForce = FALSE);
     virtual OGRErr      CommitTransaction();
     virtual OGRErr      RollbackTransaction();
-    
+
     virtual int         TestCapability( const char * );
 
     OGRErr              SoftStartTransaction();
@@ -804,7 +807,7 @@ class OGRSQLiteDataSource : public OGRSQLiteBaseDataSource
     virtual void        ReleaseResultSet( OGRLayer * poLayer );
 
     virtual void        FlushCache();
-    
+
     virtual OGRErr      CommitTransaction();
     virtual OGRErr      RollbackTransaction();
 
@@ -832,6 +835,8 @@ class OGRSQLiteDataSource : public OGRSQLiteBaseDataSource
 
     void                ReloadLayers();
 };
+
+#endif /* DO_NOT_INCLUDE_SQLITE_CLASSES */
 
 /* To escape literals. The returned string doesn't contain the surrounding single quotes */
 CPLString OGRSQLiteEscape( const char *pszLiteral );

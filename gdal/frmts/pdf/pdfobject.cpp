@@ -269,7 +269,7 @@ void GDALPDFObject::Serialize(CPLString& osStr)
             double dfRealNonRounded = GetReal();
             double dfReal = ROUND_TO_INT_IF_CLOSE(dfRealNonRounded);
             if (dfReal == (double)(GIntBig)dfReal)
-                sprintf(szReal, CPL_FRMT_GIB, (GIntBig)dfReal);
+                snprintf(szReal, sizeof(szReal), CPL_FRMT_GIB, (GIntBig)dfReal);
             else if (CanRepresentRealAsString())
             {
                 /* Used for OGC BP numeric values */
@@ -2233,7 +2233,7 @@ std::map<CPLString, GDALPDFObject*>& GDALPDFDictionaryPdfium::GetValues()
         // No object for this key
         if(!poVal)
           continue;
-        
+
         const char* pszKey = key.c_str();
         // Objects exists in the map
         if(m_map.find(pszKey) != m_map.end())

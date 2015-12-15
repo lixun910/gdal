@@ -167,9 +167,9 @@ OGRErr OGRMultiPoint::exportToWkt( char ** ppszDstText,
         return OGRERR_NOT_ENOUGH_MEMORY;
 
     if( getCoordinateDimension() == 3 && eWkbVariant == wkbVariantIso )
-        sprintf( *ppszDstText, "%s Z (", getGeometryName() );
+        snprintf( *ppszDstText, nMaxString, "%s Z (", getGeometryName() );
     else
-        sprintf( *ppszDstText, "%s (", getGeometryName() );
+        snprintf( *ppszDstText, nMaxString, "%s (", getGeometryName() );
 
     bool bMustWriteComma = false;
     for( int i = 0; i < getNumGeometries(); i++ )
@@ -294,7 +294,7 @@ OGRErr OGRMultiPoint::importFromWkt( char ** ppszInput )
         return eErr;
 
     *ppszInput = (char *) pszInput;
-    
+
     return OGRERR_NONE;
 }
 

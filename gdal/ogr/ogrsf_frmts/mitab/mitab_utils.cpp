@@ -64,7 +64,7 @@
  * Don't filter chars in TABCleanFieldName() if we're on a DBCS system
  *
  * Revision 1.14  2000/09/28 16:39:44  warmerda
- * avoid warnings for unused, and unitialized variables
+ * Avoid warnings for unused, and uninitialized variables
  *
  * Revision 1.13  2000/09/20 18:35:51  daniel
  * Fixed TABAdjustFilenameExtension() to also handle basename and path
@@ -348,14 +348,14 @@ GBool TABAdjustFilenameExtension(char *pszFname)
 {
     VSIStatBufL  sStatBuf;
     int         i;
-    
+
     /*-----------------------------------------------------------------
      * First try using filename as provided
      *----------------------------------------------------------------*/
     if (VSIStatL(pszFname, &sStatBuf) == 0)
     {
         return TRUE;
-    }     
+    }
 
     /*-----------------------------------------------------------------
      * Try using uppercase extension (we assume that fname contains a '.')
@@ -368,8 +368,8 @@ GBool TABAdjustFilenameExtension(char *pszFname)
     if (VSIStatL(pszFname, &sStatBuf) == 0)
     {
         return TRUE;
-    }     
-    
+    }
+
     /*-----------------------------------------------------------------
      * Try using lowercase extension
      *----------------------------------------------------------------*/
@@ -541,7 +541,7 @@ char *TABUnEscapeString(char *pszString, GBool bSrcIsConst)
         }
     }
     pszWorkString[j++] = '\0';
-   
+
     return pszWorkString;
 }
 
@@ -690,7 +690,7 @@ typedef struct
     const char *pszAbbrev;
 } MapInfoUnitsInfo;
 
-static MapInfoUnitsInfo gasUnitsList[] = 
+static const MapInfoUnitsInfo gasUnitsList[] = 
 {
     {0, "mi"},
     {1, "km"},
@@ -721,7 +721,7 @@ static MapInfoUnitsInfo gasUnitsList[] =
  **********************************************************************/
 const char *TABUnitIdToString(int nId)
 {
-    MapInfoUnitsInfo *psList;
+    const MapInfoUnitsInfo *psList;
 
     psList = gasUnitsList;
 
@@ -744,10 +744,10 @@ const char *TABUnitIdToString(int nId)
  **********************************************************************/
 int TABUnitIdFromString(const char *pszName)
 {
-    MapInfoUnitsInfo *psList;
+    const MapInfoUnitsInfo *psList;
 
     psList = gasUnitsList;
-    
+
     if( pszName == NULL )
         return 13;
 

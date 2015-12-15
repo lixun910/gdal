@@ -186,7 +186,7 @@ OGRLayer* OGRGeoJSONDataSource::GetLayer( int nLayer )
 /*                           ICreateLayer()                             */
 /************************************************************************/
 
-OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszName_,
+OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszNameIn,
                                              OGRSpatialReference* poSRS,
                                              OGRwkbGeometryType eGType,
                                              char** papszOptions )
@@ -205,20 +205,11 @@ OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszName_,
         return NULL;
     }
 
-    OGRGeoJSONWriteLayer* poLayer
-        = new OGRGeoJSONWriteLayer( pszName_, eGType, papszOptions, this );
-
-/* -------------------------------------------------------------------- */
-/*      Add layer to data source layer list.                            */
-/* -------------------------------------------------------------------- */
-    CPLAssert(papoLayers_ == NULL);
-    papoLayersWriter_ = (OGRGeoJSONWriteLayer **)
-        CPLRealloc( papoLayers_,  sizeof(OGRGeoJSONWriteLayer*) * (nLayers_ + 1) );
-
-    papoLayersWriter_[nLayers_++] = poLayer;
-
     VSIFPrintfL( fpOut_, "{\n\"type\": \"FeatureCollection\",\n" );
-    
+
+    bool bWriteFC_BBOX =
+        CPL_TO_BOOL(CSLTestBoolean(CSLFetchNameValueDef(papszOptions, "WRITE_BBOX", "FALSE")));
+
     const char* pszNativeData = CSLFetchNameValue(papszOptions, "NATIVE_DATA");
     const char* pszNativeMediaType = CSLFetchNameValue(papszOptions, "NATIVE_MEDIA_TYPE");
     bool bWriteCRSIfWGS84 = true;
@@ -237,8 +228,14 @@ OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszName_,
             json_object_object_foreachC(poObj, it)
             {
                 if( strcmp(it.key, "type") == 0 ||
-                    strcmp(it.key, "features") == 0 )
+                    strcmp(it.key, "features") == 0  )
                 {
+                    continue;
+                }
+                if( strcmp(it.key, "bbox") == 0 )
+                {
+                    if( CSLFetchNameValue(papszOptions, "WRITE_BBOX") == NULL )
+                        bWriteFC_BBOX = true;
                     continue;
                 }
                 if( strcmp(it.key, "crs") == 0 )
@@ -287,7 +284,7 @@ OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszName_,
         }
     }
 
-    if (bFpOutputIsSeekable_)
+    if (bFpOutputIsSeekable_ && bWriteFC_BBOX)
     {
         nBBOXInsertLocation_ = (int) VSIFTellL( fpOut_ );
 
@@ -298,6 +295,18 @@ OGRLayer* OGRGeoJSONDataSource::ICreateLayer( const char* pszName_,
     }
 
     VSIFPrintfL( fpOut_, "\"features\": [\n" );
+
+    OGRGeoJSONWriteLayer* poLayer
+        = new OGRGeoJSONWriteLayer( pszNameIn, eGType, papszOptions, bWriteFC_BBOX, this );
+
+/* -------------------------------------------------------------------- */
+/*      Add layer to data source layer list.                            */
+/* -------------------------------------------------------------------- */
+    CPLAssert(papoLayers_ == NULL);
+    papoLayersWriter_ = (OGRGeoJSONWriteLayer **)
+        CPLRealloc( papoLayers_,  sizeof(OGRGeoJSONWriteLayer*) * (nLayers_ + 1) );
+
+    papoLayersWriter_[nLayers_++] = poLayer;
 
     return poLayer;
 }
@@ -434,7 +443,7 @@ int OGRGeoJSONDataSource::ReadFromFile( GDALOpenInfo* poOpenInfo )
     pszName_ = CPLStrdup( poOpenInfo->pszFilename );
 
     CPLAssert( NULL != pszGeoData_ );
-    
+
     if( poOpenInfo->eAccess == GA_Update )
     {
         VSILFILE* fp = VSIFOpenL(poOpenInfo->pszFilename, "rb+");
@@ -534,7 +543,7 @@ int OGRGeoJSONDataSource::ReadFromService( const char* pszSource )
 /*                           LoadLayers()                               */
 /************************************************************************/
 
-void OGRGeoJSONDataSource::LoadLayers(char** papszOpenOptions)
+void OGRGeoJSONDataSource::LoadLayers(char** papszOpenOptionsIn)
 {
     if( NULL == pszGeoData_ )
     {
@@ -624,12 +633,16 @@ void OGRGeoJSONDataSource::LoadLayers(char** papszOpenOptions)
     }
 
     reader.SetFlattenNestedAttributes(
-        CPL_TO_BOOL(CSLFetchBoolean(papszOpenOptions, "FLATTEN_NESTED_ATTRIBUTES", FALSE)),
-        CSLFetchNameValueDef(papszOpenOptions, "NESTED_ATTRIBUTE_SEPARATOR", "_")[0]);
+        CPL_TO_BOOL(CSLFetchBoolean(papszOpenOptionsIn, "FLATTEN_NESTED_ATTRIBUTES", FALSE)),
+        CSLFetchNameValueDef(papszOpenOptionsIn, "NESTED_ATTRIBUTE_SEPARATOR", "_")[0]);
 
     const int bDefaultNativeData = bUpdatable_ ? TRUE : FALSE ;
     reader.SetStoreNativeData(
-        CPL_TO_BOOL(CSLFetchBoolean(papszOpenOptions, "NATIVE_DATA", bDefaultNativeData)));
+        CPL_TO_BOOL(CSLFetchBoolean(papszOpenOptionsIn, "NATIVE_DATA", bDefaultNativeData)));
+
+    reader.SetArrayAsString(
+        CPL_TO_BOOL(CSLTestBoolean(CSLFetchNameValueDef(papszOpenOptionsIn, "ARRAY_AS_STRING",
+                CPLGetConfigOption("OGR_GEOJSON_ARRAY_AS_STRING", "NO")))));
 
 /* -------------------------------------------------------------------- */
 /*      Parse GeoJSON and build valid OGRLayer instance.                */

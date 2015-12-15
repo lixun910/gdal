@@ -35,7 +35,7 @@
 CPL_CVSID("$Id$");
 
 static bool bCacheMaxInitialized = false;
-static GIntBig nCacheMax = 40 * 1024*1024;
+static GIntBig nCacheMax = 40 * 1024*1024; /* Will later be overriden by the default 5% if GDAL_CACHEMAX not defined */
 static volatile GIntBig nCacheUsed = 0;
 
 static GDALRasterBlock *poOldest = NULL;    /* tail */
@@ -168,6 +168,9 @@ void CPL_STDCALL GDALSetCacheMax64( GIntBig nNewSizeInBytes )
  *
  * The first type this function is called, it will read the GDAL_CACHEMAX
  * configuration option to initialize the maximum cache memory.
+ * Starting with GDAL 2.1, the value can be expressed as x% of the usable
+ * physical RAM (which may potentially be used by other processes). Otherwise
+ * it is expected to be a value in MB.
  *
  * This function cannot return a value higher than 2 GB. Use
  * GDALGetCacheMax64() to get a non-truncated value.
@@ -205,6 +208,9 @@ int CPL_STDCALL GDALGetCacheMax()
  *
  * The first type this function is called, it will read the GDAL_CACHEMAX
  * configuration option to initialize the maximum cache memory.
+ * Starting with GDAL 2.1, the value can be expressed as x% of the usable
+ * physical RAM (which may potentially be used by other processes). Otherwise
+ * it is expected to be a value in MB.
  *
  * @return maximum in bytes.
  *
@@ -220,23 +226,43 @@ GIntBig CPL_STDCALL GDALGetCacheMax64()
         }
         bSleepsForBockCacheDebug = CPL_TO_BOOL(CSLTestBoolean(CPLGetConfigOption("GDAL_DEBUG_BLOCK_CACHE", "NO")));
 
-        const char* pszCacheMax = CPLGetConfigOption("GDAL_CACHEMAX",NULL);
-        bCacheMaxInitialized = true;
-        if( pszCacheMax != NULL )
+        const char* pszCacheMax = CPLGetConfigOption("GDAL_CACHEMAX","5%");
+
+        GIntBig nNewCacheMax;
+        if( strchr(pszCacheMax, '%') != NULL )
         {
-            GIntBig nNewCacheMax = (GIntBig)CPLScanUIntBig(pszCacheMax, static_cast<int>(strlen(pszCacheMax)));
+            GIntBig nUsagePhysicalRAM = CPLGetUsablePhysicalRAM();
+            double dfPct = CPLAtof(pszCacheMax) / 100.0;
+            if( nUsagePhysicalRAM > 0 && dfPct >= 0.0 && dfPct <= 1.0 )
+                nNewCacheMax = static_cast<GIntBig>(nUsagePhysicalRAM * dfPct);
+            else
+                nNewCacheMax = nCacheMax;
+        }
+        else
+        {
+            nNewCacheMax = CPLAtoGIntBig(pszCacheMax);
             if( nNewCacheMax < 100000 )
             {
                 if (nNewCacheMax < 0)
                 {
                     CPLError(CE_Failure, CPLE_NotSupported,
-                             "Invalid value for GDAL_CACHEMAX. Using default value.");
-                    return nCacheMax;
+                                "Invalid value for GDAL_CACHEMAX. Using default value.");
+                    GIntBig nUsagePhysicalRAM = CPLGetUsablePhysicalRAM();
+                    if( nUsagePhysicalRAM )
+                        nNewCacheMax = nUsagePhysicalRAM / 20;
+                    else
+                        nNewCacheMax = nCacheMax;
                 }
-                nNewCacheMax *= 1024 * 1024;
+                else
+                {
+                    nNewCacheMax *= 1024 * 1024;
+                }
             }
-            nCacheMax = nNewCacheMax;
         }
+        nCacheMax = nNewCacheMax;
+        CPLDebug("GDAL", "GDAL_CACHEMAX = " CPL_FRMT_GIB " MB",
+                 nCacheMax / (1024 * 1024));
+        bCacheMaxInitialized = true;
     }
 
     return nCacheMax;
@@ -742,7 +768,7 @@ void GDALRasterBlock::Touch_unlocked()
     if( poNewest == this )
         return;
 
-    // In theory, we shouldn't try to touch a block that has been detached
+    // In theory, we should not try to touch a block that has been detached
     CPLAssert(bMustDetach);
     if( !bMustDetach )
     {
@@ -754,7 +780,7 @@ void GDALRasterBlock::Touch_unlocked()
 
     if( poOldest == this )
         poOldest = this->poPrevious;
-    
+
     if( poPrevious != NULL )
         poPrevious->poNext = poNext;
 
@@ -770,7 +796,7 @@ void GDALRasterBlock::Touch_unlocked()
         poNewest->poPrevious = this;
     }
     poNewest = this;
-    
+
     if( poOldest == NULL )
     {
         CPLAssert( poPrevious == NULL && poNext == NULL );
@@ -903,7 +929,7 @@ CPLErr GDALRasterBlock::Internalize()
                 VSIFree(poBlock->pData);
             }
             poBlock->pData = NULL;
- 
+
             poBlock->GetBand()->AddBlockToFreeList(poBlock);
         }
     }

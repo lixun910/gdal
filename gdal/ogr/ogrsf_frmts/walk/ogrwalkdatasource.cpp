@@ -79,7 +79,9 @@ int OGRWalkDataSource::Open( const char * pszNewName, int bUpdate )
         const char *pszDSNStringTemplate = "DRIVER=Microsoft Access Driver (*.mdb);DBQ=%s";
         pszDSN = (char *) CPLMalloc(strlen(pszNewName)+strlen(pszDSNStringTemplate)+100);
 
-        sprintf( pszDSN, pszDSNStringTemplate,  pszNewName );
+        snprintf( pszDSN,
+                  strlen(pszNewName)+strlen(pszDSNStringTemplate)+100,
+                  pszDSNStringTemplate,  pszNewName );
     }
 
 /* -------------------------------------------------------------------- */
@@ -122,7 +124,7 @@ int OGRWalkDataSource::Open( const char * pszNewName, int bUpdate )
     {
         int i, iNew = static_cast<int>(apapszGeomColumns.size());
         char **papszRecord = NULL;
-        
+
         for( i = 1; i < 7; i++ )
             papszRecord = CSLAddString( papszRecord, oStmt.GetColData(i) ); //Add LayerName, Extent and Memo
 
@@ -230,7 +232,7 @@ OGRLayer * OGRWalkDataSource::ExecuteSQL( const char *pszSQLCommand,
 
     if( poSpatialFilter != NULL )
         poLayer->SetSpatialFilter( poSpatialFilter );
-    
+
     return poLayer;
 }
 

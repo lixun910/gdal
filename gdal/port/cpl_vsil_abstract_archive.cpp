@@ -279,10 +279,10 @@ char* VSIArchiveFilesystemHandler::SplitFilename(const char *pszFilename,
         return NULL;
 
     /* Allow natural chaining of VSI drivers without requiring double slash */
-    
+
     CPLString osDoubleVsi(GetPrefix());
     osDoubleVsi += "/vsi";
-    
+
     if (strncmp(pszFilename, osDoubleVsi.c_str(), osDoubleVsi.size()) == 0)
         pszFilename += strlen(GetPrefix());
     else
@@ -411,7 +411,7 @@ VSIArchiveReader* VSIArchiveFilesystemHandler::OpenArchiveFile(const char* archi
             return NULL;
         }
 
-        /* Skip optionnal leading subdir */
+        /* Skip optional leading subdir */
         CPLString osFileName = poReader->GetFileName();
         const char* fileName = osFileName.c_str();
         if (fileName[strlen(fileName)-1] == '/' || fileName[strlen(fileName)-1] == '\\')
@@ -506,7 +506,7 @@ int VSIArchiveFilesystemHandler::Stat( const char *pszFilename,
 
         if (poReader != NULL && poReader->GotoFirstFile())
         {
-            /* Skip optionnal leading subdir */
+            /* Skip optional leading subdir */
             CPLString osFileName = poReader->GetFileName();
             const char* fileName = osFileName.c_str();
             if (fileName[strlen(fileName)-1] == '/' || fileName[strlen(fileName)-1] == '\\')
@@ -593,7 +593,7 @@ char** VSIArchiveFilesystemHandler::ReadDir( const char *pszDirname )
     int lenInArchiveSubDir = static_cast<int>(strlen(osInArchiveSubDir));
 
     char **papszDir = NULL;
-    
+
     const VSIArchiveContent* content = GetContentOfArchive(archiveFilename);
     if (!content)
     {

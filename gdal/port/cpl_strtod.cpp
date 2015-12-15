@@ -115,84 +115,6 @@ double CPLAtof(const char *nptr)
   return CPLStrtod(nptr, 0);
 }
 
-double CPLAtofLocale(const char *nptr)
-{
-    while( *nptr == ' ' )
-        nptr ++;
-
-    if (nptr[0] == '-')
-    {
-        if (strcmp(nptr, "-1.#QNAN") == 0 ||
-            strcmp(nptr, "-1.#IND") == 0)
-            return NAN;
-
-        if (strcmp(nptr,"-inf") == 0 ||
-            strcmp(nptr,"-1.#INF") == 0)
-            return -INFINITY;
-    }
-    else if (nptr[0] == '1')
-    {
-        if (strcmp(nptr, "1.#QNAN") == 0)
-            return NAN;
-        if (strcmp (nptr,"1.#INF") == 0)
-            return INFINITY;
-    }
-    else if (nptr[0] == 'i' && strcmp(nptr,"inf") == 0)
-        return INFINITY;
-    else if (nptr[0] == 'n' && strcmp(nptr,"nan") == 0)
-        return NAN;
-    
-    double      dfValue;
-    char* pszNew = NULL;
-    
-    // convert every locale() to C locale
-    const char* separator = CPLGetConfigOption("GDAL_LOCALE_SEPARATOR", NULL);
-    if ( separator && strlen(separator) > 0)
-    {
-        // Remove Thousands Seperators
-        pszNew = CPLStrdup(nptr);
-        char* p1 = pszNew;
-        char* p2 = pszNew;
-        while (*p2)
-        {
-            if (*p2 != separator[0])
-                *p1++ = *p2;
-            p2++;
-        }
-    }
-   
-    char default_point = '.';
-    const char* decimal_point = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", NULL);
-    if ( decimal_point && strlen(decimal_point) > 0 )
-    {
-        char byPoint = decimal_point[0];
-        if (default_point != byPoint)
-        {
-            const char* pszPoint = NULL;
-            if (pszNew)
-                pszPoint = strchr(pszNew, byPoint);
-            else {
-                pszNew = CPLStrdup(nptr);
-                pszPoint = strchr(pszNew, byPoint);
-            }
-            // replace any non-C locale decimal point
-            if (pszPoint)
-                pszNew[pszPoint - pszNew] = default_point;
-        }
-    }
-    if (pszNew)
-        dfValue = atof( pszNew ); //strtod( pszNew, endptr );
-    else
-        dfValue = atof( nptr );
-    
-    if (pszNew && pszNew!= (char*) nptr)
-        CPLFree( pszNew );
-    
-    return dfValue;
-    
-}
-
-
 /************************************************************************/
 /*                              CPLAtofM()                              */
 /************************************************************************/
@@ -240,7 +162,7 @@ static char* CPLReplacePointByLocalePoint(const char* pszNumber, char point)
     if (byPoint == 0)
     {
         char szBuf[16];
-        sprintf(szBuf, "%.1f", 1.0);
+        snprintf(szBuf, sizeof(szBuf), "%.1f", 1.0);
         byPoint = szBuf[1];
     }
     if (point != byPoint)

@@ -211,14 +211,14 @@ int KMLNode::classify(KML* poKML, int nRecLevel)
     if( nRecLevel == 32 )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
-                    "Too many recursiong level (%d) while parsing KML geometry.",
-                    nRecLevel );
+                  "Too many recursion levels (%d) while parsing KML geometry.",
+                  nRecLevel );
         return FALSE;
     }
 
     //CPLDebug("KML", "%s<%s>", genSpaces(), sName_.c_str());
     //nDepth ++;
-    
+
     if(sName_.compare("Point") == 0)
         eType_ = Point;
     else if(sName_.compare("LineString") == 0)
@@ -480,7 +480,7 @@ std::size_t KMLNode::getNumFeatures()
     {
         std::size_t nNum = 0;
         kml_nodes_t::size_type size = pvpoChildren_->size();
-        
+
         for( kml_nodes_t::size_type i = 0; i < size; ++i )
         {
             if( (*pvpoChildren_)[i]->sName_ == "Placemark" )
@@ -713,7 +713,7 @@ Feature* KMLNode::getFeature(std::size_t nNum, int& nLastAsked, int &nLastCount)
 
     if(poFeat == NULL)
         return NULL;
-        
+
     // Create a feature structure
     Feature *psReturn = new Feature;
     // Build up the name

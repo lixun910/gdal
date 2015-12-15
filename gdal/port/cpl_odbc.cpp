@@ -101,9 +101,10 @@ int CPLODBCDriverInstaller::InstallDriver( const char* pszDriver,
             CPLDebug( "ODBC", "HOME=%s", pszEnvHome );
 
             // Set ODBCSYSINI variable pointing to HOME location
-            pszEnvIni = (char *)CPLMalloc( strlen(pszEnvHome) + 12 );
+            const size_t nLen = strlen(pszEnvHome) + 12;
+            pszEnvIni = (char *)CPLMalloc( nLen );
 
-            sprintf( pszEnvIni, "ODBCSYSINI=%s", pszEnvHome );
+            snprintf( pszEnvIni, nLen, "ODBCSYSINI=%s", pszEnvHome );
             /* a 'man putenv' shows that we cannot free pszEnvIni */
             /* because the pointer is used directly by putenv in old glibc */
             putenv( pszEnvIni );
@@ -192,7 +193,7 @@ int CPLODBCSession::CloseSession()
         SQLFreeConnect( m_hDBC );
         m_hDBC = NULL;
     }
-    
+
     if( m_hEnv!=NULL )
     {
         SQLFreeEnv( m_hEnv );
@@ -362,7 +363,7 @@ int CPLODBCSession::EstablishSession( const char *pszDSN,
 
 {
     CloseSession();
-    
+
     if( Failed( SQLAllocEnv( &m_hEnv ) ) )
         return FALSE;
 
@@ -614,7 +615,7 @@ int CPLODBCStatement::GetRowCountAffected()
 {
     SQLLEN nResultCount=0;
     SQLRowCount( m_hStmt, &nResultCount );
-    
+
     return (int)nResultCount;
 }
 
@@ -805,16 +806,16 @@ const char *CPLODBCStatement::GetColColumnDef( int iCol )
  * Requests the next row in the current resultset using the SQLFetchScroll()
  * call.  Note that many ODBC drivers only support the default forward
  * fetching one record at a time.  Only SQL_FETCH_NEXT (the default) should
- * be considered reliable on all drivers. 
+ * be considered reliable on all drivers.
  *
  * Currently it isn't clear how to determine whether an error or a normal
- * out of data condition has occured if Fetch() fails. 
+ * out of data condition has occurred if Fetch() fails.
  *
  * @param nOrientation One of SQL_FETCH_NEXT, SQL_FETCH_LAST, SQL_FETCH_PRIOR,
  * SQL_FETCH_ABSOLUTE, or SQL_FETCH_RELATIVE (default is SQL_FETCH_NEXT).
  *
- * @param nOffset the offset (number of records), ignored for some 
- * orientations.  
+ * @param nOffset the offset (number of records), ignored for some
+ * orientations.
  *
  * @return TRUE if a new row is successfully fetched, or FALSE if not.
  */
@@ -866,7 +867,7 @@ int CPLODBCStatement::Fetch( int nOrientation, int nOffset )
 /*      Pull out all the column values.                                 */
 /* -------------------------------------------------------------------- */
     SQLSMALLINT iCol;
-    
+
     for( iCol = 0; iCol < m_nColCount; iCol++ )
     {
         char szWrkData[513];
@@ -1109,7 +1110,7 @@ int CPLODBCStatement::GetColId( const char *pszColName )
     for( SQLSMALLINT iCol = 0; iCol < m_nColCount; iCol++ )
         if( EQUAL(pszColName, m_papszColNames[iCol]) )
             return iCol;
-    
+
     return -1;
 }
 
@@ -1238,9 +1239,9 @@ void CPLODBCStatement::AppendEscaped( const char *pszText )
 void CPLODBCStatement::Append( int nValue )
 
 {
-    char szFormattedValue[100];
+    char szFormattedValue[32];
 
-    sprintf( szFormattedValue, "%d", nValue );
+    snprintf( szFormattedValue, sizeof(szFormattedValue), "%d", nValue );
     Append( szFormattedValue );
 }
 
@@ -1261,7 +1262,7 @@ void CPLODBCStatement::Append( double dfValue )
 {
     char szFormattedValue[100];
 
-    sprintf( szFormattedValue, "%24g", dfValue );
+    snprintf( szFormattedValue, sizeof(szFormattedValue), "%24g", dfValue );
     Append( szFormattedValue );
 }
 
@@ -1318,7 +1319,7 @@ void CPLODBCStatement::Clear()
     /* Closing the cursor if opened */
     if( m_hStmt != NULL )
         SQLFreeStmt( m_hStmt, SQL_CLOSE );
-    
+
     ClearColumnData();
 
     if( m_pszStatement != NULL )
@@ -1372,7 +1373,7 @@ void CPLODBCStatement::Clear()
  * Fetch column definitions for a table.
  *
  * The SQLColumn() method is used to fetch the definitions for the columns
- * of a table (or other queriable object such as a view).  The column
+ * of a table (or other queryable object such as a view).  The column
  * definitions are digested and used to populate the CPLODBCStatement
  * column definitions essentially as if a "SELECT * FROM tablename" had
  * been done; however, no resultset will be available.
@@ -1438,7 +1439,7 @@ int CPLODBCStatement::GetColumns( const char *pszTable,
 #endif
 
     m_nColCount = 500;
-    
+
     m_papszColNames = (char **) CPLCalloc(sizeof(char *),(m_nColCount+1));
     m_papszColValues = (char **) CPLCalloc(sizeof(char *),(m_nColCount+1));
 
@@ -1663,7 +1664,7 @@ void CPLODBCStatement::DumpResult( FILE *fp, int bShowSchema )
     while( Fetch() )
     {
         fprintf( fp, "Record %d\n", iRecord++ );
-        
+
         for( iCol = 0; iCol < GetColCount(); iCol++ )
         {
             fprintf( fp, "  %s: %s\n", GetColName(iCol), GetColData(iCol) );
@@ -1693,29 +1694,28 @@ CPLString CPLODBCStatement::GetTypeName( int nTypeCode )
     {
       case SQL_CHAR:
         return "CHAR";
-        
+
       case SQL_NUMERIC:
         return "NUMERIC";
-        
+
       case SQL_DECIMAL:
         return "DECIMAL";
-        
+
       case SQL_INTEGER:
         return "INTEGER";
-        
+
       case SQL_SMALLINT:
         return "SMALLINT";
 
-        
       case SQL_FLOAT:
         return "FLOAT";
-        
+
       case SQL_REAL:
         return "REAL";
 
       case SQL_DOUBLE:
         return "DOUBLE";
-        
+
       case SQL_DATETIME:
         return "DATETIME";
 
@@ -1727,7 +1727,7 @@ CPLString CPLODBCStatement::GetTypeName( int nTypeCode )
 
       case SQL_TYPE_TIME:
         return "TIME";
-        
+
       case SQL_TYPE_TIMESTAMP:
         return "TIMESTAMP";
 

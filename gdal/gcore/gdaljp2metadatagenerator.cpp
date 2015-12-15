@@ -640,7 +640,7 @@ GDALGMLJP2Expr GDALGMLJP2Expr::Evaluate(xmlXPathContextPtr pXPathCtx,
             oExpr.eType = GDALGMLJP2Expr_STRING_LITERAL;
             return oExpr;
         }
-        
+
         case GDALGMLJP2Expr_UUID:
         {
             CPLString osRet;
@@ -663,7 +663,7 @@ GDALGMLJP2Expr GDALGMLJP2Expr::Evaluate(xmlXPathContextPtr pXPathCtx,
                 osRet += GDALGMLJP2HexFormatter(rand() & 0xFF);
             return GDALGMLJP2Expr(osRet);
         }
-        
+
         case GDALGMLJP2Expr_STRING_LENGTH:
         {
             GDALGMLJP2Expr oExpr(CPLSPrintf("%d",
@@ -743,7 +743,7 @@ static CPLString GDALGMLJP2EvalExpr(const CPLString& osTemplate,
 
         // Add portion of template before the expression
         osXMLRes += osTemplate.substr(nPos, nStartPos - nPos);
-        
+
         const char* pszExpr = osTemplate.c_str() + nStartPos;
         GDALGMLJP2Expr* poExpr = GDALGMLJP2Expr::Build(pszExpr, pszExpr);
         if( poExpr == NULL )
@@ -772,7 +772,7 @@ static void GDALGMLJP2XPathErrorHandler(CPL_UNUSED void * userData,
     }
     else
     {
-        CPLError(CE_Failure, CPLE_AppDefined, "An error occured in libxml2");
+        CPLError(CE_Failure, CPLE_AppDefined, "An error occurred in libxml2");
     }
 }
 
@@ -912,7 +912,7 @@ CPLXMLNode* GDALGMLJP2GenerateMetadata(
     xmlXPathRegisterFunc(pXPathCtx, (const xmlChar *)"uuid", GDALGMLJP2XPathUUID);
 
     pXPathCtx->error = GDALGMLJP2XPathErrorHandler;
-    
+
     GDALGMLJP2RegisterNamespaces(pXPathCtx, xmlDocGetRootElement(pDoc));
 
     CPLString osXMLRes = GDALGMLJP2EvalExpr(osTemplate, pXPathCtx, pDoc);

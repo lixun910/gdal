@@ -86,6 +86,8 @@ void VSICurlSetOptions(CURL* hCurlHandle, const char* pszURL);
 static const int N_MAX_REGIONS = 1000;
 static const int DOWNLOAD_CHUNK_SIZE = 16384;
 
+namespace {
+
 typedef enum
 {
     EXIST_UNKNOWN = -1,
@@ -116,6 +118,28 @@ typedef struct
     char           *pData;
 } CachedRegion;
 
+typedef struct
+{
+    char*           pBuffer;
+    size_t          nSize;
+    bool            bIsHTTP;
+    bool            bIsInHeader;
+    bool            bMultiRange;
+    vsi_l_offset    nStartOffset;
+    vsi_l_offset    nEndOffset;
+    int             nHTTPCode;
+    vsi_l_offset    nContentLength;
+    bool            bFoundContentRange;
+    bool            bError;
+    bool            bDownloadHeaderOnly;
+
+    VSILFILE           *fp; 
+    VSICurlReadCbkFunc  pfnReadCbk;
+    void               *pReadCbkUserData;
+    bool                bInterrupted;
+} WriteFuncStruct;
+
+} /* end of anoymous namespace */
 
 static const char* VSICurlGetCacheFileName()
 {
@@ -468,28 +492,6 @@ void VSICurlSetOptions(CURL* hCurlHandle, const char* pszURL)
     curl_easy_setopt(hCurlHandle, CURLOPT_HEADERFUNCTION, NULL);
 }
 
-
-typedef struct
-{
-    char*           pBuffer;
-    size_t          nSize;
-    bool            bIsHTTP;
-    bool            bIsInHeader;
-    bool            bMultiRange;
-    vsi_l_offset    nStartOffset;
-    vsi_l_offset    nEndOffset;
-    int             nHTTPCode;
-    vsi_l_offset    nContentLength;
-    bool            bFoundContentRange;
-    bool            bError;
-    bool            bDownloadHeaderOnly;
-
-    VSILFILE           *fp; 
-    VSICurlReadCbkFunc  pfnReadCbk;
-    void               *pReadCbkUserData;
-    bool                bInterrupted;
-} WriteFuncStruct;
-
 /************************************************************************/
 /*                    VSICURLInitWriteFuncStruct()                      */
 /************************************************************************/
@@ -694,7 +696,7 @@ vsi_l_offset VSICurlHandle::GetFileSize()
 
         sWriteFuncHeaderData.bIsHTTP = STARTS_WITH(pszURL, "http");
         osVerb = "GET";
-        
+
         curl_easy_setopt(hCurlHandle, CURLOPT_RANGE, "0-4095");
     }
     else if (strstr(pszURL, ".tiles.mapbox.com/") != NULL
@@ -891,7 +893,8 @@ bool VSICurlHandle::DownloadRegion(vsi_l_offset startOffset, int nBlocks)
     }
 
     char rangeStr[512];
-    sprintf(rangeStr, CPL_FRMT_GUIB "-" CPL_FRMT_GUIB, startOffset,
+    snprintf(rangeStr, sizeof(rangeStr),
+             CPL_FRMT_GUIB "-" CPL_FRMT_GUIB, startOffset,
             sWriteFuncHeaderData.nEndOffset);
 
     if (ENABLE_DEBUG)
@@ -934,7 +937,7 @@ bool VSICurlHandle::DownloadRegion(vsi_l_offset startOffset, int nBlocks)
     curl_easy_getinfo(hCurlHandle, CURLINFO_CONTENT_TYPE, &content_type);
 
     if (ENABLE_DEBUG)
-        CPLDebug("VSICURL", "Got reponse_code=%ld", response_code);
+        CPLDebug("VSICURL", "Got response_code=%ld", response_code);
 
     if ((response_code != 200 && response_code != 206 &&
          response_code != 225 && response_code != 226 && response_code != 426) || sWriteFuncHeaderData.bError)
@@ -1034,7 +1037,7 @@ bool VSICurlHandle::DownloadRegion(vsi_l_offset startOffset, int nBlocks)
             CPLDebug("VSICURL", "Got more data than expected : %u instead of %d",
                      static_cast<unsigned int>(nSize), nBlocks * DOWNLOAD_CHUNK_SIZE);
     }
-    
+
     while(nSize > 0)
     {
         //if (ENABLE_DEBUG)
@@ -1062,7 +1065,7 @@ size_t VSICurlHandle::Read( void * const pBufferIn, size_t const  nSize, size_t 
     size_t nBufferRequestSize = nSize * nMemb;
     if (nBufferRequestSize == 0)
         return 0;
-        
+
     //CPLDebug("VSICURL", "offset=%d, size=%d", (int)curOffset, (int)nBufferRequestSize);
 
     vsi_l_offset iterOffset = curOffset;
@@ -1073,7 +1076,7 @@ size_t VSICurlHandle::Read( void * const pBufferIn, size_t const  nSize, size_t 
         {
             vsi_l_offset nOffsetToDownload =
                 (iterOffset / DOWNLOAD_CHUNK_SIZE) * DOWNLOAD_CHUNK_SIZE;
-            
+
             if (nOffsetToDownload == lastDownloadedOffset)
             {
                 /* In case of consecutive reads (of small size), we use a */
@@ -1097,7 +1100,7 @@ size_t VSICurlHandle::Read( void * const pBufferIn, size_t const  nSize, size_t 
                 ((nEndOffsetToDownload - nOffsetToDownload) / DOWNLOAD_CHUNK_SIZE);
             if (nBlocksToDownload < nMinBlocksToDownload)
                 nBlocksToDownload = nMinBlocksToDownload;
-                
+
             int i;
             /* Avoid reading already cached data */
             for(i=1;i<nBlocksToDownload;i++)
@@ -1260,7 +1263,7 @@ int VSICurlHandle::ReadMultiRange( int const nRanges, void ** const ppData,
 
         return -1;
     }
-    
+
     long response_code = 0;
     curl_easy_getinfo(hCurlHandle, CURLINFO_HTTP_CODE, &response_code);
 
@@ -1335,7 +1338,7 @@ int VSICurlHandle::ReadMultiRange( int const nRanges, void ** const ppData,
                   "Content-Type: multipart/byteranges; boundary=" );
         goto end;
     }
-    
+
     pszBoundary += strlen( "Content-Type: multipart/byteranges; boundary=" );
 
     pszEOL = strchr(pszBoundary, '\r');
@@ -2249,7 +2252,7 @@ char** VSICurlFilesystemHandler::ParseHTMLFileList(const char* pszFilename,
                     bIsDirectory = true;
                     endQuote[-1] = 0;
                 }
-                
+
                 /* shttpd links include slashes from the root directory. Skip them */
                 while(strchr(beginFilename, '/'))
                     beginFilename = strchr(beginFilename, '/') + 1;
@@ -3313,7 +3316,7 @@ bool VSIS3WriteHandle::UploadPart()
     VSICURLInitWriteFuncStruct(&sWriteFuncHeaderData, NULL, NULL, NULL);
     curl_easy_setopt(hCurlHandle, CURLOPT_HEADERDATA, &sWriteFuncHeaderData);
     curl_easy_setopt(hCurlHandle, CURLOPT_HEADERFUNCTION, VSICurlHandleWriteFunc);
-    
+
     curl_easy_perform(hCurlHandle);
 
     curl_slist_free_all(headers);
@@ -3809,9 +3812,9 @@ char** VSIS3FSHandler::GetFileList( const char *pszDirname, bool* pbGotFileList 
 
     CPLStringList osFileList;
     CPLString osNextMarker;
-    
+
     CPLString osMaxKeys = CPLGetConfigOption("AWS_MAX_KEYS", "");
-    
+
     while(true)
     {
         poS3HandleHelper->ResetQueryParameters();
@@ -3920,7 +3923,7 @@ void VSIS3FSHandler::UpdateMapFromHandle(VSIS3HandleHelper * poS3HandleHelper)
 void VSIS3FSHandler::UpdateHandleFromMap(VSIS3HandleHelper * poS3HandleHelper)
 {
     CPLMutexHolder oHolder( &hMutex );
-    
+
     std::map< CPLString, VSIS3UpdateParams>::iterator oIter =
         oMapBucketsToS3Params.find(poS3HandleHelper->GetBucket());
     if( oIter != oMapBucketsToS3Params.end() )

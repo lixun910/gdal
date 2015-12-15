@@ -40,9 +40,9 @@ CPL_CVSID("$Id$");
 /*                       OGRCouchDBTableLayer()                         */
 /************************************************************************/
 
-OGRCouchDBTableLayer::OGRCouchDBTableLayer(OGRCouchDBDataSource* poDS,
+OGRCouchDBTableLayer::OGRCouchDBTableLayer(OGRCouchDBDataSource* poDSIn,
                                            const char* pszName) :
-                                                        OGRCouchDBLayer(poDS)
+                                                        OGRCouchDBLayer(poDSIn)
 
 {
     osName = pszName;
@@ -77,7 +77,7 @@ OGRCouchDBTableLayer::OGRCouchDBTableLayer(OGRCouchDBDataSource* poDS,
     dfMaxY = 0;
 
     nCoordPrecision = atoi(CPLGetConfigOption("OGR_COUCHDB_COORDINATE_PRECISION", "-1"));
-    
+
     SetDescription( osName );
 }
 
@@ -433,7 +433,7 @@ int OGRCouchDBTableLayer::HasFilterOnFieldOrCreateIfNecessary(const char* pszFie
         else
             json_object_object_add(poFilter, "reduce", json_object_new_string("_count"));
 
-        json_object* poAnswerObj = poDS->PUT(osURI,
+        poAnswerObj = poDS->PUT(osURI,
                                             json_object_to_json_string(poDoc));
 
         json_object_put(poDoc);
@@ -1215,7 +1215,7 @@ int OGRCouchDBTableLayer::GetMaximumId()
         json_object_put(poAnswerObj);
         return -1;
     }
-    
+
     json_object* poRow = json_object_array_get_idx(poRows, 0);
     if ( poRow == NULL ||
             !json_object_is_type(poRow, json_type_object) )
@@ -1358,10 +1358,10 @@ OGRErr OGRCouchDBTableLayer::ICreateFeature( OGRFeature *poFeature )
     {
         poFeature->SetField(COUCHDB_ID_FIELD, pszId);
 
-        int nFID = atoi(pszId);
-        const char* pszFID = CPLSPrintf("%09d", nFID);
+        int l_nFID = atoi(pszId);
+        const char* pszFID = CPLSPrintf("%09d", l_nFID);
         if (strcmp(pszId, pszFID) == 0)
-            poFeature->SetFID(nFID);
+            poFeature->SetFID(l_nFID);
         else
             poFeature->SetFID(-1);
     }

@@ -38,8 +38,8 @@ CPL_CVSID("$Id$");
 
 OGRSVGLayer::OGRSVGLayer( const char* pszFilename,
                           const char* pszLayerName,
-                          SVGGeometryType svgGeomType,
-                          OGRSVGDataSource* poDS) :
+                          SVGGeometryType svgGeomTypeIn,
+                          OGRSVGDataSource* poDSIn) :
     poFeatureDefn(NULL),
     poSRS(NULL),
     poDS(NULL),
@@ -69,8 +69,8 @@ OGRSVGLayer::OGRSVGLayer( const char* pszFilename,
 #endif
 
 {
-    this->poDS = poDS;
-    this->svgGeomType = svgGeomType;
+    this->poDS = poDSIn;
+    this->svgGeomType = svgGeomTypeIn;
     osLayerName = pszLayerName;
     SetDescription( pszLayerName );
 
@@ -120,7 +120,7 @@ OGRSVGLayer::~OGRSVGLayer()
 #endif
     if (poFeatureDefn)
         poFeatureDefn->Release();
-    
+
     if( poSRS != NULL )
         poSRS->Release();
 
@@ -547,12 +547,12 @@ OGRFeature *OGRSVGLayer::GetNextFeature()
     {
         return ppoFeatureTab[nFeatureTabIndex++];
     }
-    
+
     if (VSIFEofL(fpSVG))
         return NULL;
-    
+
     char aBuf[BUFSIZ];
-    
+
     CPLFree(ppoFeatureTab);
     ppoFeatureTab = NULL;
     nFeatureTabLength = 0;

@@ -33,6 +33,8 @@
 #include "ogrsf_frmts.h"
 #include "nasakeywordhandler.h"
 
+namespace OGRPDS {
+
 /************************************************************************/
 /*                              OGRPDSLayer                             */
 /************************************************************************/
@@ -71,7 +73,7 @@ class OGRPDSLayer : public OGRLayer
     int                nLatitudeIndex;
 
     FieldDesc*         pasFieldDesc;
-    
+
     void               ReadStructure(CPLString osStructureFilename);
     OGRFeature        *GetNextRawFeature();
 
@@ -99,6 +101,8 @@ class OGRPDSLayer : public OGRLayer
 
     virtual OGRErr              SetNextByIndex( GIntBig nIndex );
 };
+
+} /* end of OGRPDS namespace */
 
 /************************************************************************/
 /*                           OGRPDSDataSource                           */

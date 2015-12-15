@@ -475,7 +475,7 @@ int TABINDFile::WriteHeader()
             if (poRootNode->GetSubTreeDepth() > 255)
             {
                 CPLError(CE_Failure, CPLE_AssertionFailed,
-                         "Index no %d is too large and will not be useable. "
+                         "Index no %d is too large and will not be usable. "
                          "(SubTreeDepth = %d, cannot exceed 255).",
                          iIndex+1, poRootNode->GetSubTreeDepth());
                 return -1;
@@ -586,7 +586,7 @@ GByte *TABINDFile::BuildKey(int nIndexNumber, GInt32 nValue)
         return NULL;
 
     int nKeyLength = m_papoIndexRootNodes[nIndexNumber-1]->GetKeyLength();
-    
+
     /*-----------------------------------------------------------------
      * Convert all int values to MSB using the right number of bytes
      * Note:
@@ -644,10 +644,10 @@ GByte *TABINDFile::BuildKey(int nIndexNumber, const char *pszStr)
 
     /* Pad the end of the buffer with '\0' */
     for( ; i<nKeyLength; i++)
-    {   
+    {
         m_papbyKeyBuffers[nIndexNumber-1][i] = '\0';
     }
-        
+
     return m_papbyKeyBuffers[nIndexNumber-1];
 }
 
@@ -1144,8 +1144,8 @@ int TABINDNode::SetFieldType(TABFieldType eType)
                  "Index key length (%d) does not match field type (%s).",
                  m_nKeyLength, TABFIELDTYPE_2_STRING(eType) );
         return -1;
-    }           
-    
+    }
+
     m_eFieldType = eType;
 
     /*-----------------------------------------------------------------
@@ -1459,8 +1459,8 @@ int TABINDNode::CommitToFile()
  * has on its parent.
  *
  * If bAddInThisNodeOnly=TRUE, then the entry is added only locally and
- * we do not try to update the child node.  This is used when the parent 
- * of a node that is being splitted has to be updated.
+ * we do not try to update the child node.  This is used when the parent
+ * of a node that is being split has to be updated.
  *
  * bInsertAfterCurChild forces the insertion to happen immediately after
  * the m_nCurIndexEntry.  This works only when bAddInThisNodeOnly=TRUE.
@@ -1766,6 +1766,7 @@ int TABINDNode::SplitNode()
                                 GetNodeBlockPtr(), m_nNextNodePtr)!= 0 ||
             poNewNode->SetFieldType(m_eFieldType) != 0 )
         {
+            delete poNewNode;
             return -1;
         }
 
@@ -1782,6 +1783,7 @@ int TABINDNode::SplitNode()
                 poTmpNode->CommitToFile() != 0)
             {
                 delete poTmpNode;
+                delete poNewNode;
                 return -1;
             }
             delete poTmpNode;
@@ -1794,7 +1796,10 @@ int TABINDNode::SplitNode()
 
         if (poNewNode->SetNodeBufferDirectly(numInNode2, 
                                         m_poDataBlock->GetCurDataPtr()) != 0)
+        {
+            delete poNewNode;
             return -1;
+        }
 
 #ifdef DEBUG
         // Just in case, reset space previously used by moved entries
@@ -1810,7 +1815,10 @@ int TABINDNode::SplitNode()
                                                     GetNodeBlockPtr(),
                                                     poNewNode->GetNodeKey(),
                                         poNewNode->GetNodeBlockPtr(), 1) != 0)
+            {
+                delete poNewNode;
                 return -1;
+            }
         }
 
     }
@@ -1855,7 +1863,10 @@ int TABINDNode::SplitNode()
 
         if (poNewNode->SetNodeBufferDirectly(numInNode1, 
                                         m_poDataBlock->GetCurDataPtr()) != 0)
+        {
+            delete poNewNode;
             return -1;
+        }
 
         // Shift the second half of the entries to beginning of buffer
         memmove (m_poDataBlock->GetCurDataPtr(),
@@ -1879,7 +1890,10 @@ int TABINDNode::SplitNode()
                                                   poNewNode->GetNodeBlockPtr(),
                                                     GetNodeKey(),
                                                     GetNodeBlockPtr(), 2) != 0)
+            {
+                delete poNewNode;
                 return -1;
+            }
         }
 
     }
@@ -1896,7 +1910,10 @@ int TABINDNode::SplitNode()
      * Flush and destroy temporary node
      *----------------------------------------------------------------*/
     if (poNewNode->CommitToFile() != 0)
+    {
+        delete poNewNode;
         return -1;
+    }
 
     delete poNewNode;
 

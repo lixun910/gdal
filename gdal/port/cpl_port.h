@@ -478,6 +478,10 @@ static inline int CPL_afl_friendly_strncasecmp(const char* ptr1, const char* ptr
 #  ifdef isinf 
 #    define CPLIsInf(x) isinf(x)
 #    define CPLIsFinite(x) (!isnan(x) && !isinf(x))
+#  elif defined(__sun__)
+#    include <ieeefp.h>
+#    define CPLIsInf(x)    (!finite(x) && !isnan(x))
+#    define CPLIsFinite(x) finite(x)
 #  else
 #    define CPLIsInf(x)    FALSE
 #    define CPLIsFinite(x) (!isnan(x))
@@ -544,7 +548,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[0] = _pabyDataT[1];                                \
     _pabyDataT[1] = byTemp;                                       \
 }                                                                    
-                                                            
+
 #define CPL_SWAP32(x) \
         ((GUInt32)( \
             (((GUInt32)(x) & (GUInt32)0x000000ffUL) << 24) | \
@@ -564,7 +568,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[1] = _pabyDataT[2];                                \
     _pabyDataT[2] = byTemp;                                       \
 }                                                                    
-                                                            
+
 #define CPL_SWAP64PTR(x) \
 {                                                                 \
     GByte       byTemp, *_pabyDataT = (GByte *) (x);              \
@@ -583,7 +587,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[3] = _pabyDataT[4];                                \
     _pabyDataT[4] = byTemp;                                       \
 }                                                                    
-                                                            
+
 
 /* Until we have a safe 64 bits integer data type defined, we'll replace
  * this version of the CPL_SWAP64() macro with a less efficient one.
@@ -666,10 +670,10 @@ template<> struct CPLStaticAssert<true>
 
 #ifndef DISABLE_CVSID
 #if defined(__GNUC__) && __GNUC__ >= 4
-#  define CPL_CVSID(string)     static char cpl_cvsid[] __attribute__((used)) = string;
+#  define CPL_CVSID(string)     static const char cpl_cvsid[] __attribute__((used)) = string;
 #else
-#  define CPL_CVSID(string)     static char cpl_cvsid[] = string; \
-static char *cvsid_aw() { return( cvsid_aw() ? ((char *) NULL) : cpl_cvsid ); }
+#  define CPL_CVSID(string)     static const char cpl_cvsid[] = string; \
+static const char *cvsid_aw() { return( cvsid_aw() ? NULL : cpl_cvsid ); }
 #endif
 #else
 #  define CPL_CVSID(string)
@@ -766,11 +770,23 @@ static char *cvsid_aw() { return( cvsid_aw() ? ((char *) NULL) : cpl_cvsid ); }
 #endif
 #endif
 
+#if defined(GDAL_COMPILATION) && !defined(DONT_DEPRECATE_SPRINTF)
+#define CPL_WARN_DEPRECATED_IF_GDAL_COMPILATION(x) CPL_WARN_DEPRECATED(x)
+#else
+#define CPL_WARN_DEPRECATED_IF_GDAL_COMPILATION(x)
+#endif
+
+#if !defined(_MSC_VER) && !defined(__APPLE__)
+CPL_C_START
 #ifdef WARN_STANDARD_PRINTF
 int vsnprintf(char *str, size_t size, const char* fmt, va_list args) CPL_WARN_DEPRECATED("Use CPLvsnprintf() instead");
 int snprintf(char *str, size_t size, const char* fmt, ...) CPL_PRINT_FUNC_FORMAT(3,4) CPL_WARN_DEPRECATED("Use CPLsnprintf() instead");
-int sprintf(char *str, const char* fmt, ...) CPL_PRINT_FUNC_FORMAT(2, 3) CPL_WARN_DEPRECATED("Use CPLsprintf() instead");
+int sprintf(char *str, const char* fmt, ...) CPL_PRINT_FUNC_FORMAT(2, 3) CPL_WARN_DEPRECATED("Use CPLsnprintf() instead");
+#elif defined(GDAL_COMPILATION) && !defined(DONT_DEPRECATE_SPRINTF)
+int sprintf(char *str, const char* fmt, ...) CPL_PRINT_FUNC_FORMAT(2, 3) CPL_WARN_DEPRECATED("Use snprintf() or CPLsnprintf() instead");
 #endif
+CPL_C_END
+#endif /* !defined(_MSC_VER) && !defined(__APPLE__) */
 
 #if defined(MAKE_SANITIZE_HAPPY) || !(defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64))
 #define CPL_CPU_REQUIRES_ALIGNED_ACCESS

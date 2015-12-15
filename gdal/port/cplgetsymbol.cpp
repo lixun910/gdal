@@ -68,7 +68,7 @@ CPL_CVSID("$Id$");
  *  <li> Attempt to look for the library in non-standard
  *    locations.
  *  <li> Attempt to try variations on the symbol name, like
- *    pre-prending or post-pending an underscore.
+ *    pre-pending or post-pending an underscore.
  * </ul>
  *
  * Some of these issues may be worked on in the future.
@@ -164,7 +164,7 @@ void *CPLGetSymbol( const char * pszLibrary, const char * pszSymbolName )
                        NULL, nLastError,
                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
                        (LPTSTR) &lpMsgBuf, 0, NULL );
- 
+
         CPLError( CE_Failure, CPLE_AppDefined,
                   "Can't load requested DLL: %s\n%d: %s", 
                   pszLibrary, nLastError, (const char *) lpMsgBuf );
@@ -182,7 +182,7 @@ void *CPLGetSymbol( const char * pszLibrary, const char * pszSymbolName )
                   "Can't find requested entry point: %s\n", pszSymbolName );
         return NULL;
     }
-    
+
     return( pSymbol );
 }
 
