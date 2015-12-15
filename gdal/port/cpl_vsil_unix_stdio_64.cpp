@@ -48,6 +48,9 @@
 
 #include <unistd.h>
 #include <sys/stat.h>
+#ifdef HAVE_STATVFS
+#include <sys/statvfs.h>
+#endif
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
@@ -126,6 +129,7 @@ public:
     virtual int      Mkdir( const char *pszDirname, long nMode );
     virtual int      Rmdir( const char *pszDirname );
     virtual char   **ReadDir( const char *pszDirname );
+    virtual GIntBig  GetDiskFreeSpace( const char* pszDirname );
 
 #ifdef VSI_COUNT_BYTES_READ
     void             AddToTotal(vsi_l_offset nBytes);
@@ -608,6 +612,27 @@ char **VSIUnixStdioFilesystemHandler::ReadDir( const char *pszPath )
     }
 
     return oDir.StealList();
+}
+
+/************************************************************************/
+/*                        GetDiskFreeSpace()                            */
+/************************************************************************/
+
+GIntBig VSIUnixStdioFilesystemHandler::GetDiskFreeSpace( const char* 
+#ifdef HAVE_STATVFS
+                                                         pszDirname
+#endif
+                                                       )
+{
+    GIntBig nRet = -1;
+#ifdef HAVE_STATVFS
+    struct statvfs buf;
+    if( statvfs(pszDirname, &buf) == 0 )
+    {
+        nRet = static_cast<GIntBig>(buf.f_frsize * buf.f_bavail);
+    }
+#endif
+    return nRet;
 }
 
 #ifdef VSI_COUNT_BYTES_READ

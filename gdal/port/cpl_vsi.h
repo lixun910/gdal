@@ -237,6 +237,7 @@ int CPL_DLL VSIRmdir( const char * pathname );
 int CPL_DLL VSIUnlink( const char * pathname );
 int CPL_DLL VSIRename( const char * oldpath, const char * newpath );
 char CPL_DLL *VSIStrerror( int );
+GIntBig CPL_DLL VSIGetDiskFreeSpace(const char *pszDirname);
 
 /* ==================================================================== */
 /*      Install special file access handlers.                           */

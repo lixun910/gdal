@@ -376,7 +376,9 @@ void OGRODSDataSource::dataHandlerCbk(const char *data, int nLen)
         case STATE_TABLE:   break;
         case STATE_ROW:     break;
         case STATE_CELL:    break;
-        case STATE_TEXTP:   dataHandlerTextP(data, nLen);
+        case STATE_TEXTP:
+            dataHandlerTextP(data, nLen);
+            break;
         default:            break;
     }
 }
@@ -1382,7 +1384,7 @@ static void WriteLayer(VSILFILE* fp, OGRLayer* poLayer)
     char* pszXML = OGRGetXML_UTF8_EscapedString(pszLayerName);
     VSIFPrintfL(fp, "<table:table table:name=\"%s\">\n", pszXML);
     CPLFree(pszXML);
-    
+
     poLayer->ResetReading();
 
     OGRFeature* poFeature = poLayer->GetNextFeature();

@@ -478,6 +478,10 @@ static inline int CPL_afl_friendly_strncasecmp(const char* ptr1, const char* ptr
 #  ifdef isinf 
 #    define CPLIsInf(x) isinf(x)
 #    define CPLIsFinite(x) (!isnan(x) && !isinf(x))
+#  elif defined(__sun__)
+#    include <ieeefp.h>
+#    define CPLIsInf(x)    (!finite(x) && !isnan(x))
+#    define CPLIsFinite(x) finite(x)
 #  else
 #    define CPLIsInf(x)    FALSE
 #    define CPLIsFinite(x) (!isnan(x))
@@ -544,7 +548,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[0] = _pabyDataT[1];                                \
     _pabyDataT[1] = byTemp;                                       \
 }                                                                    
-                                                            
+
 #define CPL_SWAP32(x) \
         ((GUInt32)( \
             (((GUInt32)(x) & (GUInt32)0x000000ffUL) << 24) | \
@@ -564,7 +568,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[1] = _pabyDataT[2];                                \
     _pabyDataT[2] = byTemp;                                       \
 }                                                                    
-                                                            
+
 #define CPL_SWAP64PTR(x) \
 {                                                                 \
     GByte       byTemp, *_pabyDataT = (GByte *) (x);              \
@@ -583,7 +587,7 @@ template<> struct CPLStaticAssert<true>
     _pabyDataT[3] = _pabyDataT[4];                                \
     _pabyDataT[4] = byTemp;                                       \
 }                                                                    
-                                                            
+
 
 /* Until we have a safe 64 bits integer data type defined, we'll replace
  * this version of the CPL_SWAP64() macro with a less efficient one.

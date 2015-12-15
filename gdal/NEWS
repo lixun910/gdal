@@ -15,6 +15,8 @@
     - ElasticSearch: read support and support writing any geometry type
     - PDF: add PDFium library as a possible backend. Initial support contributed by Klokan Technologies GmbH  (http://www.maptiler.com/)
     - VRT: on-the-fly pansharpening
+ * Driver removed:
+    - Google Maps Engine (GME)
  * RFC 26: Add hashset band block cache implementation for very larger rasters (WMS, WMTS, ...)
         http://trac.osgeo.org/gdal/wiki/rfc26_blockcache
  * RFC 48: Geographical networks support (GNM)
@@ -300,6 +302,7 @@ GeoJSON driver:
 GeoRSS driver:
 
 GME driver:
+ * Driver removed.  Maps Engine being shut down at the end of January 2016.
 
 GML driver:
  * VFR: add new attribute DatumVzniku (v1.6)
@@ -1751,7 +1754,7 @@ Core:
  * OGRGeometryFactory::organizePolygons(): optimization in ONLY_CCW case
  * OGRGeometryFactory::organizePolygons(): Add an experimental mode : CCW_INNER_JUST_AFTER_CW_OUTER
  * OGRLineString::segmentize() : do not set 0 as z for interpolated points, but the z from the previous point
- * OGRLineString::setNumPoints() : add an optional argument to avoid zeroizing the arrays
+ * OGRLineString::setNumPoints(): add an optional argument to avoid zeroing the arrays
  * Add OGRLineString::setZ()
  * Add OGRLineString::Project() and OGRLineString::getSubline()
  * OGRPolygon: add stealExteriorRing() and stealInteriorRing(int iRing)

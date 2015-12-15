@@ -736,7 +736,7 @@ OGRErr OGRCSWLayer::SetAttributeFilter( const char * pszFilter )
 
     delete m_poAttrQuery;
     m_poAttrQuery = NULL;
-    
+
     if( pszFilter != NULL )
     {
         m_poAttrQuery = new OGRFeatureQuery();
@@ -932,7 +932,7 @@ int OGRCSWDataSource::Open( const char * pszFilename,
     CPLHTTPResult* psResult = SendGetCapabilities();
     if( psResult == NULL )
         return FALSE;
-    
+
     CPLXMLNode* psXML = CPLParseXMLString( (const char*) psResult->pabyData );
     if (psXML == NULL)
     {
@@ -1050,22 +1050,20 @@ static GDALDataset *OGRCSWDriverOpen( GDALOpenInfo* poOpenInfo )
 void RegisterOGRCSW()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "CSW" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "CSW" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver  *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "CSW" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                                   "OGC CSW (Catalog  Service for the Web)" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                                   "drv_csw.html" );
+    poDriver->SetDescription( "CSW" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "OGC CSW (Catalog  Service for the Web)" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "drv_csw.html" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_CONNECTION_PREFIX, "CSW:" );
+    poDriver->SetMetadataItem( GDAL_DMD_CONNECTION_PREFIX, "CSW:" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
 "<OpenOptionList>"
 "  <Option name='URL' type='string' description='URL to the CSW server endpoint' required='true'/>"
 "  <Option name='ELEMENTSETNAME' type='string-select' description='Level of details of properties' default='full'>"
@@ -1078,10 +1076,9 @@ void RegisterOGRCSW()
 "  <Option name='MAX_RECORDS' type='int' description='Maximum number of records to retrieve in a single time' default='500'/>"
 "</OpenOptionList>" );
 
-        poDriver->pfnIdentify = OGRCSWDriverIdentify;
-        poDriver->pfnOpen = OGRCSWDriverOpen;
+    poDriver->pfnIdentify = OGRCSWDriverIdentify;
+    poDriver->pfnOpen = OGRCSWDriverOpen;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }
 

@@ -544,11 +544,11 @@ int VSIFCloseL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     VSIDebug1( "VSICloseL(%p)", fp );
-    
+
     int nResult = poFileHandle->Close();
-    
+
     delete poFileHandle;
 
     return nResult;
@@ -579,7 +579,7 @@ int VSIFSeekL( VSILFILE * fp, vsi_l_offset nOffset, int nWhence )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Seek( nOffset, nWhence );
 }
 
@@ -607,7 +607,7 @@ vsi_l_offset VSIFTellL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Tell();
 }
 
@@ -655,7 +655,7 @@ int VSIFFlushL( VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Flush();
 }
 
@@ -687,7 +687,7 @@ size_t VSIFReadL( void * pBuffer, size_t nSize, size_t nCount, VSILFILE * fp )
 
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->Read( pBuffer, nSize, nCount );
 }
 
@@ -1083,10 +1083,31 @@ int VSIIngestFile( VSILFILE* fp,
 void *VSIFGetNativeFileDescriptorL( VSILFILE* fp )
 {
     VSIVirtualHandle *poFileHandle = (VSIVirtualHandle *) fp;
-    
+
     return poFileHandle->GetNativeFileDescriptor();
 }
 
+/************************************************************************/
+/*                      VSIGetDiskFreeSpace()                           */
+/************************************************************************/
+
+/**
+ * \brief Return free disk space available on the filesystem.
+ *
+ * This function returns the free disk space available on the filesystem.
+ *
+ * @param pszDirname a directory of the filesystem to query.
+ * @return The free space in bytes. Or -1 in case of error.
+ * @since GDAL 2.1
+ */
+
+GIntBig VSIGetDiskFreeSpace(const char *pszDirname)
+{
+    VSIFilesystemHandler *poFSHandler = 
+        VSIFileManager::GetHandler( pszDirname );
+
+    return poFSHandler->GetDiskFreeSpace( pszDirname );
+}
 
 /************************************************************************/
 /* ==================================================================== */
@@ -1190,7 +1211,7 @@ VSIFileManager *VSIFileManager::Get()
         //printf("Thread %d: VSIFileManager construction finished\n", nConstructerPID);
         nConstructerPID = 0;
     }
-    
+
     return poManager;
 }
 
@@ -1226,7 +1247,7 @@ VSIFilesystemHandler *VSIFileManager::GetHandler( const char *pszPath )
             && strncmp(pszPath,pszIterKey,nPathLen) == 0 )
             return iter->second;
     }
-    
+
     return poThis->poDefaultHandler;
 }
 

@@ -129,7 +129,7 @@ void OGRRegisterAllInternal()
 #endif
 #ifdef MSSQLSPATIAL_ENABLED
     RegisterOGRMSSQLSpatial();
-#endif 
+#endif
 #ifdef OGDI_ENABLED
     RegisterOGROGDI();
 #endif
@@ -207,8 +207,8 @@ void OGRRegisterAllInternal()
 #ifdef WFS_ENABLED
     RegisterOGRWFS();
 #endif
-#ifdef SOSI_ENABLED 
-    RegisterOGRSOSI(); 
+#ifdef SOSI_ENABLED
+    RegisterOGRSOSI();
 #endif
 #ifdef HTF_ENABLED
     RegisterOGRHTF();
@@ -224,9 +224,6 @@ void OGRRegisterAllInternal()
 #endif
 #ifdef GFT_ENABLED
     RegisterOGRGFT();
-#endif
-#ifdef GME_ENABLED
-    RegisterOGRGME();
 #endif
 #ifdef SVG_ENABLED
     RegisterOGRSVG();
