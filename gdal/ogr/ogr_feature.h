@@ -289,13 +289,10 @@ class CPL_DLL OGRFeature
     char *              m_pszStyleString;
     OGRStyleTable       *m_poStyleTable;
     char *              m_pszTmpFieldValue;
-<<<<<<< HEAD
     
     void                UpdateFields();
     
-=======
 
->>>>>>> OSGeo/trunk
   public:
                         OGRFeature( OGRFeatureDefn * );
     virtual            ~OGRFeature();                        
@@ -332,13 +329,9 @@ class CPL_DLL OGRFeature
     int                 IsFieldSet( int iField );
 
     void                UnsetField( int iField );
-<<<<<<< HEAD
     
     OGRErr              DeleteField( int iField );  
     
-=======
-
->>>>>>> OSGeo/trunk
     OGRField           *GetRawFieldRef( int i ) { return pauFields + i; }
 
     int                 GetFieldAsInteger( int i );

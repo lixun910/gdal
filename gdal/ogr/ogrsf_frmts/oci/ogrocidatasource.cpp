@@ -225,15 +225,9 @@ int OGROCIDataSource::Open( const char * pszNewName,
 
                 //if( EQUAL(papszRow[1],pszUserid) )
                     strcpy( szFullTableName, papszRow[0] );
-<<<<<<< HEAD
                 //else
                 //    sprintf( szFullTableName, "%s.%s", 
                 //             papszRow[1], papszRow[0] );
-=======
-                else
-                    snprintf( szFullTableName, sizeof(szFullTableName), "%s.%s", 
-                             papszRow[1], papszRow[0] );
->>>>>>> OSGeo/trunk
 
                 if( CSLFindString( papszTableList, szFullTableName ) == -1 )
                     papszTableList = CSLAddString( papszTableList, 
