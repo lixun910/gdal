@@ -30,7 +30,7 @@
 #include "ogr_geojson.h"
 #include "ogrgeojsonutils.h"
 #include "ogrgeojsonreader.h"
-#include "gdal_utils.h"
+#include "../../../apps/gdal_utils.h"
 #include <cpl_http.h>
 #include <json.h> // JSON-C
 #include "ogrgeojsonwriter.h"
