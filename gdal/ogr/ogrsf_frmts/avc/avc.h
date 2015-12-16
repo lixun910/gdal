@@ -119,7 +119,7 @@
 #include "cpl_string.h"
 
 #ifdef GDAL_COMPILATION
-#include "shapefil.h"
+#include "../shape/shapefil.h"
 #else
 #include "dbfopen.h"
 #endif
