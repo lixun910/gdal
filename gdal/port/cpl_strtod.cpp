@@ -124,23 +124,23 @@ double CPLAtofLocale(const char *nptr)
     {
         if (strcmp(nptr, "-1.#QNAN") == 0 ||
             strcmp(nptr, "-1.#IND") == 0)
-            return NAN;
+            return std::numeric_limits<double>::quiet_NaN();;
 
         if (strcmp(nptr,"-inf") == 0 ||
             strcmp(nptr,"-1.#INF") == 0)
-            return -INFINITY;
+            return -std::numeric_limits<double>::infinity();
     }
     else if (nptr[0] == '1')
     {
         if (strcmp(nptr, "1.#QNAN") == 0)
-            return NAN;
+            return std::numeric_limits<double>::quiet_NaN();;
         if (strcmp (nptr,"1.#INF") == 0)
-            return INFINITY;
+            return std::numeric_limits<double>::infinity();
     }
     else if (nptr[0] == 'i' && strcmp(nptr,"inf") == 0)
-        return INFINITY;
+        return std::numeric_limits<double>::infinity();
     else if (nptr[0] == 'n' && strcmp(nptr,"nan") == 0)
-        return NAN;
+        return std::numeric_limits<double>::quiet_NaN();;
     
     double      dfValue;
     char* pszNew = NULL;
