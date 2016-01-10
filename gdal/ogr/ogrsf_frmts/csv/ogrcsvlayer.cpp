@@ -377,6 +377,7 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
     if( !bNew )
     {
         const char *pszLine = CPLReadLineL( fpCSV );
+        char szDelimiter[2] = { chDelimiter, '\0' };
         if ( pszLine != NULL )
         {
             /* Detect and remove UTF-8 BOM marker if found (#4623) */
@@ -390,7 +391,6 @@ void OGRCSVLayer::BuildFeatureDefn( const char* pszNfdcGeomField,
             // Tokenize the strings and preserve quotes, so we can separate
             // string from numeric this is only used in the test for
             // bHasFieldNames (bug #4361).
-            char szDelimiter[2] = { chDelimiter, '\0' };
             papszTokens = CSLTokenizeString2( pszLine, szDelimiter,
                                               (CSLT_HONOURSTRINGS |
                                                CSLT_ALLOWEMPTYTOKENS |
