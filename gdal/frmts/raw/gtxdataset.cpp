@@ -28,9 +28,10 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_srs_api.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
 
@@ -103,7 +104,12 @@ GTXDataset::~GTXDataset()
     FlushCache();
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
 }
 
 /************************************************************************/
@@ -364,7 +370,7 @@ GDALDataset *GTXDataset::Create( const char * pszFilename,
     CPL_MSBPTR32( header + 36 );
 
     CPL_IGNORE_RET_VAL(VSIFWriteL( header, 40, 1, fp ));
-    VSIFCloseL( fp );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
     return reinterpret_cast<GDALDataset *>(
         GDALOpen( pszFilename, GA_Update ) );
@@ -381,12 +387,11 @@ void GDALRegister_GTX()
     if( GDALGetDriverByName( "GTX" ) != NULL )
       return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "GTX" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                               "NOAA Vertical Datum .GTX" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "NOAA Vertical Datum .GTX" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "gtx" );
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
     // poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,

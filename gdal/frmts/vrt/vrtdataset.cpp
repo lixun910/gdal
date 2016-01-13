@@ -144,14 +144,22 @@ void VRTDataset::FlushCache()
     /*      Convert tree to a single block of XML text.                     */
     /* -------------------------------------------------------------------- */
     char** papszContent = GetMetadata("xml:VRT");
+    bool bOK = true;
     if( papszContent && papszContent[0] )
     {
         /* ------------------------------------------------------------------ */
         /*      Write to disk.                                                */
         /* ------------------------------------------------------------------ */
-        CPL_IGNORE_RET_VAL(VSIFWriteL( papszContent[0], 1, strlen(papszContent[0]), fpVRT ));
+        bOK &= VSIFWriteL( papszContent[0], 1, strlen(papszContent[0]), fpVRT ) == strlen(papszContent[0]);
     }
-    VSIFCloseL( fpVRT );
+    if( VSIFCloseL( fpVRT ) != 0 )
+        bOK = false;
+    if( !bOK )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Failed to write .vrt file in FlushCache()." );
+        return;
+    }
 }
 
 /************************************************************************/
@@ -399,7 +407,8 @@ CPLErr VRTDataset::XMLInit( CPLXMLNode *psTree, const char *pszVRTPathIn )
                 poBand = new VRTDerivedRasterBand( this, 0 );
             else if( EQUAL(pszSubclass, "VRTRawRasterBand") )
                 poBand = new VRTRawRasterBand( this, 0 );
-            else if( EQUAL(pszSubclass, "VRTWarpedRasterBand") )
+            else if( EQUAL(pszSubclass, "VRTWarpedRasterBand") &&
+                     dynamic_cast<VRTWarpedDataset*>(this) != NULL )
                 poBand = new VRTWarpedRasterBand( this, 0 );
             //else if( EQUAL(pszSubclass, "VRTPansharpenedRasterBand") )
             //    poBand = new VRTPansharpenedRasterBand( this, 0 );
@@ -442,9 +451,11 @@ CPLErr VRTDataset::XMLInit( CPLXMLNode *psTree, const char *pszVRTPathIn )
                 poBand = new VRTDerivedRasterBand( this, l_nBands+1 );
             else if( EQUAL(pszSubclass, "VRTRawRasterBand") )
                 poBand = new VRTRawRasterBand( this, l_nBands+1 );
-            else if( EQUAL(pszSubclass, "VRTWarpedRasterBand") )
+            else if( EQUAL(pszSubclass, "VRTWarpedRasterBand") &&
+                     dynamic_cast<VRTWarpedDataset*>(this) != NULL )
                 poBand = new VRTWarpedRasterBand( this, l_nBands+1 );
-            else if( EQUAL(pszSubclass, "VRTPansharpenedRasterBand") )
+            else if( EQUAL(pszSubclass, "VRTPansharpenedRasterBand") &&
+                     dynamic_cast<VRTPansharpenedDataset*>(this) != NULL )
                 poBand = new VRTPansharpenedRasterBand( this, l_nBands+1 );
             else
                 CPLError( CE_Failure, CPLE_AppDefined,
@@ -687,13 +698,13 @@ GDALDataset *VRTDataset::Open( GDALOpenInfo * poOpenInfo )
 
             if( pszXML == NULL )
             {
-                VSIFCloseL(fp);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
                 return NULL;
             }
 
             if( VSIFReadL( pszXML, 1, nLength, fp ) != nLength )
             {
-                VSIFCloseL(fp);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
                 CPLFree( pszXML );
                 CPLError( CE_Failure, CPLE_FileIO,
                           "Failed to read %d bytes from VRT xml file.",
@@ -720,7 +731,7 @@ GDALDataset *VRTDataset::Open( GDALOpenInfo * poOpenInfo )
                     // The file could be a virtual file, let later checks handle it.
                     break;
                 } else {
-                    VSIFCloseL(fp);
+                    CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
                     CPLFree( pszXML );
                     CPLError( CE_Failure, CPLE_FileIO,
                               "Failed to lstat %s: %s",
@@ -745,7 +756,7 @@ GDALDataset *VRTDataset::Open( GDALOpenInfo * poOpenInfo )
                 currentVrtFilename = CPLProjectRelativeFilename(
                     CPLGetDirname( currentVrtFilename ), filenameBuffer);
             } else {
-                VSIFCloseL(fp);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
                 CPLFree( pszXML );
                 CPLError( CE_Failure, CPLE_FileIO,
                           "Failed to read filename from symlink %s: %s",
@@ -758,7 +769,7 @@ GDALDataset *VRTDataset::Open( GDALOpenInfo * poOpenInfo )
 
         pszVRTPath = CPLStrdup(CPLGetPath(currentVrtFilename));
 
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
     }
 /* -------------------------------------------------------------------- */
 /*      Or use the filename as the XML input.                           */
@@ -788,11 +799,14 @@ GDALDataset *VRTDataset::Open( GDALOpenInfo * poOpenInfo )
     CPLFree( pszVRTPath );
 
 /* -------------------------------------------------------------------- */
-/*      Open overviews.                                                 */
+/*      Initialize info for later overview discovery.                   */
 /* -------------------------------------------------------------------- */
     if( fp != NULL && poDS != NULL )
-        poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename,
-                                     poOpenInfo->GetSiblingFiles() );
+    {
+        poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
+        if( poOpenInfo->AreSiblingFilesLoaded() )
+            poDS->oOvManager.TransferSiblingFiles( poOpenInfo->StealSiblingFiles() );
+    }
 
     return poDS;
 }
@@ -898,10 +912,9 @@ CPLErr VRTDataset::AddBand( GDALDataType eType, char **papszOptions )
 /* -------------------------------------------------------------------- */
 /*      Collect required information.                                   */
 /* -------------------------------------------------------------------- */
-        vsi_l_offset nImageOffset = 0;
-        if( CSLFetchNameValue(papszOptions, "ImageOffset") != NULL )
-            nImageOffset = CPLScanUIntBig(
-                CSLFetchNameValue(papszOptions, "ImageOffset"), 20);
+        const char* pszImageOffset = CSLFetchNameValueDef(papszOptions, "ImageOffset", "0");
+        vsi_l_offset nImageOffset = CPLScanUIntBig(
+                        pszImageOffset, static_cast<int>(strlen(pszImageOffset)));
 
         int nPixelOffset = nWordDataSize;
         if( CSLFetchNameValue(papszOptions, "PixelOffset") != NULL )

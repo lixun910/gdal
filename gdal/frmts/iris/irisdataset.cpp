@@ -38,16 +38,13 @@
 #  define RAD2DEG (180.0/M_PI)
 #endif
 
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
 #include "ogr_spatialref.h"
+
 #include <sstream>
 
-
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_IRIS(void);
-CPL_C_END
 
 #define ARRAY_ELEMENT_COUNT(x) ((sizeof(x))/sizeof(x[0]))
 
@@ -966,14 +963,13 @@ void GDALRegister_IRIS()
     if( GDALGetDriverByName( "IRIS" ) != NULL )
         return;
 
-    GDALDriver  *poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "IRIS" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
     poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
                                "IRIS data (.PPI, .CAPPi etc)" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                               "frmt_various.html#IRIS" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#IRIS" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "ppi" );
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 

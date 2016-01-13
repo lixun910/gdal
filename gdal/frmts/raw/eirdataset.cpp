@@ -28,15 +28,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id:  $");
-
-CPL_C_START
-void GDALRegister_EIR(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -114,7 +111,7 @@ EIRDataset::~EIRDataset()
     }
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpImage ));
 
     CSLDestroy( papszHDR );
     CSLDestroy( papszExtraFiles );
@@ -277,7 +274,6 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
     binary data at the same time.
     */
 
-    bool         bDone = FALSE;
     int          nRows = -1, nCols = -1, nBands = 1;
     int          nSkipBytes = 0;
     int          nLineCount = 0;
@@ -294,7 +290,7 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
 
     // parse the header file
     const char *pszLine;
-    while( !bDone && (pszLine = CPLReadLineL( fp )) != NULL )
+    while( (pszLine = CPLReadLineL( fp )) != NULL )
     {
         nLineCount++;
 
@@ -303,7 +299,6 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
         }
 
         if ( (nLineCount > 50) || EQUAL(pszLine,"END_RAW_FILE") ) {
-            bDone = TRUE;
             break;
         }
 
@@ -381,7 +376,7 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
                   papszTokens[1] );
                 CSLDestroy( papszTokens );
                 CSLDestroy( papszHDR );
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
                 return NULL;
             }
         }
@@ -398,7 +393,7 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
         CSLDestroy( papszTokens );
     }
 
-    VSIFCloseL( fp );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
 
 /* -------------------------------------------------------------------- */
@@ -538,7 +533,7 @@ GDALDataset *EIRDataset::Open( GDALOpenInfo * poOpenInfo )
 
 
 /************************************************************************/
-/*                         GDALRegister_EIR()                          */
+/*                         GDALRegister_EIR()                           */
 /************************************************************************/
 
 void GDALRegister_EIR()

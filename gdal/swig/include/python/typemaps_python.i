@@ -81,7 +81,7 @@
   $2 = &isvalid;
 }
 
-%typemap(argout) (double argout[6], int* isvalid) 
+%typemap(argout) (double argout[6], int* isvalid)
 {
    /* %typemap(argout) (double argout[6], int* isvalid)  */
   PyObject *r;
@@ -169,10 +169,7 @@
 %typemap(ret) OGRErr
 {
   /* %typemap(ret) OGRErr */
-  if (resultobj == Py_None ) {
-    resultobj = 0;
-  }
-  if (resultobj == 0) {
+  if ( ReturnSame(resultobj == Py_None || resultobj == 0) ) {
     resultobj = PyInt_FromLong( $1 );
   }
 }
@@ -193,6 +190,7 @@ CreateTupleFromDoubleArray( double *first, unsigned int size ) {
 %typemap(in,numinputs=0) ( double argout[ANY]) (double argout[$dim0])
 {
   /* %typemap(in,numinputs=0) (double argout[ANY]) */
+  memset(argout, 0, sizeof(argout));
   $1 = argout;
 }
 %typemap(argout,fragment="t_output_helper,CreateTupleFromDoubleArray") ( double argout[ANY])
@@ -205,6 +203,7 @@ CreateTupleFromDoubleArray( double *first, unsigned int size ) {
 %typemap(in,numinputs=0) ( double *argout[ANY]) (double *argout)
 {
   /* %typemap(in,numinputs=0) (double *argout[ANY]) */
+  argout = NULL;
   $1 = &argout;
 }
 %typemap(argout,fragment="t_output_helper,CreateTupleFromDoubleArray") ( double *argout[ANY])
@@ -720,8 +719,8 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
                                 (*$2)[i].dfGCPLine,
                                 (*$2)[i].pszInfo,
                                 (*$2)[i].pszId );
-	
-    PyTuple_SetItem(dict, i, 
+
+    PyTuple_SetItem(dict, i,
        SWIG_NewPointerObj((void*)o,SWIGTYPE_p_GDAL_GCP,1) );
   }
   Py_DECREF($result);
@@ -746,7 +745,7 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
   for( int i = 0; i<$1; i++ ) {
     PyObject *o = PySequence_GetItem($input,i);
     GDAL_GCP *item = 0;
-    SWIG_ConvertPtr( o, (void**)&item, SWIGTYPE_p_GDAL_GCP, SWIG_POINTER_EXCEPTION | 0 );
+    CPL_IGNORE_RET_VAL(SWIG_ConvertPtr( o, (void**)&item, SWIGTYPE_p_GDAL_GCP, SWIG_POINTER_EXCEPTION | 0 ));
     if ( ! item ) {
       Py_DECREF(o);
       SWIG_fail;
@@ -1042,7 +1041,7 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
 {
   /* %typemap(argout) (char **argout) */
   PyObject *o;
-  if ( $1 != NULL && *$1 != NULL) {
+  if ( ReturnSame($1) != NULL && *$1 != NULL ) {
     o = GDALPythonObjectFromCStr( *$1 );
   }
   else {
@@ -1104,8 +1103,8 @@ OPTIONAL_POD(GIntBig,L);
     PyErr_SetString( PyExc_RuntimeError, "Unable to format argument as string");
     SWIG_fail;
   }
- 
-  $1 = GDALPythonObjectToCStr(str, &bToFree); 
+
+  $1 = GDALPythonObjectToCStr(str, &bToFree);
 }
 %typemap(freearg)(tostring argin)
 {
@@ -1115,26 +1114,6 @@ OPTIONAL_POD(GIntBig,L);
     Py_DECREF(str$argnum);
   }
   GDALPythonFreeCStr($1, bToFree$argnum);
-}
-
-/*
- * Typemap for CPLErr.
- * This typemap will use the wrapper C-variable
- * int UseExceptions to determine proper behavour for
- * CPLErr return codes.
- * If UseExceptions ==0, then return the rc.
- * If UseExceptions ==1, then if rc >= CE_Failure, raise an exception.
- */
-%typemap(ret) CPLErr
-{
-  /* %typemap(ret) CPLErr */
-  if ( bUseExceptions == 0 ) {
-    /* We're not using exceptions.  And no error has occurred */
-    if ( $result == 0 ) {
-      /* No other return values set so return ErrorCode */
-      $result = PyInt_FromLong($1);
-    }
-  }
 }
 
 /*
@@ -1148,7 +1127,7 @@ OPTIONAL_POD(GIntBig,L);
 static CPLXMLNode *PyListToXMLTree( PyObject *pyList )
 
 {
-    int      nChildCount = 0, iChild, nType;
+    int      nChildCount = 0, iChild, nType = 0;
     CPLXMLNode *psThisNode;
     CPLXMLNode *psChild;
     char       *pszText = NULL;
@@ -1160,8 +1139,8 @@ static CPLXMLNode *PyListToXMLTree( PyObject *pyList )
         return NULL;
     }
 
-    PyArg_Parse( PyList_GET_ITEM(pyList,0), "i", &nType );
-    PyArg_Parse( PyList_GET_ITEM(pyList,1), "s", &pszText );
+    CPL_IGNORE_RET_VAL(PyArg_Parse( PyList_GET_ITEM(pyList,0), "i", &nType ));
+    CPL_IGNORE_RET_VAL(PyArg_Parse( PyList_GET_ITEM(pyList,1), "s", &pszText ));
 
     /* Detect "pseudo" root */
     if (nType == CXT_Element && pszText != NULL && strlen(pszText) == 0 && nChildCount == 2)
@@ -1174,8 +1153,8 @@ static CPLXMLNode *PyListToXMLTree( PyObject *pyList )
         }
         int nTypeFirst = 0;
         char* pszTextFirst = NULL;
-        PyArg_Parse( PyList_GET_ITEM(pyFirst,0), "i", &nTypeFirst );
-        PyArg_Parse( PyList_GET_ITEM(pyFirst,1), "s", &pszTextFirst );
+        CPL_IGNORE_RET_VAL(PyArg_Parse( PyList_GET_ITEM(pyFirst,0), "i", &nTypeFirst ));
+        CPL_IGNORE_RET_VAL(PyArg_Parse( PyList_GET_ITEM(pyFirst,1), "s", &pszTextFirst ));
         if (nTypeFirst == CXT_Element && pszTextFirst != NULL && pszTextFirst[0] == '?')
         {
             psThisNode = PyListToXMLTree( PyList_GET_ITEM(pyList,2) );
@@ -1221,8 +1200,8 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
     if( psTree == NULL )
         return Py_None;
 
-    for( psChild = psTree->psChild; 
-         psChild != NULL; 
+    for( psChild = psTree->psChild;
+         psChild != NULL;
          psChild = psChild->psNext )
         nChildCount++;
 
@@ -1231,14 +1210,14 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
     PyList_SetItem( pyList, 0, Py_BuildValue( "i", (int) psTree->eType ) );
     PyList_SetItem( pyList, 1, Py_BuildValue( "s", psTree->pszValue ) );
 
-    for( psChild = psTree->psChild, iChild = 2; 
-         psChild != NULL; 
+    for( psChild = psTree->psChild, iChild = 2;
+         psChild != NULL;
          psChild = psChild->psNext, iChild++ )
     {
         PyList_SetItem( pyList, iChild, XMLTreeToPyList( psChild ) );
     }
 
-    return pyList; 
+    return pyList;
 }
 %}
 
@@ -1308,7 +1287,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
 
 /*  This typemap takes the $input'ed  PyObject* and hangs it on the     */
 /*  struct's callback data .                                            */
-%typemap(in) (void* callback_data=NULL) 
+%typemap(in) (void* callback_data=NULL)
 {
     /* %typemap(in) ( void* callback_data=NULL)  */
         psProgressInfo->psPyCallbackData = $input ;
@@ -1321,45 +1300,45 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
 /*  otherwise, setup the psProgressInfo's callback to be our PyObject*  */
 /*  and set our callback function to be PyProgressProxy, which is       */
 /*  defined in gdal_python.i                                            */
-%typemap(in) ( GDALProgressFunc callback = NULL) 
+%typemap(in) ( GDALProgressFunc callback = NULL)
 {
     /* %typemap(in) (GDALProgressFunc callback = NULL) */
     /* callback_func typemap */
     if ($input && $input != Py_None ) {
         void* cbfunction = NULL;
-        SWIG_ConvertPtr( $input, 
+        CPL_IGNORE_RET_VAL(SWIG_ConvertPtr( $input,
                          (void**)&cbfunction,
                          SWIGTYPE_p_f_double_p_q_const__char_p_void__int,
-                         SWIG_POINTER_EXCEPTION | 0 );
+                         SWIG_POINTER_EXCEPTION | 0 ));
 
         if ( cbfunction == GDALTermProgress ) {
             $1 = GDALTermProgress;
         } else {
             if (!PyCallable_Check($input)) {
-                PyErr_SetString( PyExc_RuntimeError, 
+                PyErr_SetString( PyExc_RuntimeError,
                                  "Object given is not a Python function" );
                 SWIG_fail;
             }
             psProgressInfo->psPyCallback = $input;
             $1 = PyProgressProxy;
         }
-        
+
     }
 
 }
 
 /*  clean up our global (to the wrapper function) psProgressInfo        */
 /*  struct now that we're done with it.                                 */
-%typemap(freearg) (void* callback_data=NULL) 
+%typemap(freearg) (void* callback_data=NULL)
 {
     /* %typemap(freearg) ( void* callback_data=NULL)  */
-  
+
         CPLFree(psProgressInfo);
 
 }
 
 
-%typemap(in) ( CPLErrorHandler pfnErrorHandler = NULL, void* user_data = NULL ) 
+%typemap(in) ( CPLErrorHandler pfnErrorHandler = NULL, void* user_data = NULL )
 {
     /* %typemap(in) (CPLErrorHandler pfnErrorHandler = NULL, void* user_data = NULL) */
     int alloc = 0;
@@ -1384,7 +1363,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
     }
     else if (!PyCallable_Check($input))
     {
-        PyErr_SetString( PyExc_RuntimeError, 
+        PyErr_SetString( PyExc_RuntimeError,
                          "Object given is not a String or a Python function" );
         SWIG_fail;
     }
@@ -1397,7 +1376,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
 }
 
 
-%typemap(arginit) ( GUInt32 ) 
+%typemap(arginit) ( GUInt32 )
 {
     /* %typemap(out) ( GUInt32 )  */
 
@@ -1405,7 +1384,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
 
 }
 
-%typemap(out) ( GUInt32 ) 
+%typemap(out) ( GUInt32 )
 {
     /* %typemap(out) ( GUInt32 )  */
 
@@ -1413,7 +1392,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
 
 }
 
-%typemap(in) ( GUInt32 ) 
+%typemap(in) ( GUInt32 )
 {
     /* %typemap(in) ( GUInt32 )  */
 
@@ -1439,7 +1418,7 @@ static PyObject *XMLTreeToPyList( CPLXMLNode *psTree )
   }
   $1 = (int)size;
   $2 = (type**) CPLMalloc($1*sizeof(type*));
-  
+
   for( int i = 0; i<$1; i++ ) {
 
       PyObject *o = PySequence_GetItem($input,i);
@@ -1474,8 +1453,8 @@ OBJECT_LIST_INPUT(GDALDatasetShadow);
  *                       GetHistogram()
  * Python is somewhat special in that we don't want the caller
  * to pass in the histogram array to populate.  Instead we allocate
- * it internally, call the C level, and then turn the result into 
- * a list object. 
+ * it internally, call the C level, and then turn the result into
+ * a list object.
  */
 
 %typemap(arginit) (int buckets, GUIntBig* panHistogram)
@@ -1488,7 +1467,7 @@ OBJECT_LIST_INPUT(GDALDatasetShadow);
 {
   /* %typemap(in) int buckets, GUIntBig* panHistogram -> list */
   int requested_buckets = 0;
-  SWIG_AsVal_int($input, &requested_buckets);
+  CPL_IGNORE_RET_VAL(SWIG_AsVal_int($input, &requested_buckets));
   if( requested_buckets != $1 )
   {
     $1 = requested_buckets;
@@ -1518,6 +1497,7 @@ OBJECT_LIST_INPUT(GDALDatasetShadow);
 {
   /* %typemap(out) int buckets, GUIntBig* panHistogram -> list */
   GUIntBig *integerarray = $2;
+  Py_DECREF( $result );
   if ( integerarray == NULL ) {
     $result = Py_None;
     Py_INCREF( $result );
@@ -1543,9 +1523,9 @@ OBJECT_LIST_INPUT(GDALDatasetShadow);
 
 %typemap(arginit, noblock=1) (double *min_ret, double *max_ret, int *buckets_ret, GUIntBig **ppanHistogram)
 {
-   double min_val, max_val;
-   int buckets_val;
-   GUIntBig *panHistogram;
+   double min_val = 0.0, max_val = 0.0;
+   int buckets_val = 0;
+   GUIntBig *panHistogram = NULL;
 
    $1 = &min_val;
    $2 = &max_val;
@@ -1559,7 +1539,7 @@ OBJECT_LIST_INPUT(GDALDatasetShadow);
   PyObject *psList = NULL;
 
   Py_XDECREF($result);
-  
+
   if (panHistogram)
   {
       psList = PyList_New(buckets_val);
@@ -1873,7 +1853,7 @@ DecomposeSequenceOfCoordinates( PyObject *seq, int nCount, double *x, double *y,
 }
 %typemap(argout) (void** pptr, size_t* pnsize, GDALDataType* pdatatype, int* preadonly)
 {
-%#if PY_VERSION_HEX >= 0x02070000 
+%#if PY_VERSION_HEX >= 0x02070000
   /* %typemap(argout) (void** pptr, size_t* pnsize, GDALDataType* pdatatype, int* preadonly)*/
   Py_buffer *buf=(Py_buffer*)malloc(sizeof(Py_buffer));
   if (PyBuffer_FillInfo(buf,  obj0,  *($1), *($2), *($4), PyBUF_ND)) {
@@ -1919,9 +1899,9 @@ DecomposeSequenceOfCoordinates( PyObject *seq, int nCount, double *x, double *y,
     buf->format = (char*) "B";
     buf->itemsize = 1;
   }
+  Py_DECREF($result);
   $result = PyMemoryView_FromBuffer(buf);
 %#else
   PyErr_SetString( PyExc_RuntimeError, "needs Python 2.7 or later" );
-  SWIG_fail;
 %#endif
 }

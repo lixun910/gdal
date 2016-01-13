@@ -41,8 +41,13 @@ from osgeo import gdal, osr
 
 gdaltest_list = []
 
-init_list = [ \
+init_list = [
     ('byte.tif', 1, 4672, None),
+    ('uint16_sgilog.tif', 1, 4672, None),
+    ('next_literalrow.tif', 1, 4, None),
+    ('next_literalspan.tif', 1, 4, None),
+    ('next_default_case.tif', 1, 4, None),
+    ('thunder.tif', 1, 3, None),
     ('int10.tif', 1, 4672, None),
     ('int12.tif', 1, 4672, None),
     ('int16.tif', 1, 4672, None),
@@ -81,7 +86,8 @@ def tiff_read_off():
     if ds.GetRasterBand(1).Checksum() != 4672:
         return 'fail'
 
-    # Check that georeferencing is read properly when accessing "GTIFF_DIR" subdatasets (#3478)
+    # Check that georeferencing is read properly when accessing
+    # "GTIFF_DIR" subdatasets (#3478)
     gt = ds.GetGeoTransform()
     if gt != (440720.0, 60.0, 0.0, 3751320.0, 0.0, -60.0):
         gdaltest.post_reason('did not get expected geotransform')
@@ -108,6 +114,20 @@ def tiff_check_alpha():
 
     ds = None
 
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+    ds = gdal.Open('data/stefan_full_greyalpha.tif')
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+    gdaltest.supports_force_rgba = False
+    if ds.RasterCount == 4:
+        gdaltest.supports_force_rgba = True
+    if gdaltest.supports_force_rgba:
+        got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+        if got_cs != [1970,1970,1970,10807]:
+            gdaltest.post_reason( 'fail')
+            print(got_cs)
+            return 'fail'
+        ds = None
+
     # RGB + alpha
 
     ds = gdal.Open('data/stefan_full_rgba.tif')
@@ -119,6 +139,18 @@ def tiff_check_alpha():
 
     ds = None
 
+    if gdaltest.supports_force_rgba:
+        gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+        ds = gdal.Open('data/stefan_full_rgba.tif')
+        gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+        got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+        # FIXME? Not the same as without GTIFF_FORCE_RGBA=YES
+        if got_cs != [11547, 57792, 35643, 10807]:
+            gdaltest.post_reason( 'fail')
+            print(got_cs)
+            return 'fail'
+        ds = None
+
     # RGB + undefined
 
     ds = gdal.Open('data/stefan_full_rgba_photometric_rgb.tif')
@@ -129,6 +161,17 @@ def tiff_check_alpha():
         return 'fail'
 
     ds = None
+
+    if gdaltest.supports_force_rgba:
+        gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+        ds = gdal.Open('data/stefan_full_rgba_photometric_rgb.tif')
+        gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+        got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+        if got_cs != [12603, 58561, 36064, 10807]:
+            gdaltest.post_reason( 'fail')
+            print(got_cs)
+            return 'fail'
+        ds = None
 
     return 'success'
 
@@ -867,7 +910,11 @@ def tiff_read_corrupted_gtiff():
 
 def tiff_read_tag_without_null_byte():
 
+    gdal.ErrorReset()
+    oldval = gdal.GetConfigOption('CPL_DEBUG')
+    gdal.SetConfigOption('CPL_DEBUG', 'OFF')
     ds = gdal.Open('data/tag_without_null_byte.tif')
+    gdal.SetConfigOption('CPL_DEBUG', oldval)
     if gdal.GetLastErrorType() != 0:
         gdaltest.post_reason( 'should have not emitted a warning, but only a CPLDebug() message' )
         return 'fail'
@@ -943,7 +990,7 @@ def tiff_read_rpc_tif():
     ds = None
 
     if rpc_md['HEIGHT_OFF'] != '300':
-        gdaltest.post_reason('HEIGHT_OFF wrong:'+rpc_md['HEIGHT_OFF'])        
+        gdaltest.post_reason('HEIGHT_OFF wrong:'+rpc_md['HEIGHT_OFF'])
         return 'fail'
 
     if rpc_md['LINE_DEN_COEFF'].find('1 -0.00520769693945429') != 0:
@@ -2248,7 +2295,148 @@ def tiff_read_empty_nodata_tag():
 
     return 'success'
 
-###############################################################################################
+###############################################################################
+# Check that no auxiliary files are read with a simple Open(), reading
+# imagery and getting IMAGE_STRUCTURE metadata
+
+def tiff_read_strace_check():
+
+    if not sys.platform.startswith('linux'):
+        return 'skip'
+
+    python_exe = sys.executable
+    cmd = "strace -f %s -c \"from osgeo import gdal; " % python_exe + (
+        "gdal.SetConfigOption('CPL_DEBUG', 'OFF');"
+        "ds = gdal.Open('../gcore/data/byte.tif');"
+        "ds.ReadRaster();"
+        "ds.GetMetadata('IMAGE_STRUCTURE');"
+        "ds.GetRasterBand(1).GetMetadata('IMAGE_STRUCTURE');"
+        " \" " )
+    try:
+        (out, err) = gdaltest.runexternal_out_and_err(cmd)
+    except:
+        # strace not available
+        return 'skip'
+
+    lines_with_dotdot_gcore = []
+    for line in err.split('\n'):
+        if line.find('../gcore') >= 0:
+            lines_with_dotdot_gcore += [ line ]
+
+    if len(lines_with_dotdot_gcore) != 1:
+        gdaltest.post_reason('fail')
+        print(lines_with_dotdot_gcore)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test GDAL_READDIR_LIMIT_ON_OPEN
+
+def tiff_read_readdir_limit_on_open():
+
+    gdal.SetConfigOption('GDAL_READDIR_LIMIT_ON_OPEN', '1')
+
+    ds = gdal.Open( 'data/md_kompsat.tif', gdal.GA_ReadOnly )
+    filelist = ds.GetFileList()
+
+    gdal.SetConfigOption('GDAL_READDIR_LIMIT_ON_OPEN', None)
+
+    if len(filelist) != 3:
+        gdaltest.post_reason( 'did not get expected file list.' )
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+#
+def tiff_read_minisblack_as_rgba():
+
+    if not gdaltest.supports_force_rgba:
+        return 'skip'
+
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+    ds = gdal.Open('data/byte.tif')
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+    got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+    if got_cs != [4672,4672,4672,4873]:
+        gdaltest.post_reason( 'fail')
+        print(got_cs)
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+#
+def tiff_read_colortable_as_rgba():
+
+    if not gdaltest.supports_force_rgba:
+        return 'skip'
+
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+    ds = gdal.Open('data/test_average_palette.tif')
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+    got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+    if got_cs != [2433,2433,2433,4873]:
+        gdaltest.post_reason( 'fail')
+        print(got_cs)
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+#
+def tiff_read_logl_as_rgba():
+
+    if not gdaltest.supports_force_rgba:
+        return 'skip'
+
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', 'YES')
+    ds = gdal.Open('data/uint16_sgilog.tif')
+    gdal.SetConfigOption('GTIFF_FORCE_RGBA', None)
+    got_cs = [ ds.GetRasterBand(i+1).Checksum() for i in range(ds.RasterCount) ]
+    # I'm pretty sure this isn't the expected result...
+    if got_cs != [0,0,0,4873]:
+        gdaltest.post_reason( 'fail')
+        print(got_cs)
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+#
+def tiff_read_scanline_more_than_2GB():
+
+    with gdaltest.error_handler():
+        ds = gdal.Open('data/scanline_more_than_2GB.tif')
+    if ds is not None:
+        return 'fail'
+    return 'success'
+
+###############################################################################
+# Test that we are at least robust to wrong number of ExtraSamples and warn
+# about it
+
+def tiff_read_wrong_number_extrasamples():
+
+    gdal.ErrorReset()
+    with gdaltest.error_handler():
+        ds = gdal.Open('data/6band_wrong_number_extrasamples.tif')
+    if gdal.GetLastErrorMsg().find('Wrong number of ExtraSamples') < 0:
+        gdaltest.post_reason( 'fail')
+        print(gdal.GetLastErrorMsg())
+        return 'fail'
+    if ds.GetRasterBand(6).GetRasterColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason( 'fail')
+        print(ds.GetRasterBand(6).GetRasterColorInterpretation())
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 
 for item in init_list:
     ut = gdaltest.GDALTest( 'GTiff', item[0], item[1], item[2] )
@@ -2302,6 +2490,13 @@ gdaltest_list.append( (tiff_read_tiff_metadata) )
 gdaltest_list.append( (tiff_read_irregular_tile_size_jpeg_in_tiff) )
 gdaltest_list.append( (tiff_direct_and_virtual_mem_io) )
 gdaltest_list.append( (tiff_read_empty_nodata_tag) )
+gdaltest_list.append( (tiff_read_strace_check) )
+gdaltest_list.append( (tiff_read_readdir_limit_on_open) )
+gdaltest_list.append( (tiff_read_minisblack_as_rgba) )
+gdaltest_list.append( (tiff_read_colortable_as_rgba) )
+gdaltest_list.append( (tiff_read_logl_as_rgba) )
+gdaltest_list.append( (tiff_read_scanline_more_than_2GB) )
+gdaltest_list.append( (tiff_read_wrong_number_extrasamples) )
 
 gdaltest_list.append( (tiff_read_online_1) )
 gdaltest_list.append( (tiff_read_online_2) )
@@ -2317,7 +2512,7 @@ gdaltest_list.append( (tiff_read_md9) )
 gdaltest_list.append( (tiff_read_md10) )
 gdaltest_list.append( (tiff_read_md11) )
 
-#gdaltest_list = [ tiff_direct_and_virtual_mem_io ]
+#gdaltest_list = [ tiff_read_strace_check ]
 
 if __name__ == '__main__':
 
@@ -2326,4 +2521,3 @@ if __name__ == '__main__':
     gdaltest.run_tests( gdaltest_list )
 
     gdaltest.summarize()
-

@@ -200,9 +200,16 @@ void OGRSimpleCurve::Make3D()
     if( padfZ == NULL )
     {
         if( nPointCount == 0 )
-            padfZ = (double *) OGRCalloc(sizeof(double),1);
+            padfZ = (double *) VSI_CALLOC_VERBOSE(sizeof(double),1);
         else
-            padfZ = (double *) OGRCalloc(sizeof(double),nPointCount);
+            padfZ = (double *) VSI_CALLOC_VERBOSE(sizeof(double),nPointCount);
+        if( padfZ == NULL )
+        {
+            nCoordDimension = 2;
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "OGRSimpleCurve::Make3D() failed");
+            return;
+        }
     }
     nCoordDimension = 3;
 }
@@ -317,6 +324,8 @@ double OGRSimpleCurve::getZ( int iVertex ) const
 void OGRSimpleCurve::setNumPoints( int nNewPointCount, int bZeroizeNewContent )
 
 {
+    CPLAssert( nNewPointCount >= 0 );
+
     if( nNewPointCount == 0 )
     {
         OGRFree( paoPoints );
@@ -418,18 +427,25 @@ void OGRSimpleCurve::setPoint( int iPoint, double xIn, double yIn, double zIn )
         if (nPointCount < iPoint + 1)
             return;
     }
+#ifdef DEBUG
+    if( paoPoints == NULL )
+        return;
+#endif
 
     paoPoints[iPoint].x = xIn;
     paoPoints[iPoint].y = yIn;
 
-    if( zIn != 0.0 )
+    if( padfZ != NULL )
     {
-        Make3D();
-        padfZ[iPoint] = zIn;
-    }
-    else if( getCoordinateDimension() == 3 )
-    {
-        padfZ[iPoint] = 0.0;
+        if( zIn != 0.0 )
+        {
+            Make3D();
+            padfZ[iPoint] = zIn;
+        }
+        else if( getCoordinateDimension() == 3 )
+        {
+            padfZ[iPoint] = 0.0;
+        }
     }
 }
 
@@ -463,7 +479,7 @@ void OGRSimpleCurve::setZ( int iPoint, double zIn )
             return;
     }
 
-    if( padfZ )
+    if( padfZ != NULL )
         padfZ[iPoint] = zIn;
 }
 
@@ -543,7 +559,11 @@ void OGRSimpleCurve::setPoints( int nPointsIn, OGRRawPoint * paoPointsIn,
 
 {
     setNumPoints( nPointsIn, FALSE );
-    if (nPointCount < nPointsIn)
+    if (nPointCount < nPointsIn 
+#ifdef DEBUG
+        || paoPoints == NULL
+#endif
+        )
         return;
 
     if( nPointsIn )
@@ -559,7 +579,7 @@ void OGRSimpleCurve::setPoints( int nPointsIn, OGRRawPoint * paoPointsIn,
     else if( padfZIn )
     {
         Make3D();
-        if( nPointsIn )
+        if( padfZ && nPointsIn )
             memcpy( padfZ, padfZIn, sizeof(double) * nPointsIn );
     }
 }
@@ -608,7 +628,7 @@ void OGRSimpleCurve::setPoints( int nPointsIn, double * padfX, double * padfY,
         paoPoints[i].y = padfY[i];
     }
 
-    if( !padfZIn || !nPointsIn )
+    if( padfZ == NULL || !padfZIn || !nPointsIn )
     {
         return;
     }
@@ -791,7 +811,11 @@ void OGRSimpleCurve::addSubLineString( const OGRLineString *poOtherLine,
     int nPointsToAdd = ABS(nEndVertex-nStartVertex) + 1;
 
     setNumPoints( nPointsToAdd + nOldPoints, FALSE );
-    if (nPointCount < nPointsToAdd + nOldPoints)
+    if (nPointCount < nPointsToAdd + nOldPoints
+#ifdef DEBUG
+        || paoPoints == NULL
+#endif
+        )
         return;
 
 /* -------------------------------------------------------------------- */
@@ -805,8 +829,11 @@ void OGRSimpleCurve::addSubLineString( const OGRLineString *poOtherLine,
         if( poOtherLine->padfZ != NULL )
         {
             Make3D();
-            memcpy( padfZ + nOldPoints, poOtherLine->padfZ + nStartVertex,
-                    sizeof(double) * nPointsToAdd );
+            if( padfZ != NULL )
+            {
+                memcpy( padfZ + nOldPoints, poOtherLine->padfZ + nStartVertex,
+                        sizeof(double) * nPointsToAdd );
+            }
         }
     }
 
@@ -828,10 +855,12 @@ void OGRSimpleCurve::addSubLineString( const OGRLineString *poOtherLine,
         if( poOtherLine->padfZ != NULL )
         {
             Make3D();
-
-            for( i = 0; i < nPointsToAdd; i++ )
+            if( padfZ != NULL )
             {
-                padfZ[i+nOldPoints] = poOtherLine->padfZ[nStartVertex-i];
+                for( i = 0; i < nPointsToAdd; i++ )
+                {
+                    padfZ[i+nOldPoints] = poOtherLine->padfZ[nStartVertex-i];
+                }
             }
         }
     }

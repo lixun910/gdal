@@ -27,17 +27,13 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_pam.h"
 
-#include "webp/decode.h"
-#include "webp/encode.h"
+#include "webp_headers.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void GDALRegister_WEBP(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -355,7 +351,6 @@ CPLErr WEBPDataset::IRasterIO( GDALRWFlag eRWFlag,
        (nYSize == nBufYSize) && (nYSize == nRasterYSize) &&
        (eBufType == GDT_Byte) &&
        (pData != NULL) &&
-       (panBandMap != NULL) &&
        (panBandMap[0] == 1) && (panBandMap[1] == 2) && (panBandMap[2] == 3) &&
        (nBands == 3 || panBandMap[3] == 4))
     {
@@ -661,7 +656,7 @@ WEBPDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     } \
 }
 
-    FETCH_AND_SET_OPTION_INT("TARGETSIZE", target_size, 0, INT_MAX);
+    FETCH_AND_SET_OPTION_INT("TARGETSIZE", target_size, 0, INT_MAX-1);
 
     const char* pszPSNR = CSLFetchNameValue(papszOptions, "PSNR");
     if (pszPSNR)
@@ -779,8 +774,8 @@ WEBPDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 
     if (eErr == CE_None && !WebPEncode(&sConfig, &sPicture))
     {
-        const char* pszErrorMsg = NULL;
 #if WEBP_ENCODER_ABI_VERSION >= 0x0100
+        const char* pszErrorMsg = NULL;
         switch(sPicture.error_code)
         {
             case VP8_ENC_ERROR_OUT_OF_MEMORY:
@@ -814,12 +809,11 @@ WEBPDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                 pszErrorMsg = "Unknown WebP error type.";
                 break;
         }
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "WebPEncode() failed : %s", pszErrorMsg);
+#else
+        CPLError(CE_Failure, CPLE_AppDefined, "WebPEncode() failed");
 #endif
-        if (pszErrorMsg)
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "WebPEncode() failed : %s", pszErrorMsg);
-        else
-            CPLError(CE_Failure, CPLE_AppDefined, "WebPEncode() failed");
         eErr = CE_Failure;
     }
 
@@ -873,13 +867,10 @@ void GDALRegister_WEBP()
     poDriver->SetDescription( "WEBP" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
     poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "WEBP" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                               "frmt_webp.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_webp.html" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "webp" );
     poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/webp" );
-
-    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-                               "Byte" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Byte" );
 
     poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>\n"

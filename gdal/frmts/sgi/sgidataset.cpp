@@ -32,17 +32,14 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "cpl_string.h"
 #include "cpl_port.h"
+#include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
 
 #include <algorithm>
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_SGI(void);
-CPL_C_END
 
 struct ImageRec
 {
@@ -61,6 +58,7 @@ struct ImageRec
 
     VSILFILE* file;
     std::string fileName;
+    int tmpSize;
     unsigned char* tmp;
     GUInt32 rleEnd;
     int     rleTableDirty;
@@ -80,6 +78,7 @@ struct ImageRec
               colorMap(0),
               file(NULL),
               fileName(""),
+              tmpSize(0),
               tmp(NULL),
               rleEnd(0),
               rleTableDirty(FALSE),
@@ -141,6 +140,11 @@ static CPLErr ImageGetRow(ImageRec* image, unsigned char* buf, int y, int z)
     // Image type 1.
 
     // reads row
+    if( image->rowSize[y+z*image->ysize] < 0 ||
+        image->rowSize[y+z*image->ysize] > image->tmpSize )
+    {
+        return CE_Failure;
+    }
     VSIFSeekL( image->file,
                static_cast<long>( image->rowStart[y+z*image->ysize] ),
                SEEK_SET);
@@ -262,18 +266,13 @@ SGIRasterBand::SGIRasterBand(SGIDataset* poDSIn, int nBandIn)
 {
   poDS = poDSIn;
   nBand = nBandIn;
-  if(poDS == NULL)
-  {
-    eDataType = GDT_Byte;
-  }
-  else
-  {
-    if(static_cast<int>( poDSIn->image.bpc ) == 1)
+
+  if(static_cast<int>( poDSIn->image.bpc ) == 1)
       eDataType = GDT_Byte;
-    else
+  else
       eDataType = GDT_Int16;
-  }
-  nBlockXSize = poDSIn->nRasterXSize;;
+
+  nBlockXSize = poDSIn->nRasterXSize;
   nBlockYSize = 1;
 }
 
@@ -361,8 +360,6 @@ CPLErr SGIRasterBand::IWriteBlock(CPL_UNUSED int nBlockXOff,
         }
         else
         { // copy over mixed data. 
-            nRepeatCount = 1;
-
             for( nRepeatCount = 1;
                  iX + nRepeatCount < image->xsize && nRepeatCount < 127;
                  nRepeatCount++ )
@@ -627,6 +624,12 @@ GDALDataset* SGIDataset::Open(GDALOpenInfo* poOpenInfo)
 
     const int numItems
         = (static_cast<int>( poDS->image.bpc ) == 1) ? 256 : 65536;
+    if( poDS->image.xsize > INT_MAX / numItems )
+    {
+        delete poDS;
+        return NULL;
+    }
+    poDS->image.tmpSize = poDS->image.xsize * numItems;
     poDS->image.tmp = (unsigned char*)VSI_CALLOC_VERBOSE(poDS->image.xsize,numItems);
     if (poDS->image.tmp == NULL)
     {
@@ -830,25 +833,27 @@ GDALDataset *SGIDataset::Create( const char * pszFilename,
 }
 
 /************************************************************************/
-/*                         GDALRegister_SGI()                          */
+/*                         GDALRegister_SGI()                           */
 /************************************************************************/
 
 void GDALRegister_SGI()
 
 {
-    if(GDALGetDriverByName("SGI") != NULL)
+    if( GDALGetDriverByName( "SGI" ) != NULL )
         return;
 
-    GDALDriver*  poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription("SGI");
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "SGI Image File Format 1.0");
-    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rgb");
-    poDriver->SetMetadataItem(GDAL_DMD_MIMETYPE, "image/rgb");
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "SGI Image File Format 1.0" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "rgb" );
+    poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/rgb" );
     poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#SGI" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Byte" );
+
     poDriver->pfnOpen = SGIDataset::Open;
     poDriver->pfnCreate = SGIDataset::Create;
-    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Byte" );
+
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }

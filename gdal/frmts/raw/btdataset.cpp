@@ -29,14 +29,11 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void    GDALRegister_BT(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -355,7 +352,12 @@ BTDataset::~BTDataset()
 {
     FlushCache();
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
     CPLFree( pszProjection );
 }
 
@@ -520,7 +522,7 @@ CPLErr BTDataset::SetProjection( const char *pszNewProjection )
     if( fp != NULL )
     {
         CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%s\n", pszProjection ));
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
         abyHeader[60] = 1;
     }
     else
@@ -634,7 +636,7 @@ GDALDataset *BTDataset::Open( GDALOpenInfo * poOpenInfo )
 
             pszBuffer = (char *) CPLMalloc(nBufMax);
             nBytes = static_cast<int>(VSIFReadL( pszBuffer, 1, nBufMax-1, fp ));
-            VSIFCloseL( fp );
+            CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
             pszBuffer[nBytes] = '\0';
 
@@ -913,12 +915,19 @@ GDALDataset *BTDataset::Create( const char * pszFilename,
                   "Failed to extent file to its full size, out of disk space?"
                   );
 
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
         VSIUnlink( pszFilename );
         return NULL;
     }
 
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+    {
+        CPLError( CE_Failure, CPLE_FileIO, 
+                  "Failed to extent file to its full size, out of disk space?"
+                  );
+        VSIUnlink( pszFilename );
+        return NULL;
+    }
 
     return (GDALDataset *) GDALOpen( pszFilename, GA_Update );
 }
@@ -930,26 +939,24 @@ GDALDataset *BTDataset::Create( const char * pszFilename,
 void GDALRegister_BT()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "BT" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "BT" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "BT" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+    poDriver->SetDescription( "BT" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
                                    "VTP .bt (Binary Terrain) 1.3 Format" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
                                    "frmt_various.html#BT" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "bt" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-                                   "Int16 Int32 Float32" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "bt" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Int16 Int32 Float32" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-        poDriver->pfnOpen = BTDataset::Open;
-        poDriver->pfnCreate = BTDataset::Create;
+    poDriver->pfnOpen = BTDataset::Open;
+    poDriver->pfnCreate = BTDataset::Create;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

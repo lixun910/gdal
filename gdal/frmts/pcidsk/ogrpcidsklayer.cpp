@@ -173,7 +173,7 @@ OGRPCIDSKLayer::OGRPCIDSKLayer( PCIDSK::PCIDSKSegment *poSegIn,
 OGRPCIDSKLayer::~OGRPCIDSKLayer()
 
 {
-    if( m_nFeaturesRead > 0 && poFeatureDefn != NULL )
+    if( m_nFeaturesRead > 0 )
     {
         CPLDebug( "PCIDSK", "%d features read on layer '%s'.",
                   static_cast<int>( m_nFeaturesRead ),
@@ -234,18 +234,27 @@ OGRFeature *OGRPCIDSKLayer::GetNextFeature()
 OGRFeature *OGRPCIDSKLayer::GetNextUnfilteredFeature()
 
 {
+    try
+    {
 /* -------------------------------------------------------------------- */
 /*      Get the next shapeid.                                           */
 /* -------------------------------------------------------------------- */
-    if( hLastShapeId == PCIDSK::NullShapeId )
-        hLastShapeId = poVecSeg->FindFirst();
-    else
-        hLastShapeId = poVecSeg->FindNext( hLastShapeId );
+        if( hLastShapeId == PCIDSK::NullShapeId )
+            hLastShapeId = poVecSeg->FindFirst();
+        else
+            hLastShapeId = poVecSeg->FindNext( hLastShapeId );
 
-    if( hLastShapeId == PCIDSK::NullShapeId )
+        if( hLastShapeId == PCIDSK::NullShapeId )
+            return NULL;
+
+        return GetFeature( hLastShapeId );
+    }
+    catch( const PCIDSK::PCIDSKException& ex )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "PCIDSK Exception while iterating features.\n%s", ex.what() );
         return NULL;
-
-    return GetFeature( hLastShapeId );
+    }
 }
 
 /************************************************************************/

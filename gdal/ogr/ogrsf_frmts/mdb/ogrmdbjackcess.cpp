@@ -182,12 +182,12 @@ int OGRMDBJavaEnv::Init()
             JavaVMOption options[1];
             args.version = JNI_VERSION_1_2;
             const char* pszClassPath = CPLGetConfigOption("CLASSPATH", NULL);
-            CPLString osClassPathOption;
+            char* pszClassPathOption = NULL;
             if (pszClassPath)
             {
                 args.nOptions = 1;
-                osClassPathOption.Printf("-Djava.class.path=%s", pszClassPath);
-                options[0].optionString = (char*) osClassPathOption.c_str();
+                pszClassPathOption = CPLStrdup(CPLSPrintf("-Djava.class.path=%s", pszClassPath));
+                options[0].optionString = pszClassPathOption;
                 args.options = options;
             }
             else
@@ -195,6 +195,9 @@ int OGRMDBJavaEnv::Init()
             args.ignoreUnrecognized = JNI_FALSE;
 
             int ret = JNI_CreateJavaVM(&jvm, (void **)&env, &args);
+
+            CPLFree(pszClassPathOption);
+
             if (ret != 0 || jvm == NULL || env == NULL)
             {
                 CPLError(CE_Failure, CPLE_AppDefined, "JNI_CreateJavaVM failed (%d)", ret);
@@ -210,6 +213,8 @@ int OGRMDBJavaEnv::Init()
         jvm = jvm_static;
         env = env_static;
     }
+    if( env == NULL )
+        return FALSE;
 
     CHECK(byteArray_class, env->FindClass("[B"));
     CHECK(file_class, env->FindClass("java/io/File"));

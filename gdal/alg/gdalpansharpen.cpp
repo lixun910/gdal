@@ -969,7 +969,13 @@ CPLErr GDALPansharpenOperation::ProcessRegion(int nXOff, int nYOff,
         poPanchroBand->RasterIO(GF_Read,
                 nXOff, nYOff, nXSize, nYSize, pPanBuffer, nXSize, nYSize,
                 eWorkDataType, 0, 0, NULL);
-    
+    if( eErr != CE_None )
+    {
+        VSIFree(pUpsampledSpectralBuffer);
+        VSIFree(pPanBuffer);
+        return CE_Failure;
+    }
+
     int nTasks = 0;
     if( poThreadPool )
     {
@@ -1060,6 +1066,13 @@ CPLErr GDALPansharpenOperation::ProcessRegion(int nXOff, int nYOff,
                         eWorkDataType, 0, 0, NULL);
             }
         }
+        if( eErr != CE_None )
+        {
+            VSIFree(pSpectralBuffer);
+            VSIFree(pUpsampledSpectralBuffer);
+            VSIFree(pPanBuffer);
+            return CE_Failure;
+        }
     
         /* Create a MEM dataset that wraps the input buffer */
         GDALDataset* poMEMDS = MEMDataset::Create("", nXSizeExtract, nYSizeExtract, 0,
@@ -1116,6 +1129,16 @@ CPLErr GDALPansharpenOperation::ProcessRegion(int nXOff, int nYOff,
             // from several threads. In this case, this is safe. In case that would
             // no longer be the case we could create as many MEMDataset as threads
             // pointing to the same buffer.
+
+            // To avoid races in threads, we query now the mask flags
+            // so that implicit mask bands are created now
+            if( eResampleAlg != GRIORA_NearestNeighbour )
+            {
+                for(int i=0;i<poMEMDS->GetRasterCount();i++)
+                {
+                    poMEMDS->GetRasterBand(i+1)->GetMaskFlags();
+                }
+            }
             
             std::vector<GDALPansharpenResampleJob> asJobs;
             asJobs.resize( nTasks );
@@ -1197,6 +1220,12 @@ CPLErr GDALPansharpenOperation::ProcessRegion(int nXOff, int nYOff,
                         nXSize, nYSize,
                         eWorkDataType, 0, 0, &sExtraArg);
             }
+        }
+        if( eErr != CE_None )
+        {
+            VSIFree(pUpsampledSpectralBuffer);
+            VSIFree(pPanBuffer);
+            return CE_Failure;
         }
     }
 

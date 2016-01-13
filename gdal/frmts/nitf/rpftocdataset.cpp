@@ -29,6 +29,7 @@
 
 #include "cpl_multiproc.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
 #include "gdal_proxy.h"
 #include "ogr_spatialref.h"
@@ -193,7 +194,7 @@ class RPFTOCSubDataset : public VRTDataset
     void SetCachedTile(const char* tileFileName, int nBlockXOff, int nBlockYOff,
                        const void* pData, int dataSize)
     {
-        if (dataSize > cachedTileDataSize)
+        if (cachedTileData == NULL || dataSize > cachedTileDataSize)
         {
             cachedTileData = CPLRealloc(cachedTileData, dataSize);
             cachedTileDataSize = dataSize;
@@ -968,7 +969,7 @@ int RPFTOCDataset::IsNonNITFFileTOC(GDALOpenInfo * poOpenInfo, const char* pszFi
         char buffer[48];
         int ret = (VSIFReadL(buffer, 1, 48, fp) == 48) &&
                    memcmp(pattern, buffer, 15) == 0;
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return ret;
     }
 }
@@ -1017,12 +1018,18 @@ GDALDataset* RPFTOCDataset::OpenFileTOC(NITFFile *psFile,
                     pszFilename );
             return NULL;
         }
-        VSIFReadL(buffer, 1, 48, fp);
+        if( VSIFReadL(buffer, 1, 48, fp) != 48 )
+        {
+            CPLError( CE_Failure, CPLE_FileIO, "I/O error" );
+            CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
+            return NULL;
+        }
     }
     const int isRGBA = CSLTestBoolean(CPLGetConfigOption("RPFTOC_FORCE_RGBA", "NO"));
     RPFToc* toc = (psFile) ? RPFTOCRead( pszFilename, psFile ) :
                               RPFTOCReadFromBuffer( pszFilename, fp, buffer);
-    if (fp) VSIFCloseL(fp);
+    if (fp)
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
     fp = NULL;
 
     if (entryName != NULL)
@@ -1274,7 +1281,8 @@ void GDALRegister_RPFTOC()
 {
     if( GDALGetDriverByName( "RPFTOC" ) != NULL )
         return;
-    GDALDriver	*poDriver = new GDALDriver();
+
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "RPFTOC" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

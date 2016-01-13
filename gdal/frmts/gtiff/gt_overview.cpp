@@ -68,6 +68,10 @@ toff_t GTIFFWriteDirectory(TIFF *hTIFF, int nSubfileType, int nXSize, int nYSize
 
     nBaseDirOffset = TIFFCurrentDirOffset( hTIFF );
 
+    /* This is a bit of a hack to cause (*tif->tif_cleanup)(tif); to be called */
+    /* See https://trac.osgeo.org/gdal/ticket/2055 */
+    TIFFSetField( hTIFF, TIFFTAG_COMPRESSION, COMPRESSION_NONE );
+
 #if defined(TIFFLIB_VERSION) && TIFFLIB_VERSION >= 20051201 /* 3.8.0 */
     TIFFFreeDirectory( hTIFF );
 #endif
@@ -576,7 +580,7 @@ GTIFFBuildOverviews( const char * pszFilename,
                           "failed in VSI_TIFFOpen().\n",
                           pszFilename );
             if( fpL != NULL )
-                VSIFCloseL(fpL);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fpL));
             return CE_Failure;
         }
     }
@@ -598,7 +602,7 @@ GTIFFBuildOverviews( const char * pszFilename,
                           "failed in VSI_TIFFOpen().\n",
                           pszFilename );
             if( fpL != NULL )
-                VSIFCloseL(fpL);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fpL));
             return CE_Failure;
         }
     }
@@ -679,7 +683,8 @@ GTIFFBuildOverviews( const char * pszFilename,
     }
 
     XTIFFClose( hOTIFF );
-    VSIFCloseL(fpL);
+    if (VSIFCloseL(fpL) != 0 )
+        return CE_Failure;
     fpL = NULL;
 
 /* -------------------------------------------------------------------- */

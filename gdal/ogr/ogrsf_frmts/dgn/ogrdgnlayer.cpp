@@ -41,9 +41,12 @@ CPL_CVSID("$Id$");
 
 OGRDGNLayer::OGRDGNLayer( const char * pszName, DGNHandle hDGNIn,
                           int bUpdateIn ) :
+    poFeatureDefn(new OGRFeatureDefn( pszName )),
     iNextShapeId(0),
     hDGN(hDGNIn),
     bUpdate(bUpdateIn)
+    // Unused:
+    // bHaveSimpleQuery(FALSE)
 {
 
 /* -------------------------------------------------------------------- */
@@ -74,7 +77,6 @@ OGRDGNLayer::OGRDGNLayer( const char * pszName, DGNHandle hDGNIn,
 /* -------------------------------------------------------------------- */
 /*      Create the feature definition.                                  */
 /* -------------------------------------------------------------------- */
-    poFeatureDefn = new OGRFeatureDefn( pszName );
     SetDescription( poFeatureDefn->GetName() );
     poFeatureDefn->Reference();
 
@@ -164,7 +166,6 @@ OGRDGNLayer::OGRDGNLayer( const char * pszName, DGNHandle hDGNIn,
 /* -------------------------------------------------------------------- */
 /*      Create template feature for evaluating simple expressions.      */
 /* -------------------------------------------------------------------- */
-    bHaveSimpleQuery = FALSE;
     poEvalFeature = new OGRFeature( poFeatureDefn );
 
     /* TODO: I am intending to keep track of simple attribute queries (ones
@@ -182,7 +183,7 @@ OGRDGNLayer::OGRDGNLayer( const char * pszName, DGNHandle hDGNIn,
 OGRDGNLayer::~OGRDGNLayer()
 
 {
-    if( m_nFeaturesRead > 0 && poFeatureDefn != NULL )
+    if( m_nFeaturesRead > 0 )
     {
         CPLDebug( "Mem", "%d features read on layer '%s'.",
                   static_cast<int>( m_nFeaturesRead ),
@@ -533,6 +534,8 @@ OGRFeature *OGRDGNLayer::ElementToFeature( DGNElemCore *psElement )
           DGNPoint      asPoints[90];
           // TODO: std::abs abd std::max
           int nPoints = static_cast<int>(MAX(1,ABS(psArc->sweepang) / 5) + 1);
+          if( nPoints > 90 )
+              nPoints = 90;
           DGNStrokeArc( hDGN, psArc, nPoints, asPoints );
 
           poLine->setNumPoints( nPoints );

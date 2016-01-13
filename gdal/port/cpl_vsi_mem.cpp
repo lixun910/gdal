@@ -96,7 +96,7 @@ public:
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIMemHandle : public VSIVirtualHandle
+class VSIMemHandle CPL_FINAL : public VSIVirtualHandle
 { 
   public:
     VSIMemFile    *poFile;
@@ -123,7 +123,7 @@ class VSIMemHandle : public VSIVirtualHandle
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIMemFilesystemHandler : public VSIFilesystemHandler 
+class VSIMemFilesystemHandler CPL_FINAL : public VSIFilesystemHandler 
 {
 public:
     std::map<CPLString,VSIMemFile*>   oFileList;
@@ -138,7 +138,7 @@ public:
     virtual int      Unlink( const char *pszFilename );
     virtual int      Mkdir( const char *pszDirname, long nMode );
     virtual int      Rmdir( const char *pszDirname );
-    virtual char   **ReadDir( const char *pszDirname );
+    virtual char   **ReadDirEx( const char *pszDirname, int nMaxFiles );
     virtual int      Rename( const char *oldpath, const char *newpath );
     virtual GIntBig  GetDiskFreeSpace( const char* pszDirname );
 
@@ -462,24 +462,27 @@ VSIMemFilesystemHandler::Open( const char *pszFilename,
     else
         poFile = oFileList[osFilename];
 
+    // If no file and opening in read, error out
     if( strstr(pszAccess,"w") == NULL
-	&& strstr(pszAccess, "a") == NULL
-	&& poFile == NULL )
+        && strstr(pszAccess, "a") == NULL
+        && poFile == NULL )
     {
         errno = ENOENT;
         return NULL;
     }
 
-    // Overwrite
-    if (poFile && strstr(pszAccess, "w"))
-	poFile->SetLength(0);
-
     // Create
-    if (!poFile && (strstr(pszAccess, "w") || strstr(pszAccess, "a"))) {
-	poFile = new VSIMemFile;
-	poFile->osFilename = osFilename;
-	oFileList[poFile->osFilename] = poFile;
-	poFile->nRefCount++; // for file list
+    if( poFile == NULL )
+    {
+        poFile = new VSIMemFile;
+        poFile->osFilename = osFilename;
+        oFileList[poFile->osFilename] = poFile;
+        poFile->nRefCount++; // for file list
+    }
+    // Overwrite
+    else if( strstr(pszAccess, "w") )
+    {
+        poFile->SetLength(0);
     }
 
     if( poFile->bIsDirectory )
@@ -637,10 +640,11 @@ int VSIMemFilesystemHandler::Rmdir( const char * pszPathname )
 }
 
 /************************************************************************/
-/*                              ReadDir()                               */
+/*                             ReadDirEx()                              */
 /************************************************************************/
 
-char **VSIMemFilesystemHandler::ReadDir( const char *pszPath )
+char **VSIMemFilesystemHandler::ReadDirEx( const char *pszPath,
+                                           int nMaxFiles )
 
 {
     CPLMutexHolder oHolder( &hMutex );
@@ -684,6 +688,8 @@ char **VSIMemFilesystemHandler::ReadDir( const char *pszPath )
             papszDir[nItems+1] = NULL;
 
             nItems++;
+            if( nMaxFiles > 0 && nItems > nMaxFiles )
+                break;
         }
     }
 

@@ -50,7 +50,8 @@ GNMGenericNetwork::GNMGenericNetwork() :
 
 GNMGenericNetwork::~GNMGenericNetwork()
 {
-
+    for(size_t i = 0; i < m_apoLayers.size(); i++)
+        delete m_apoLayers[i];
 }
 
 int GNMGenericNetwork::GetLayerCount()
@@ -833,6 +834,7 @@ OGRLayer *GNMGenericNetwork::GetPath(GNMGFID nStartFID, GNMGFID nEndFID,
                     GNMGFID nEmitter = atol(papszEmitter[i]);
                     anEmitters.push_back(nEmitter);
                 }
+                CSLDestroy(papszEmitter);
             }
 
             if(nStartFID != -1)
@@ -961,10 +963,10 @@ void GNMGenericNetwork::SaveRules()
         poFeature->SetField(GNM_SYSFIELD_PARAMVALUE, m_asRules[i]);
         if(m_poMetadataLayer->CreateFeature(poFeature) != OGRERR_NONE)
         {
-            OGRFeature::DestroyFeature( poFeature );
             CPLError( CE_Failure, CPLE_AppDefined, "Write rule '%s' failed",
                       m_asRules[i].c_str());
             // TODO: do we need interrupt here?
+            //OGRFeature::DestroyFeature( poFeature );
             // return CE_Failure;
         }
         OGRFeature::DestroyFeature(poFeature);
@@ -1314,7 +1316,7 @@ CPLErr GNMGenericNetwork::LoadGraph()
 
         int nBlockState = poFeature->GetFieldAsInteger(GNM_SYSFIELD_BLOCKED);
 
-        bool bIsBlock = GNM_BLOCK_NONE == nBlockState;
+        bool bIsBlock = GNM_BLOCK_NONE != nBlockState;
 
         m_oGraph.AddEdge(nConFID, nSrcFID, nTgtFID, eDir == GNM_EDGE_DIR_BOTH,
                          dfCost, dfInvCost);

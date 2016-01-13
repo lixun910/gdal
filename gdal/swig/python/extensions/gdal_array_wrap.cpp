@@ -179,8 +179,8 @@ template <typename T> T SwigValueInit() {
   creating a static or dynamic library from the SWIG runtime code.
   In 99.9% of the cases, SWIG just needs to declare them as 'static'.
 
-  But only do this if strictly necessary, i.e. if you have problems
-  with your compiler or such.
+  But only do this if strictly necessary, ie, if you have problems
+  with your compiler or suchlike.
 */
 
 #ifndef SWIGRUNTIME
@@ -1189,7 +1189,7 @@ SWIGRUNTIME PyObject* SWIG_PyInstanceMethod_New(PyObject *SWIGUNUSEDPARM(self), 
 #define SWIG_ConvertFunctionPtr(obj, pptr, type)        SWIG_Python_ConvertFunctionPtr(obj, pptr, type)
 #define SWIG_NewFunctionPtrObj(ptr, type)               SWIG_Python_NewPointerObj(NULL, ptr, type, 0)
 
-/* for C++ member pointers, i.e, member methods */
+/* for C++ member pointers, ie, member methods */
 #define SWIG_ConvertMember(obj, ptr, sz, ty)            SWIG_Python_ConvertPacked(obj, ptr, sz, ty)
 #define SWIG_NewMemberObj(ptr, sz, type)                SWIG_Python_NewPackedObj(ptr, sz, type)
 
@@ -1802,7 +1802,7 @@ swigobject_methods[] = {
 static PyMethodDef
 swigobject_methods[] = {
   {(char *)"disown",  (PyCFunction)SwigPyObject_disown,  METH_VARARGS,  (char *)"releases ownership of the pointer"},
-  {(char *)"acquire", (PyCFunction)SwigPyObject_acquire, METH_VARARGS,  (char *)"acquires ownership of the pointer"},
+  {(char *)"acquire", (PyCFunction)SwigPyObject_acquire, METH_VARARGS,  (char *)"aquires ownership of the pointer"},
   {(char *)"own",     (PyCFunction)SwigPyObject_own,     METH_VARARGS,  (char *)"returns/sets ownership of the pointer"},
   {(char *)"append",  (PyCFunction)SwigPyObject_append,  METH_VARARGS,  (char *)"appends another 'this' object"},
   {(char *)"next",    (PyCFunction)SwigPyObject_next,    METH_VARARGS,  (char *)"returns the next 'this' object"},
@@ -2766,7 +2766,7 @@ SWIG_Python_TypeQuery(const char *type)
 
 SWIGRUNTIME int
 SWIG_Python_AddErrMesg(const char* mesg, int infront)
-{
+{  
   if (PyErr_Occurred()) {
     PyObject *type = 0;
     PyObject *value = 0;
@@ -3320,7 +3320,7 @@ static PyObject* GDALPythonObjectFromCStr(const char *pszStr)
     pszIter ++;
   }
 #if PY_VERSION_HEX >= 0x03000000
-  return PyUnicode_FromString(pszStr); 
+  return PyUnicode_FromString(pszStr);
 #else
   return PyString_FromString(pszStr);
 #endif
@@ -3348,7 +3348,7 @@ static char* GDALPythonObjectToCStr(PyObject* pyObject, int* pbToFree)
       *pbToFree = 1;
       return pszNewStr;
   }
-  else 
+  else
   {
 #if PY_VERSION_HEX >= 0x03000000
       return PyBytes_AsString(pyObject);
@@ -3376,7 +3376,7 @@ static void GDALPythonFreeCStr(void* ptr, int bToFree)
 #endif
 #include "numpy/arrayobject.h"
 
-#ifdef DEBUG 
+#ifdef DEBUG
 typedef struct GDALRasterBandHS GDALRasterBandShadow;
 typedef struct GDALDatasetHS GDALDatasetShadow;
 typedef struct RasterAttributeTableHS GDALRasterAttributeTableShadow;
@@ -3425,11 +3425,10 @@ class NUMPYDataset : public GDALDataset
 };
 
 
-
 /************************************************************************/
 /*                          GDALRegister_NUMPY()                        */
 /************************************************************************/
-   
+
 static void GDALRegister_NUMPY(void)
 
 {
@@ -3439,12 +3438,12 @@ static void GDALRegister_NUMPY(void)
     if( GDALGetDriverByName( "NUMPY" ) == NULL )
     {
         poDriver = new GDALDriver();
-        
+
         poDriver->SetDescription( "NUMPY" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
+        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
                                    "Numeric Python Array" );
         poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        
+
         poDriver->pfnOpen = NUMPYDataset::Open;
 
         GetGDALDriverManager()->RegisterDriver( poDriver );
@@ -3459,6 +3458,7 @@ static void GDALRegister_NUMPY(void)
 NUMPYDataset::NUMPYDataset()
 
 {
+    psArray = NULL;
     pszProjection = CPLStrdup("");
     bValidGeoTransform = FALSE;
     adfGeoTransform[0] = 0.0;
@@ -3610,7 +3610,7 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Is this a numpy dataset name?                                   */
 /* -------------------------------------------------------------------- */
-    if( !STARTS_WITH_CI(poOpenInfo->pszFilename, "NUMPY:::") 
+    if( !STARTS_WITH_CI(poOpenInfo->pszFilename, "NUMPY:::")
         || poOpenInfo->fpL != NULL )
         return NULL;
 
@@ -3618,9 +3618,9 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
     sscanf( poOpenInfo->pszFilename+8, "%p", &(psArray) );
     if( psArray == NULL )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
+        CPLError( CE_Failure, CPLE_AppDefined,
                   "Failed to parse meaningful pointer value from NUMPY name\n"
-                  "string: %s\n", 
+                  "string: %s\n",
                   poOpenInfo->pszFilename );
         return NULL;
     }
@@ -3630,7 +3630,7 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      then warn now.                                                  */
 /* -------------------------------------------------------------------- */
 #ifdef NUMPY_DEFS_WRONG
-    CPLError( CE_Warning, CPLE_AppDefined, 
+    CPLError( CE_Warning, CPLE_AppDefined,
               "It would appear you have built GDAL without having it use\n"
               "the Numeric python include files.  Old definitions have\n"
               "been used instead at build time, and it is quite possible that\n"
@@ -3646,8 +3646,8 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( psArray->nd < 2 || psArray->nd > 3 )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array rank %d.\n", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array rank %d.\n",
                   psArray->nd );
         return NULL;
     }
@@ -3694,8 +3694,8 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
         break;
 
       default:
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Unable to access numpy arrays of typecode `%c'.\n", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Unable to access numpy arrays of typecode `%c'.\n",
                   psArray->descr->type );
         return NULL;
     }
@@ -3747,9 +3747,9 @@ GDALDataset *NUMPYDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     for( int iBand = 0; iBand < nBands; iBand++ )
     {
-        poDS->SetBand( iBand+1, 
-                       (GDALRasterBand *) 
-                       MEMCreateRasterBand( poDS, iBand+1, 
+        poDS->SetBand( iBand+1,
+                       (GDALRasterBand *)
+                       MEMCreateRasterBand( poDS, iBand+1,
                                 (GByte *) psArray->data + nBandOffset*iBand,
                                           eType, nPixelOffset, nLineOffset,
                                           FALSE ) );
@@ -3893,14 +3893,14 @@ PyProgressProxy( double dfComplete, const char *pszMessage, void *pData )
         return TRUE;
 
     psInfo->nLastReported = (int) (100.0 * dfComplete);
-    
+
     if( pszMessage == NULL )
         pszMessage = "";
 
     if( psInfo->psPyCallbackData == NULL )
         psArgs = Py_BuildValue("(dsO)", dfComplete, pszMessage, Py_None );
     else
-        psArgs = Py_BuildValue("(dsO)", dfComplete, pszMessage, 
+        psArgs = Py_BuildValue("(dsO)", dfComplete, pszMessage,
 	                       psInfo->psPyCallbackData );
 
     psResult = PyEval_CallObject( psInfo->psPyCallback, psArgs);
@@ -3932,17 +3932,17 @@ PyProgressProxy( double dfComplete, const char *pszMessage, void *pData )
 
     Py_XDECREF(psResult);
 
-    return bContinue;    
+    return bContinue;
 }
 
 
 retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
 {
     char      szString[128];
-    
+
     GDALRegister_NUMPY();
-    
-    /* I wish I had a safe way of checking the type */        
+
+    /* I wish I had a safe way of checking the type */
     sprintf( szString, "NUMPY:::%p", psArray );
     return CPLStrdup(szString);
 }
@@ -3958,8 +3958,8 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
     GDALDataType ntype  = (GDALDataType)buf_type;
     if( psArray->nd < 2 || psArray->nd > 3 )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array rank %d.\n", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array rank %d.\n",
                   psArray->nd );
         return CE_Failure;
     }
@@ -4008,8 +4008,8 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
     GDALDataType ntype  = (GDALDataType)buf_type;
     if( psArray->nd != 3 )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array rank %d.", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array rank %d.",
                   psArray->nd );
         return CE_Failure;
     }
@@ -4024,8 +4024,8 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
     bandsize = psArray->dimensions[0];
     if( bandsize != GDALGetRasterCount(ds) )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array band dimension %d. Expected value: %d", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array band dimension %d. Expected value: %d",
                   bandsize, GDALGetRasterCount(ds) );
         return CE_Failure;
     }
@@ -4054,15 +4054,15 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
 
 
   // need different functions for read and write
-  // since reading strings requires us to know the 
+  // since reading strings requires us to know the
   // length of the longest string before creating array
-  CPLErr RATValuesIONumPyWrite( GDALRasterAttributeTableShadow* poRAT, int nField, int nStart, 
+  CPLErr RATValuesIONumPyWrite( GDALRasterAttributeTableShadow* poRAT, int nField, int nStart,
                        PyArrayObject *psArray) {
 
     if( PyArray_NDIM(psArray) != 1 )
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array rank %d.\n", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array rank %d.\n",
                   PyArray_NDIM(psArray) );
         return CE_Failure;
     }
@@ -4073,7 +4073,7 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
 
     if( nType == NPY_INT32 )
     {
-        retval = GDALRATValuesIOAsInteger(poRAT, GF_Write, nField, nStart, nLength, 
+        retval = GDALRATValuesIOAsInteger(poRAT, GF_Write, nField, nStart, nLength,
                         (int*)PyArray_DATA(psArray) );
     }
     else if( nType == NPY_DOUBLE )
@@ -4093,7 +4093,7 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
         // as there won't be if this string is the maximum size
         pszBuffer[nMaxLen] = '\0';
 
-        // we can't just use the memory location in the array 
+        // we can't just use the memory location in the array
         // since long strings won't be null terminated
         for( int i = 0; i < nLength; i++ )
         {
@@ -4113,8 +4113,8 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
     }
     else
     {
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "Illegal numpy array type %d.\n", 
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Illegal numpy array type %d.\n",
                   nType );
         return CE_Failure;
     }
@@ -4123,9 +4123,9 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
 
 
   // need different functions for read and write
-  // since reading strings requires us to know the 
+  // since reading strings requires us to know the
   // length of the longest string before creating array
-  PyObject *RATValuesIONumPyRead( GDALRasterAttributeTableShadow* poRAT, int nField, int nStart, 
+  PyObject *RATValuesIONumPyRead( GDALRasterAttributeTableShadow* poRAT, int nField, int nStart,
                        int nLength) {
 
     GDALRATFieldType colType = GDALRATGetTypeOfCol(poRAT, nField);
@@ -4134,7 +4134,7 @@ retStringAndCPLFree* GetArrayFilename(PyArrayObject *psArray)
     if( colType == GFT_Integer )
     {
         pOutArray = PyArray_SimpleNew(1, &dims, NPY_INT32);
-        if( GDALRATValuesIOAsInteger(poRAT, GF_Read, nField, nStart, nLength, 
+        if( GDALRATValuesIOAsInteger(poRAT, GF_Read, nField, nStart, nLength,
                         (int*)PyArray_DATA(pOutArray)) != CE_None)
         {
             Py_DECREF(pOutArray);
@@ -4275,7 +4275,7 @@ SWIGINTERN PyObject *_wrap_VirtualMem_GetAddr(PyObject *SWIGUNUSEDPARM(self), Py
   CPLVirtualMemShadow_GetAddr(arg1,arg2,arg3,arg4,arg5);
   resultobj = SWIG_Py_Void();
   {
-#if PY_VERSION_HEX >= 0x02070000 
+#if PY_VERSION_HEX >= 0x02070000
     /* %typemap(argout) (void** pptr, size_t* pnsize, GDALDataType* pdatatype, int* preadonly)*/
     Py_buffer *buf=(Py_buffer*)malloc(sizeof(Py_buffer));
     if (PyBuffer_FillInfo(buf,  obj0,  *(arg2), *(arg3), *(arg5), PyBUF_ND)) {
@@ -4321,10 +4321,10 @@ SWIGINTERN PyObject *_wrap_VirtualMem_GetAddr(PyObject *SWIGUNUSEDPARM(self), Py
       buf->format = (char*) "B";
       buf->itemsize = 1;
     }
+    Py_DECREF(resultobj);
     resultobj = PyMemoryView_FromBuffer(buf);
 #else
     PyErr_SetString( PyExc_RuntimeError, "needs Python 2.7 or later" );
-    SWIG_fail;
 #endif
   }
   return resultobj;
@@ -4476,8 +4476,8 @@ SWIGINTERN PyObject *_wrap_VirtualMem_Pin(PyObject *self, PyObject *args) {
   PyObject *argv[5];
   int ii;
   
-  if (!PyTuple_Check(args)) SWIG_fail;
-  argc = args ? (int)PyObject_Length(args) : 0;
+  if (args == NULL || !PyTuple_Check(args)) SWIG_fail;
+  argc = (int)PyObject_Length(args);
   for (ii = 0; (ii < 4) && (ii < argc); ii++) {
     argv[ii] = PyTuple_GET_ITEM(args,ii);
   }
@@ -4765,16 +4765,16 @@ SWIGINTERN PyObject *_wrap_BandRasterIONumPy(PyObject *SWIGUNUSEDPARM(self), PyO
       /* callback_func typemap */
       if (obj9 && obj9 != Py_None ) {
         void* cbfunction = NULL;
-        SWIG_ConvertPtr( obj9, 
-          (void**)&cbfunction,
-          SWIGTYPE_p_f_double_p_q_const__char_p_void__int,
-          SWIG_POINTER_EXCEPTION | 0 );
+        CPL_IGNORE_RET_VAL(SWIG_ConvertPtr( obj9,
+            (void**)&cbfunction,
+            SWIGTYPE_p_f_double_p_q_const__char_p_void__int,
+            SWIG_POINTER_EXCEPTION | 0 ));
         
         if ( cbfunction == GDALTermProgress ) {
           arg10 = GDALTermProgress;
         } else {
           if (!PyCallable_Check(obj9)) {
-            PyErr_SetString( PyExc_RuntimeError, 
+            PyErr_SetString( PyExc_RuntimeError,
               "Object given is not a Python function" );
             SWIG_fail;
           }
@@ -4923,16 +4923,16 @@ SWIGINTERN PyObject *_wrap_DatasetIONumPy(PyObject *SWIGUNUSEDPARM(self), PyObje
       /* callback_func typemap */
       if (obj9 && obj9 != Py_None ) {
         void* cbfunction = NULL;
-        SWIG_ConvertPtr( obj9, 
-          (void**)&cbfunction,
-          SWIGTYPE_p_f_double_p_q_const__char_p_void__int,
-          SWIG_POINTER_EXCEPTION | 0 );
+        CPL_IGNORE_RET_VAL(SWIG_ConvertPtr( obj9,
+            (void**)&cbfunction,
+            SWIGTYPE_p_f_double_p_q_const__char_p_void__int,
+            SWIG_POINTER_EXCEPTION | 0 ));
         
         if ( cbfunction == GDALTermProgress ) {
           arg10 = GDALTermProgress;
         } else {
           if (!PyCallable_Check(obj9)) {
-            PyErr_SetString( PyExc_RuntimeError, 
+            PyErr_SetString( PyExc_RuntimeError,
               "Object given is not a Python function" );
             SWIG_fail;
           }
@@ -5162,6 +5162,7 @@ SWIGINTERN PyObject *_wrap_VirtualMemGetArray(PyObject *SWIGUNUSEDPARM(self), Py
     /* Keep a reference to the VirtualMem object */
     ar->base = obj0;
     Py_INCREF(obj0);
+    Py_DECREF(resultobj);
     resultobj = (PyObject*) ar;
   }
   return resultobj;
@@ -5457,7 +5458,7 @@ SWIG_InitializeModule(void *clientdata) {
     /* This is the first module loaded for this interpreter */
     /* so set the swig module into the interpreter */
     SWIG_SetModule(clientdata, &swig_module);
-    module_head = &swig_module;
+    /*module_head = &swig_module;*/
   } else {
     /* the interpreter has loaded a SWIG module, but has it loaded this one? */
     found=0;
@@ -5906,7 +5907,7 @@ extern "C" {
               char *buff = ndoc;
               strncpy(buff, methods[i].ml_doc, ldoc);
               buff += ldoc;
-              strncpy(buff, "swig_ptr: ", 10);
+              memcpy(buff, "swig_ptr: ", 10);
               buff += 10;
               SWIG_PackVoidPtr(buff, ptr, ty->name, lptr);
               methods[i].ml_doc = ndoc;

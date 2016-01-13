@@ -182,6 +182,7 @@ int OGRMySQLDataSource::Open( const char * pszNewName, char** papszOpenOptionsIn
             nPort = atoi(papszItems[i] + 5);
         else if( STARTS_WITH_CI(papszItems[i], "tables=") )
         {
+            CSLDestroy(papszTableNames);
             papszTableNames = CSLTokenizeStringComplex( 
                 papszItems[i] + 7, ";", FALSE, FALSE );
         }
@@ -343,11 +344,10 @@ int OGRMySQLDataSource::OpenTable( const char *pszNewName, int bUpdate )
 int OGRMySQLDataSource::TestCapability( const char * pszCap )
 
 {
-	
     if( EQUAL(pszCap, ODsCCreateLayer) )
         return TRUE;
-	if( EQUAL(pszCap, ODsCDeleteLayer))
-		return TRUE;
+    if( EQUAL(pszCap, ODsCDeleteLayer))
+        return TRUE;
     else
         return FALSE;
 }
@@ -614,7 +614,7 @@ int OGRMySQLDataSource::FetchSRSId( OGRSpatialReference * poSRS )
              nSRSId, pszWKT );
 
     if( !mysql_query( GetConn(), osCommand ) )
-        hResult = mysql_store_result( GetConn() );
+        /*hResult = */ mysql_store_result( GetConn() ); /* FIXME ? */
 
     // make sure to attempt to free results of successful queries
     hResult = mysql_store_result( GetConn() );

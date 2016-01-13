@@ -4,7 +4,7 @@
  * Purpose:  GDAL Dataset implementation for PostGIS Raster driver
  * Author:   Jorge Arevalo, jorge.arevalo@deimos-space.com
  *                          jorgearevalo@libregis.org
- * 
+ *
  * Author:	 David Zwarg, dzwarg@azavea.com
  *
  * Last changes: $Id: $
@@ -33,6 +33,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
  * SOFTWARE.
  **********************************************************************/
+
+#include "gdal_frmts.h"
 #include "postgisraster.h"
 #include <math.h>
 
@@ -43,11 +45,6 @@
 /* PostgreSQL defaults */
 #define DEFAULT_SCHEMA          "public"
 #define DEFAULT_COLUMN          "rast"
-
-
-CPL_C_START
-void GDALRegister_PostGISRaster(void);
-CPL_C_END
 
 /** Note on read performance on mode=2:
 
@@ -158,7 +155,9 @@ PostGISRasterDataset::PostGISRasterDataset():VRTDataset(0, 0) {
 
     else {
         resolutionStrategy = USER_RESOLUTION;
+#ifdef DEBUG_VERBOSE
         pszTmp = "USER";
+#endif
     }
 
 #ifdef DEBUG_VERBOSE
@@ -1060,8 +1059,8 @@ GBool PostGISRasterDataset::LoadSources(int nXOff, int nYOff, int nXSize, int nY
 
         if( bTilesSameDimension && nBand > 0 )
         {
-            GIntBig nMemoryRequiredForTiles = PQntuples(poResult) * nTileWidth * nTileHeight *
-                GDALGetDataTypeSize(GetRasterBand(nBand)->GetRasterDataType()) / 8;
+            GIntBig nMemoryRequiredForTiles = static_cast<GIntBig>(PQntuples(poResult)) * nTileWidth * nTileHeight *
+                (GDALGetDataTypeSize(GetRasterBand(nBand)->GetRasterDataType()) / 8);
             GIntBig nCacheMax = (GIntBig) GDALGetCacheMax64();
             if( nBands * nMemoryRequiredForTiles <= nCacheMax )
             {
@@ -1398,6 +1397,7 @@ PostGISRasterTileDataset* PostGISRasterDataset::BuildRasterTileDataset(const cha
             "GDAL PostGIS Raster driver can not work with "
             "rotated rasters yet.");
 
+        CSLDestroy(papszParams);
         return NULL;
     }
 
@@ -1797,6 +1797,7 @@ GBool PostGISRasterDataset::ConstructOneDatasetFromTiles(
             "Computed PostGIS Raster dimension is invalid. You've "
             "probably specified inappropriate resolution." );
 
+        VSIFree(poBandMetaData); 
         return false;
     }
 
@@ -2203,7 +2204,7 @@ GBool PostGISRasterDataset::SetRasterProperties
 
     double scale_x = CPLAtof(PQgetvalue(poResult, 0, 6));
     double scale_y = CPLAtof(PQgetvalue(poResult, 0, 7));
-    if( nOverviewFactor > 1 )
+    if( nOverviewFactor > 1 && poParentDS != NULL )
     {
         scale_x = poParentDS->adfGeoTransform[GEOTRSFRM_WE_RES] * nOverviewFactor;
         scale_y = poParentDS->adfGeoTransform[GEOTRSFRM_NS_RES] * nOverviewFactor;
@@ -3657,28 +3658,29 @@ GBool PostGISRasterDataset::PolygonFromCoords(
 }
 
 /***********************************************************************
- * GDALRegister_PostGISRaster()                
+ * GDALRegister_PostGISRaster()
  **********************************************************************/
-void GDALRegister_PostGISRaster() {
-    GDALDriver *poDriver;
+void GDALRegister_PostGISRaster()
 
-    if (! GDAL_CHECK_VERSION("PostGISRaster driver"))
+{
+    if( !GDAL_CHECK_VERSION( "PostGISRaster driver" ) )
         return;
 
-    if (GDALGetDriverByName("PostGISRaster") == NULL) {
-        poDriver = new PostGISRasterDriver();
+    if( GDALGetDriverByName( "PostGISRaster" ) != NULL )
+        return;
 
-        poDriver->SetDescription("PostGISRaster");
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem(GDAL_DMD_LONGNAME,
-                "PostGIS Raster driver");
-        poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
+    GDALDriver *poDriver = new PostGISRasterDriver();
 
-        poDriver->pfnOpen = PostGISRasterDataset::Open;
-        poDriver->pfnIdentify = PostGISRasterDataset::Identify;
-        poDriver->pfnCreateCopy = PostGISRasterDataset::CreateCopy;
-        poDriver->pfnDelete = PostGISRasterDataset::Delete;
+    poDriver->SetDescription("PostGISRaster");
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME,
+                              "PostGIS Raster driver");
+    poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
 
-        GetGDALDriverManager()->RegisterDriver(poDriver);
-    }
+    poDriver->pfnOpen = PostGISRasterDataset::Open;
+    poDriver->pfnIdentify = PostGISRasterDataset::Identify;
+    poDriver->pfnCreateCopy = PostGISRasterDataset::CreateCopy;
+    poDriver->pfnDelete = PostGISRasterDataset::Delete;
+
+    GetGDALDriverManager()->RegisterDriver(poDriver);
 }

@@ -636,7 +636,7 @@ OGRBoolean CheckCitationKeyForStatePlaneUTM(GTIF* hGTIF, GTIFDefn* psDefn, OGRSp
     {
         char	*pszUnitsName = NULL;
         GTIFGetUOMLengthInfo( psDefn->UOMLength, &pszUnitsName, NULL );
-        if( pszUnitsName && strlen(pszUnitsName) > 0 )
+        if( pszUnitsName )
         {
             CPLString osLCCT = pszUnitsName;
             GTIFFreeMemory( pszUnitsName );
@@ -649,7 +649,7 @@ OGRBoolean CheckCitationKeyForStatePlaneUTM(GTIF* hGTIF, GTIFDefn* psDefn, OGRSp
                 strcpy(units, "international_feet");
             else if(strstr(osLCCT, "meter"))
                 strcpy(units, "meters");
-            hasUnits = TRUE;
+            /*hasUnits = TRUE;*/
         }
     }
 

@@ -46,15 +46,17 @@ OGRGeoJSONWriteLayer::OGRGeoJSONWriteLayer( const char* pszName,
                                            OGRGeoJSONDataSource* poDS )
     : poDS_( poDS ), poFeatureDefn_(new OGRFeatureDefn( pszName ) ), nOutCounter_( 0 )
 {
-    bWriteBBOX = CSLTestBoolean(CSLFetchNameValueDef(papszOptions, "WRITE_BBOX", "FALSE"));
-    bBBOX3D = FALSE;
+    bWriteBBOX = CPL_TO_BOOL( CSLTestBoolean(CSLFetchNameValueDef(
+        papszOptions, "WRITE_BBOX", "FALSE")) );
+    bBBOX3D = false;
     bWriteFC_BBOX = bWriteFC_BBOXIn;
 
     poFeatureDefn_->Reference();
     poFeatureDefn_->SetGeomType( eGType );
     SetDescription( poFeatureDefn_->GetName() );
 
-    nCoordPrecision = atoi(CSLFetchNameValueDef(papszOptions, "COORDINATE_PRECISION", "-1"));
+    nCoordPrecision_ = atoi(CSLFetchNameValueDef(papszOptions, "COORDINATE_PRECISION", "-1"));
+    nSignificantFigures_ = atoi(CSLFetchNameValueDef(papszOptions, "SIGNIFICANT_FIGURES", "-1"));
 }
 
 /************************************************************************/
@@ -114,7 +116,8 @@ OGRErr OGRGeoJSONWriteLayer::ICreateFeature( OGRFeature* poFeature )
         return OGRERR_INVALID_HANDLE;
     }
 
-    json_object* poObj = OGRGeoJSONWriteFeature( poFeature, bWriteBBOX, nCoordPrecision );
+    json_object* poObj = OGRGeoJSONWriteFeature( poFeature, bWriteBBOX,
+                                                 nCoordPrecision_, nSignificantFigures_ );
     CPLAssert( NULL != poObj );
 
     if( nOutCounter_ > 0 )
@@ -135,7 +138,7 @@ OGRErr OGRGeoJSONWriteLayer::ICreateFeature( OGRFeature* poFeature )
         poGeometry->getEnvelope(&sEnvelope);
 
         if( poGeometry->getCoordinateDimension() == 3 )
-            bBBOX3D = TRUE;
+            bBBOX3D = true;
 
         sEnvelopeLayer.Merge(sEnvelope);
     }

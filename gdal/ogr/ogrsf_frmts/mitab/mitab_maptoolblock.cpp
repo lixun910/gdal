@@ -152,8 +152,26 @@ int     TABMAPToolBlock::InitBlockFromData(GByte *pabyBuf,
      *----------------------------------------------------------------*/
     GotoByteInBlock(0x002);
     m_numDataBytes = ReadInt16();       /* Excluding 8 bytes header */
+    if( m_numDataBytes < 0 || m_numDataBytes + MAP_TOOL_HEADER_SIZE > nBlockSize )
+    {
+        CPLError(CE_Failure, CPLE_FileIO,
+                 "TABMAPToolBlock::InitBlockFromData(): m_numDataBytes=%d incompatible with block size %d",
+                 m_numDataBytes, nBlockSize);
+        CPLFree(m_pabyBuf);
+        m_pabyBuf = NULL;
+        return -1;
+    }
 
     m_nNextToolBlock = ReadInt32();
+    if( m_nNextToolBlock != 0 &&
+        (m_nNextToolBlock / m_nBlockSize) * m_nBlockSize == nOffset )
+    {
+        CPLError(CE_Failure, CPLE_FileIO,
+                 "InitBlockFromData(): self referencing block");
+        CPLFree(m_pabyBuf);
+        m_pabyBuf = NULL;
+        return -1;
+    }
 
     /*-----------------------------------------------------------------
      * The read ptr is now located at the beginning of the data part.
@@ -199,6 +217,7 @@ int     TABMAPToolBlock::CommitToFile()
     GotoByteInBlock(0x000);
 
     WriteInt16(TABMAP_TOOL_BLOCK);    // Block type code
+    CPLAssert(m_nSizeUsed >= MAP_TOOL_HEADER_SIZE && m_nSizeUsed < MAP_TOOL_HEADER_SIZE + 32768);
     WriteInt16((GInt16)(m_nSizeUsed - MAP_TOOL_HEADER_SIZE)); // num. bytes used
     WriteInt32(m_nNextToolBlock);
 
@@ -360,7 +379,7 @@ int  TABMAPToolBlock::WriteBytes(int nBytesToWrite, const GByte *pabySrcBuf)
         SetNextToolBlock(nNewBlockOffset);
 
         if (CommitToFile() != 0 ||
-            InitNewBlock(m_fp, 512, nNewBlockOffset) != 0)
+            InitNewBlock(m_fp, m_nBlockSize, nNewBlockOffset) != 0)
         {
             // An error message should have already been reported.
             return -1;
@@ -410,7 +429,7 @@ int  TABMAPToolBlock::CheckAvailableSpace(int nToolType)
         SetNextToolBlock(nNewBlockOffset);
 
         if (CommitToFile() != 0 ||
-            InitNewBlock(m_fp, 512, nNewBlockOffset) != 0)
+            InitNewBlock(m_fp, m_nBlockSize, nNewBlockOffset) != 0)
         {
             // An error message should have already been reported.
             return -1;

@@ -28,15 +28,14 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_pam.h"
 #include "gifabstractdataset.h"
 
 CPL_CVSID("$Id$");
 
 CPL_C_START
-void	GDALRegister_GIF(void);
-
 #if !(defined(GIFLIB_MAJOR) && GIFLIB_MAJOR >= 5)
 
 // This prototype seems to have been messed up!
@@ -684,7 +683,7 @@ static int VSIGIFWriteFunc( GifFileType *psGFile,
 }
 
 /************************************************************************/
-/*                          GDALRegister_GIF()                        */
+/*                          GDALRegister_GIF()                          */
 /************************************************************************/
 
 void GDALRegister_GIF()
@@ -699,12 +698,10 @@ void GDALRegister_GIF()
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
     poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
                                "Graphics Interchange Format (.gif)" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                               "frmt_gif.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_gif.html" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "gif" );
     poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/gif" );
-    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-                               "Byte" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Byte" );
 
     poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>\n"

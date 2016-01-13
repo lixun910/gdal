@@ -51,7 +51,9 @@
 CPL_CVSID("$Id$");
 
 CPL_C_START
-void    GDALRegister_SENTINEL2(void);
+// TODO: Leave this declaration while Sentinel2 folks use this as a
+// plugin with GDAL 1.x.
+void GDALRegister_SENTINEL2();
 CPL_C_END
 
 typedef enum
@@ -394,7 +396,7 @@ int SENTINEL2Dataset::Identify( GDALOpenInfo *poOpenInfo )
         return TRUE;
 
     if( strstr(pszHeader,  "<n1:Level-2A_User_Product" ) != NULL &&
-        strstr(pszHeader, "User_Product_Level-2A_Metadata" ) != NULL )
+        strstr(pszHeader, "User_Product_Level-2A" ) != NULL )
         return TRUE;
 
     return FALSE;
@@ -487,7 +489,7 @@ GDALDataset *SENTINEL2Dataset::Open( GDALOpenInfo * poOpenInfo )
         return OpenL1CTile(poOpenInfo->pszFilename);
 
     if( strstr(pszHeader,  "<n1:Level-2A_User_Product" ) != NULL &&
-        strstr(pszHeader, "User_Product_Level-2A_Metadata" ) != NULL )
+        strstr(pszHeader, "User_Product_Level-2A" ) != NULL )
         return OpenL1C_L2A(poOpenInfo->pszFilename, SENTINEL2_L2A);
 
     return NULL;

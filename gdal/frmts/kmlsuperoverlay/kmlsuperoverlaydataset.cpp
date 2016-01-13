@@ -38,10 +38,11 @@
 #include <algorithm>
 #include <fstream>
 
+#include "cpl_conv.h"
 #include "cpl_error.h"
 #include "cpl_string.h"
-#include "cpl_conv.h"
 #include "cpl_vsi.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
 #include "../vrt/gdal_vrt.h"
 #include "../vrt/vrtdataset.h"
@@ -2464,23 +2465,22 @@ static CPLErr KmlSuperOverlayDatasetDelete(CPL_UNUSED const char* fileName)
 /*                    GDALRegister_KMLSUPEROVERLAY()                    */
 /************************************************************************/
 
-void GDALRegister_KMLSUPEROVERLAY()
+void CPL_DLL GDALRegister_KMLSUPEROVERLAY()
 
 {
-    GDALDriver	*poDriver;
+    if( GDALGetDriverByName( "KMLSUPEROVERLAY" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "KMLSUPEROVERLAY" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "KMLSUPEROVERLAY" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "Kml Super Overlay" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
-                                   "Byte Int16 UInt16 Int32 UInt32 Float32 Float64 CInt16 CInt32 CFloat32 CFloat64" );
+    poDriver->SetDescription( "KMLSUPEROVERLAY" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "Kml Super Overlay" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte Int16 UInt16 Int32 UInt32 Float32 Float64 "
+                               "CInt16 CInt32 CFloat32 CFloat64" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>"
 "   <Option name='NAME' type='string' description='Overlay name'/>"
 "   <Option name='DESCRIPTION' type='string' description='Overlay description'/>"
@@ -2498,13 +2498,12 @@ void GDALRegister_KMLSUPEROVERLAY()
 "   <Option name='FIX_ANTIMERIDIAN' type='boolean' description='Fix for images crossing the antimeridian causing errors in Google Earth' />"
 "</CreationOptionList>" );
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-        poDriver->pfnIdentify = KmlSuperOverlayReadDataset::Identify;
-        poDriver->pfnOpen = KmlSuperOverlayReadDataset::Open;
-        poDriver->pfnCreateCopy = KmlSuperOverlayCreateCopy;
-        poDriver->pfnDelete = KmlSuperOverlayDatasetDelete;
+    poDriver->pfnIdentify = KmlSuperOverlayReadDataset::Identify;
+    poDriver->pfnOpen = KmlSuperOverlayReadDataset::Open;
+    poDriver->pfnCreateCopy = KmlSuperOverlayCreateCopy;
+    poDriver->pfnDelete = KmlSuperOverlayDatasetDelete;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

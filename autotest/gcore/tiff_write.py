@@ -1213,25 +1213,78 @@ def tiff_write_29():
 
     # When creating a 4 channel image with PHOTOMETRIC=RGB,
     # TIFFTAG_EXTRASAMPLES=EXTRASAMPLE_UNSPECIFIED
-    ds = gdaltest.tiff_drv.Create( 'tmp/rgba.tif', 1, 1, 4, options = ['PHOTOMETRIC=RGB'])
-
+    ds = gdaltest.tiff_drv.Create( '/vsimem/rgba.tif', 1, 1, 4, options = ['PHOTOMETRIC=RGB'])
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     if ds.GetRasterBand(4).GetRasterColorInterpretation() != gdal.GCI_Undefined:
+        gdaltest.post_reason('fail')
         return 'fail'
 
+    # Now turn on alpha
     ds.GetRasterBand(4).SetRasterColorInterpretation(gdal.GCI_AlphaBand)
 
     if ds.GetRasterBand(4).GetRasterColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
         return 'fail'
-
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     ds = None
 
-    ds = gdal.Open( 'tmp/rgba.tif' )
+    if gdal.VSIStatL('/vsimem/rgba.tif.aux.xml') is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
 
+    ds = gdal.Open( '/vsimem/rgba.tif' )
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     if ds.GetRasterBand(4).GetRasterColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Test cancelling alpha
+    gdaltest.tiff_drv.CreateCopy( '/vsimem/rgb_no_alpha.tif', ds, options = ['ALPHA=NO'])
+    ds = None
+
+    if gdal.VSIStatL('/vsimem/rgb_no_alpha.tif.aux.xml') is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    ds = gdal.Open( '/vsimem/rgb_no_alpha.tif' )
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
+    if ds.GetRasterBand(4).GetRasterColorInterpretation() != gdal.GCI_Undefined:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Test re-adding alpha
+    gdaltest.tiff_drv.CreateCopy( '/vsimem/rgb_added_alpha.tif', ds, options = ['ALPHA=YES'])
+    ds = None
+
+    if gdal.VSIStatL('/vsimem/rgb_added_alpha.tif.aux.xml') is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    ds = gdal.Open( '/vsimem/rgb_added_alpha.tif' )
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
+    if ds.GetRasterBand(4).GetRasterColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
         return 'fail'
     ds = None
 
-    gdaltest.tiff_drv.Delete( 'tmp/rgba.tif' )
+    gdaltest.tiff_drv.Delete( '/vsimem/rgba.tif' )
+    gdaltest.tiff_drv.Delete( '/vsimem/rgb_no_alpha.tif' )
+    gdaltest.tiff_drv.Delete( '/vsimem/rgb_added_alpha.tif' )
 
     return 'success'
 
@@ -4051,7 +4104,7 @@ def tiff_write_97():
         gdaltest.post_reason( 'did not get expected AREA_OR_POINT value' )
         return 'fail'
 
-    gdal.SetConfigOption( 'GTIFF_POINT_GEO_IGNORE', 'FALSE' )
+    gdal.SetConfigOption( 'GTIFF_POINT_GEO_IGNORE', None )
 
     # read back this file with pixelispoint behavior enabled.
 
@@ -4810,18 +4863,33 @@ def tiff_write_122():
 
 def tiff_write_123():
 
-    src_ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_123_src.tif', 1,1,3,gdal.GDT_Int16)
-    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    src_ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_123_src.tif', 1,1,5,gdal.GDT_Int16)
     src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    src_ds.GetRasterBand(5).SetColorInterpretation(gdal.GCI_AlphaBand)
     src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
     src_ds = None
     statBuf = gdal.VSIStatL('/vsimem/tiff_write_123_src.tif.aux.xml', gdal.VSI_STAT_EXISTS_FLAG | gdal.VSI_STAT_NATURE_FLAG | gdal.VSI_STAT_SIZE_FLAG)
     if statBuf is not None:
         gdaltest.post_reason('did not expect PAM file')
         return 'fail'
     src_ds = gdal.Open('/vsimem/tiff_write_123_src.tif')
+    if src_ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(src_ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_'))
+        return 'fail'
     if src_ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_RedBand:
         gdaltest.post_reason('fail')
+        return 'fail'
+    if src_ds.GetRasterBand(4).GetColorInterpretation() != gdal.GCI_Undefined:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if src_ds.GetRasterBand(5).GetColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if src_ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0,2':
+        gdaltest.post_reason('fail')
+        print(src_ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
         return 'fail'
 
     new_ds = gdaltest.tiff_drv.CreateCopy('/vsimem/tiff_write_123.tif', src_ds)
@@ -4834,18 +4902,45 @@ def tiff_write_123():
     if ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_RedBand:
         gdaltest.post_reason('fail')
         return 'fail'
+    if src_ds.GetRasterBand(4).GetColorInterpretation() != gdal.GCI_Undefined:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if src_ds.GetRasterBand(5).GetColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0,2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     ds = None
 
     gdaltest.tiff_drv.Delete('/vsimem/tiff_write_123_src.tif')
     gdaltest.tiff_drv.Delete('/vsimem/tiff_write_123.tif')
 
+    # From implicit RGB to MINISBLACK
     ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_123_bgr.tif', 1,1,3,gdal.GDT_Byte)
+    if ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_'))
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') is not None:
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_BlueBand)
     if ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_BlueBand:
         gdaltest.post_reason('fail')
         return 'fail'
     ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
     ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_RedBand)
+    if ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_') != '1':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_'))
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0,0':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
     ds = None
     statBuf = gdal.VSIStatL('/vsimem/tiff_write_123_bgr.tif.aux.xml', gdal.VSI_STAT_EXISTS_FLAG | gdal.VSI_STAT_NATURE_FLAG | gdal.VSI_STAT_SIZE_FLAG)
     if statBuf is None:
@@ -4857,6 +4952,39 @@ def tiff_write_123():
         return 'fail'
     ds = None
     gdaltest.tiff_drv.Delete('/vsimem/tiff_write_123_bgr.tif')
+
+    # From implicit RGBA to MINISBLACK
+    ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_123_rgba.tif', 1,1,4,gdal.GDT_Byte)
+    if ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_'))
+        return 'fail'
+    if ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_RedBand:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if ds.GetRasterBand(4).GetColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
+
+    ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_Undefined)
+    if ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_Undefined:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_') != '1':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_PHOTOMETRIC', '_DEBUG_'))
+        return 'fail'
+    if ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_') != '0,0,2':
+        gdaltest.post_reason('fail')
+        print(ds.GetMetadataItem('TIFFTAG_EXTRASAMPLES', '_DEBUG_'))
+        return 'fail'
+    ds = None
+
+    gdaltest.tiff_drv.Delete('/vsimem/tiff_write_123_rgba.tif')
 
     return 'success'
 
@@ -5383,38 +5511,45 @@ def tiff_write_131():
 
 def tiff_write_132():
 
-    ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_132.tif', 1, 1)
-    ds = None
+    for i in range(2):
 
-    # Open in read-only
-    ds = gdal.Open('/vsimem/tiff_write_132.tif')
-    ds.SetMetadataItem('FOO', 'BAR')
-    ds.GetRasterBand(1).SetMetadataItem('FOO', 'BAR')
-    ds = None
+        ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_132.tif', 1, 1)
+        ds = None
 
-    # Check that PAM file exists
-    if gdal.VSIStatL('/vsimem/tiff_write_132.tif.aux.xml') is None:
-        gdaltest.post_reason('fail')
-        return 'fail'
+        # Open in read-only
+        ds = gdal.Open('/vsimem/tiff_write_132.tif')
+        ds.SetMetadataItem('FOO', 'BAR')
+        ds.GetRasterBand(1).SetMetadataItem('FOO', 'BAR')
+        ds = None
 
-    # Open in read-write
-    ds = gdal.Open('/vsimem/tiff_write_132.tif', gdal.GA_Update)
-    ds.SetMetadataItem('FOO', 'BAZ')
-    ds.GetRasterBand(1).SetMetadataItem('FOO', 'BAZ')
-    ds = None
+        # Check that PAM file exists
+        if gdal.VSIStatL('/vsimem/tiff_write_132.tif.aux.xml') is None:
+            gdaltest.post_reason('fail')
+            return 'fail'
 
-    # Check that PAM file no longer exists
-    if gdal.VSIStatL('/vsimem/tiff_write_132.tif.aux.xml') is not None:
-        gdaltest.post_reason('fail')
-        return 'fail'
+        # Open in read-write
+        ds = gdal.Open('/vsimem/tiff_write_132.tif', gdal.GA_Update)
+        if i == 0:
+            ds.SetMetadataItem('FOO', 'BAZ')
+            ds.GetRasterBand(1).SetMetadataItem('FOO', 'BAZ')
+        else:
+            ds.SetMetadata( { 'FOO': 'BAZ' } )
+            ds.GetRasterBand(1).SetMetadata( { 'FOO': 'BAZ' } )
+        ds = None
 
-    ds = gdal.Open('/vsimem/tiff_write_132.tif')
-    if ds.GetMetadataItem('FOO') != 'BAZ' or ds.GetRasterBand(1).GetMetadataItem('FOO') != 'BAZ':
-        gdaltest.post_reason('fail')
-        return 'fail'
-    ds = None
+        # Check that PAM file no longer exists
+        if gdal.VSIStatL('/vsimem/tiff_write_132.tif.aux.xml') is not None:
+            gdaltest.post_reason('fail')
+            print(i)
+            return 'fail'
 
-    gdaltest.tiff_drv.Delete('/vsimem/tiff_write_132.tif')
+        ds = gdal.Open('/vsimem/tiff_write_132.tif')
+        if ds.GetMetadataItem('FOO') != 'BAZ' or ds.GetRasterBand(1).GetMetadataItem('FOO') != 'BAZ':
+            gdaltest.post_reason('fail')
+            return 'fail'
+        ds = None
+
+        gdaltest.tiff_drv.Delete('/vsimem/tiff_write_132.tif')
 
     return 'success'
 
@@ -6242,6 +6377,49 @@ def tiff_write_143():
     return 'success'
 
 ###############################################################################
+# Test creating a real BigTIFF file > 4 GB with multiple directories (on filesystems supporting sparse files)
+
+def tiff_write_144():
+
+    md = gdaltest.tiff_drv.GetMetadata()
+    if md['DMD_CREATIONOPTIONLIST'].find('BigTIFF') == -1:
+        return 'skip'
+
+    # Determine if the filesystem supports sparse files (we don't want to create a real 10 GB
+    # file !
+    if (gdaltest.filesystem_supports_sparse_files('tmp') == False):
+        return 'skip'
+
+    ds = gdal.GetDriverByName('GTiff').Create('tmp/tiff_write_144.tif', 20, 20, 1, options = ['BIGTIFF=YES'])
+    ds.GetRasterBand(1).Fill(255)
+    ds = None
+
+    # Extend the file to 4 GB
+    f = open('tmp/tiff_write_144.tif', 'rb+')
+    f.seek(4294967296, 0)
+    f.write(' ')
+    f.close()
+
+    ds = gdal.Open('tmp/tiff_write_144.tif', gdal.GA_Update)
+    ds.BuildOverviews('NEAR', [2])
+    ds = None
+
+    ds = gdal.Open('tmp/tiff_write_144.tif')
+    got_cs = ds.GetRasterBand(1).Checksum()
+    got_cs_ovr = ds.GetRasterBand(1).GetOverview(0).Checksum()
+    ds = None
+
+    gdal.Unlink('tmp/tiff_write_144.tif')
+
+    if got_cs != 4873 or got_cs_ovr != 1218:
+        gdaltest.post_reason( 'fail' )
+        print(got_cs)
+        print(got_cs_ovr)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 # Ask to run again tests with GDAL_API_PROXY=YES
 
 def tiff_write_api_proxy():
@@ -6414,6 +6592,7 @@ gdaltest_list = [
     tiff_write_141,
     tiff_write_142,
     tiff_write_143,
+    tiff_write_144,
     #tiff_write_api_proxy,
     tiff_write_cleanup ]
 

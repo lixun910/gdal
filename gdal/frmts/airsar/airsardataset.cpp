@@ -28,16 +28,13 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
-#include "cpl_string.h"
 #include "cpl_conv.h"
+#include "cpl_string.h"
 #include "cpl_vsi.h"
+#include "gdal_frmts.h"
+#include "gdal_pam.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_AirSAR(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -632,7 +629,7 @@ GDALDataset *AirSARDataset::Open( GDALOpenInfo * poOpenInfo )
 }
 
 /************************************************************************/
-/*                        GDALRegister_AirSAR()                            */
+/*                        GDALRegister_AirSAR()                         */
 /************************************************************************/
 
 void GDALRegister_AirSAR()
@@ -641,7 +638,7 @@ void GDALRegister_AirSAR()
     if( GDALGetDriverByName( "AirSAR" ) != NULL )
         return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "AirSAR" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

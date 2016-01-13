@@ -113,6 +113,7 @@ OGRSQLiteTableLayer::~OGRSQLiteTableLayer()
                 "WHERE Lower(f_table_name) = Lower('%q') AND Lower(f_geometry_column) = Lower('%q')",
                 pszTableName, poGeomFieldDefn->GetNameRef());
             CPL_IGNORE_RET_VAL(sqlite3_exec( poDS->GetDB(), pszSQL3, NULL, NULL, NULL ));
+            sqlite3_free( pszSQL3 );
         }
     }
 
@@ -2387,6 +2388,7 @@ OGRErr OGRSQLiteTableLayer::BindValues( OGRFeature *poFeature,
             else
             {
                 rc = SQLITE_OK;
+                CPL_IGNORE_RET_VAL(rc);
                 CPLAssert(0);
             }
         }
@@ -3479,8 +3481,11 @@ void OGRSQLiteTableLayer::LoadStatisticsSpatialite4DB()
         CPLString osSQL;
         CPLString osLastEvtDate;
         osSQL.Printf("SELECT MAX(last_insert, last_update, last_delete) FROM geometry_columns_time WHERE "
-                    "f_table_name = '%s' AND f_geometry_column = '%s'",
-                    pszEscapedTableName, OGRSQLiteEscape(pszGeomCol).c_str());
+                    "(f_table_name = '%s' AND f_geometry_column = '%s')"
+#ifdef WORKAROUND_SQLITE3_BUGS
+                    " OR 0"
+#endif
+                    ,pszEscapedTableName, OGRSQLiteEscape(pszGeomCol).c_str());
 
         sqlite3 *hDB = poDS->GetDB();
         int nRowCount = 0, nColCount = 0;
@@ -3507,8 +3512,11 @@ void OGRSQLiteTableLayer::LoadStatisticsSpatialite4DB()
 
         osSQL.Printf("SELECT last_verified, row_count, extent_min_x, extent_min_y, "
                     "extent_max_x, extent_max_y FROM geometry_columns_statistics WHERE "
-                    "f_table_name = '%s' AND f_geometry_column = '%s'",
-                    pszEscapedTableName, OGRSQLiteEscape(pszGeomCol).c_str());
+                    "(f_table_name = '%s' AND f_geometry_column = '%s')"
+#ifdef WORKAROUND_SQLITE3_BUGS
+                    " OR 0"
+#endif
+                    ,pszEscapedTableName, OGRSQLiteEscape(pszGeomCol).c_str());
 
         nRowCount = 0;
         nColCount = 0;

@@ -37,10 +37,11 @@
 #include "gdal_pdf.h"
 
 #include "cpl_vsi_virtual.h"
+#include "cpl_spawn.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
 #include "ogr_geometry.h"
-#include "cpl_spawn.h"
 
 #ifdef HAVE_POPPLER
 #include "cpl_multiproc.h"
@@ -55,10 +56,6 @@
 /* g++ -fPIC -g -Wall frmts/pdf/pdfdataset.cpp -shared -o gdal_PDF.so -Iport -Igcore -Iogr -L. -lgdal -lpoppler -I/usr/include/poppler */
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void    GDALRegister_PDF(void);
-CPL_C_END
 
 #if defined(HAVE_POPPLER) || defined(HAVE_PODOFO) || defined(HAVE_PDFIUM)
 
@@ -127,9 +124,13 @@ static CPLMutex* hGlobalParamsMutex = NULL;
 
 class ObjectAutoFree : public Object
 {
+    Object obj;
+
 public:
     ObjectAutoFree() {}
-    ~ObjectAutoFree() { free(); }
+    ~ObjectAutoFree() { obj.free(); }
+
+    Object* getObj() { return &obj; }
 };
 
 
@@ -705,14 +706,9 @@ CPLErr PDFRasterBand::IReadBlockFromTile( int nBlockXOff, int nBlockYOff,
 
     int nXBlocks = DIV_ROUND_UP(nRasterXSize, nBlockXSize);
     int iTile = poGDS->aiTiles[nBlockYOff * nXBlocks + nBlockXOff];
+
     GDALPDFTileDesc& sTile = poGDS->asTiles[iTile];
     GDALPDFObject* poImage = sTile.poImage;
-
-    if( iTile < 0 )
-    {
-        memset(pImage, 0, nBlockXSize * nBlockYSize);
-        return CE_None;
-    }
 
     if( nBand == 4 )
     {
@@ -933,7 +929,7 @@ CPLErr PDFRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         const int nReqYOff = (nBlockYSize == 1) ? 0 : nBlockYOff * nBlockYSize;
         const GSpacing nPixelSpace = 1;
         const GSpacing nLineSpace = nBlockXSize;
-        const GSpacing nBandSpace = nBlockXSize * ((nBlockYSize == 1) ? nRasterYSize : nBlockYSize);
+        const GSpacing nBandSpace = static_cast<GSpacing>(nBlockXSize) * ((nBlockYSize == 1) ? nRasterYSize : nBlockYSize);
 
         CPLErr eErr = poGDS->ReadPixels( nReqXOff,
                                          nReqYOff,
@@ -2287,9 +2283,9 @@ GDALPDFObject* PDFDataset::GetCatalog()
     if (bUseLib.test(PDFLIB_POPPLER))
     {
         poCatalogObjectPoppler = new ObjectAutoFree;
-        poDocPoppler->getXRef()->getCatalog(poCatalogObjectPoppler);
-        if (!poCatalogObjectPoppler->isNull())
-            poCatalogObject = new GDALPDFObjectPoppler(poCatalogObjectPoppler, FALSE);
+        poDocPoppler->getXRef()->getCatalog(poCatalogObjectPoppler->getObj());
+        if (!poCatalogObjectPoppler->getObj()->isNull())
+            poCatalogObject = new GDALPDFObjectPoppler(poCatalogObjectPoppler->getObj(), FALSE);
     }
 #endif
 
@@ -3388,6 +3384,7 @@ void PDFDataset::ExploreLayersPoppler(GDALPDFArray* poArray,
             if (poName != NULL && poName->GetType() == PDFObjectType_String)
             {
                 CPLString osName = PDFSanitizeLayerName(poName->GetString().c_str());
+                /* coverity[copy_paste_error] */
                 if (osTopLayer.size())
                     osCurLayer = osTopLayer + "." + osName;
                 else
@@ -4077,8 +4074,8 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
         if (pszUserPwd)
             poUserPwd = new GooString(pszUserPwd);
 
-        oObj.initNull();
-        poDocPoppler = new PDFDoc(new VSIPDFFileStream(fp, pszFilename, &oObj), NULL, poUserPwd);
+        oObj.getObj()->initNull();
+        poDocPoppler = new PDFDoc(new VSIPDFFileStream(fp, pszFilename, oObj.getObj()), NULL, poUserPwd);
         delete poUserPwd;
 
         if ( !poDocPoppler->isOk() || poDocPoppler->getNumPages() == 0 )
@@ -4089,6 +4086,11 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
                 {
                     pszUserPwd = PDFEnterPasswordFromConsoleIfNeeded(pszUserPwd);
                     PDFFreeDoc(poDocPoppler);
+
+                    /* Reset errors that could have been issued during opening and that */
+                    /* did not result in an invalid document */
+                    CPLErrorReset();
+
                     continue;
                 }
                 else if (pszUserPwd == NULL)
@@ -4113,10 +4115,6 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
         }
         else
             break;
-
-        /* Reset errors that could have been issued during opening and that */
-        /* did not result in an invalid document */
-        CPLErrorReset();
     }
 
     poCatalogPoppler = poDocPoppler->getCatalog();
@@ -4188,7 +4186,7 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
 #endif  // ~ HAVE_POPPLER
 
 #ifdef HAVE_PODOFO
-  if (bUseLib.test(PDFLIB_PODOFO))
+  if (bUseLib.test(PDFLIB_PODOFO) && poPageObj == NULL)
   {
     PoDoFo::PdfError::EnableDebug( false );
     PoDoFo::PdfError::EnableLogging( false );
@@ -4266,7 +4264,7 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
     {
         /* Sanity check to validate page count */
         if( iPage != nPages )
-            poPagePodofo = poDocPodofo->GetPage(nPages - 1);
+            CPL_IGNORE_RET_VAL( poDocPodofo->GetPage(nPages - 1) );
 
         poPagePodofo = poDocPodofo->GetPage(iPage - 1);
     }
@@ -4296,7 +4294,7 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
 #endif  // ~ HAVE_PODOFO
 
 #ifdef HAVE_PDFIUM
-  if (bUseLib.test(PDFLIB_PDFIUM))
+  if (bUseLib.test(PDFLIB_PDFIUM) && poPageObj == NULL)
   {
     if(!LoadPdfiumDocumentPage(pszFilename, pszUserPwd, iPage,
       &poDocPdfium, &poPagePdfium, &nPages)) {
@@ -4319,6 +4317,8 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
     GDALPDFDictionary* poPageDict = poPageObj->GetDictionary();
     if ( poPageDict == NULL )
     {
+        delete poPageObj;
+
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid PDF : poPageDict == NULL");
 #ifdef HAVE_POPPLER
         if (bUseLib.test(PDFLIB_POPPLER))
@@ -4418,6 +4418,7 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
 #ifdef HAVE_PODOFO
     if (bUseLib.test(PDFLIB_PODOFO))
     {
+        CPLAssert(poPagePodofo);
         PoDoFo::PdfRect oMediaBox = poPagePodofo->GetMediaBox();
         dfX1 = oMediaBox.GetLeft();
         dfY1 = oMediaBox.GetBottom();
@@ -4457,7 +4458,10 @@ GDALDataset *PDFDataset::Open( GDALOpenInfo * poOpenInfo )
 
 #ifdef HAVE_PODOFO
     if (bUseLib.test(PDFLIB_PODOFO))
+    {
+        CPLAssert(poPagePodofo);
         dfRotation = poPagePodofo->GetRotation();
+    }
 #endif
 
 #ifdef HAVE_PDFIUM
@@ -5719,8 +5723,8 @@ int PDFDataset::ParseProjDict(GDALPDFDictionary* poProjDict)
     {
 #ifdef not_supported
         if (poProjDict->Get("StandardParallelOne") == NULL)
-        {
 #endif
+        {
         double dfCenterLat = Get(poProjDict, "OriginLatitude");
         double dfCenterLong = Get(poProjDict, "CentralMeridian");
         double dfScale = Get(poProjDict, "ScaleFactor");
@@ -5729,8 +5733,8 @@ int PDFDataset::ParseProjDict(GDALPDFDictionary* poProjDict)
         oSRS.SetMercator( dfCenterLat, dfCenterLong,
                           dfScale,
                           dfFalseEasting, dfFalseNorthing );
-#ifdef not_supported
         }
+#ifdef not_supported
         else
         {
             double dfStdP1 = Get(poProjDict, "StandardParallelOne");
@@ -5899,16 +5903,31 @@ int PDFDataset::ParseProjDict(GDALPDFDictionary* poProjDict)
 /* -------------------------------------------------------------------- */
     CPLString osUnits;
     GDALPDFObject* poUnits;
-    if ((poUnits = poProjDict->Get("Units")) != NULL &&
-        poUnits->GetType() == PDFObjectType_String)
+    if( (poUnits = poProjDict->Get("Units")) != NULL &&
+        poUnits->GetType() == PDFObjectType_String &&
+        !EQUAL(osProjectionType, "GEOGRAPHIC") )
     {
         osUnits = poUnits->GetString();
         CPLDebug("PDF", "Projection.Units = %s", osUnits.c_str());
 
+        // This is super weird. The false easting/northing of the SRS
+        // are expressed in the unit, but the geotransform is expressed in
+        // meters. Hence this hack to have an equivalent SRS definition, but
+        // with linear units converted in meters.
         if (EQUAL(osUnits, "M"))
             oSRS.SetLinearUnits( "Meter", 1.0 );
         else if (EQUAL(osUnits, "FT"))
+        {
             oSRS.SetLinearUnits( "foot", 0.3048 );
+            oSRS.SetLinearUnitsAndUpdateParameters( "Meter", 1.0 );
+        }
+        else if (EQUAL(osUnits, "USSF"))
+        {
+            oSRS.SetLinearUnits( SRS_UL_US_FOOT, CPLAtof(SRS_UL_US_FOOT_CONV) );
+            oSRS.SetLinearUnitsAndUpdateParameters( "Meter", 1.0 );
+        }
+        else
+            CPLError(CE_Warning, CPLE_AppDefined, "Unhandled unit: %s", osUnits.c_str());
     }
 
 /* -------------------------------------------------------------------- */
@@ -6730,41 +6749,37 @@ CPLString PDFSanitizeLayerName(const char* pszName)
 void GDALRegister_PDF()
 
 {
-    GDALDriver  *poDriver;
-
-    if (! GDAL_CHECK_VERSION("PDF driver"))
+    if( !GDAL_CHECK_VERSION( "PDF driver" ) )
         return;
 
-    if( GDALGetDriverByName( "PDF" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    if( GDALGetDriverByName( "PDF" ) != NULL )
+        return;
 
-        poDriver->SetDescription( "PDF" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                                   "Geospatial PDF" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                                   "frmt_pdf.html" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "pdf" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-                                   "Byte" );
+    GDALDriver *poDriver = new GDALDriver();
+
+    poDriver->SetDescription( "PDF" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "Geospatial PDF" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_pdf.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "pdf" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Byte" );
 
 #if defined(HAVE_POPPLER) || defined(HAVE_PDFIUM)
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 #endif
 
 #ifdef HAVE_POPPLER
-        poDriver->SetMetadataItem( "HAVE_POPPLER", "YES" );
+    poDriver->SetMetadataItem( "HAVE_POPPLER", "YES" );
 #endif // HAVE_POPPLER
 #ifdef HAVE_PODOFO
-        poDriver->SetMetadataItem( "HAVE_PODOFO", "YES" );
+    poDriver->SetMetadataItem( "HAVE_PODOFO", "YES" );
 #endif // HAVE_PODOFO
 #ifdef HAVE_PDFIUM
-        poDriver->SetMetadataItem( "HAVE_PDFIUM", "YES" );
+    poDriver->SetMetadataItem( "HAVE_PDFIUM", "YES" );
 #endif // HAVE_PDFIUM
 
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>\n"
 "   <Option name='COMPRESS' type='string-select' description='Compression method for raster data' default='DEFLATE'>\n"
 "     <Value>NONE</Value>\n"
@@ -6823,16 +6838,15 @@ void GDALRegister_PDF()
 "</CreationOptionList>\n" );
 
 #if defined(HAVE_POPPLER) || defined(HAVE_PODOFO) || defined(HAVE_PDFIUM)
-        poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST, szOpenOptionList );
-        poDriver->pfnOpen = PDFDataset::Open;
-        poDriver->pfnIdentify = PDFDataset::Identify;
-        poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST, szOpenOptionList );
+    poDriver->pfnOpen = PDFDataset::Open;
+    poDriver->pfnIdentify = PDFDataset::Identify;
+    poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
 #endif // HAVE_POPPLER || HAVE_PODOFO || defined(HAVE_PDFIUM)
 
-        poDriver->pfnCreateCopy = GDALPDFCreateCopy;
-        poDriver->pfnCreate = PDFWritableVectorDataset::Create;
-        poDriver->pfnUnloadDriver = GDALPDFUnloadDriver;
+    poDriver->pfnCreateCopy = GDALPDFCreateCopy;
+    poDriver->pfnCreate = PDFWritableVectorDataset::Create;
+    poDriver->pfnUnloadDriver = GDALPDFUnloadDriver;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

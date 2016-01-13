@@ -122,8 +122,8 @@ static void DumpGeoTIFFBox(CPLXMLNode* psBox,
     if( pabyBoxData && poVRTDriver)
     {
         CPLString osTmpFilename(CPLSPrintf("/vsimem/tmp_%p.tif", oBox.GetFILE()));
-        VSIFCloseL(VSIFileFromMemBuffer(
-            osTmpFilename, pabyBoxData, nBoxDataLength, TRUE) );
+        CPL_IGNORE_RET_VAL(VSIFCloseL(VSIFileFromMemBuffer(
+            osTmpFilename, pabyBoxData, nBoxDataLength, TRUE) ));
         CPLPushErrorHandler(CPLQuietErrorHandler);
         GDALDataset* poDS = (GDALDataset*) GDALOpen(osTmpFilename, GA_ReadOnly);
         CPLPopErrorHandler();
@@ -274,7 +274,7 @@ static void DumpIHDRBox(CPLXMLNode* psBox, GDALJP2Box& oBox)
         if( nRemainingLength >= 1 )
         {
             AddField(psDecodedContent, "IPR", *pabyIter);
-            pabyIter += 1;
+            /*pabyIter += 1;*/
             nRemainingLength -= 1;
         }
         if( nRemainingLength > 0 )
@@ -351,7 +351,7 @@ static void DumpCOLRBox(CPLXMLNode* psBox, GDALJP2Box& oBox)
                         (nVal == 16) ? "sRGB" :
                         (nVal == 17) ? "greyscale":
                         (nVal == 18) ? "sYCC" : NULL);
-            pabyIter += 4;
+            /*pabyIter += 4;*/
             nRemainingLength -= 4;
         }
         if( nRemainingLength > 0 )
@@ -611,7 +611,7 @@ static void DumpRESxBox(CPLXMLNode* psBox, GDALJP2Box& oBox)
         {
             AddField(psDecodedContent, CPLSPrintf("HR%cE", chC), *pabyIter);
             nExpH = *pabyIter;
-            pabyIter += 1;
+            /*pabyIter += 1;*/
             nRemainingLength -= 1;
         }
         if( nRemainingLength == 0 )
@@ -1044,7 +1044,7 @@ static CPLXMLNode* DumpJPK2CodeStream(CPLXMLNode* psBox,
             }
             else {
                 AddError(psMarker, CPLSPrintf("Cannot read field %s", "Scod"));
-                nLastVal = 0;
+                /*nLastVal = 0;*/
             }
             READ_MARKER_FIELD_UINT8_COMMENT("SGcod_Progress",
                                             (nLastVal == 0) ? "LRCP" :
@@ -1095,7 +1095,7 @@ static CPLXMLNode* DumpJPK2CodeStream(CPLXMLNode* psBox,
             }
             else {
                 AddError(psMarker, CPLSPrintf("Cannot read field %s", "SPcod_cbstyle"));
-                nLastVal = 0;
+                /*nLastVal = 0;*/
             }
             READ_MARKER_FIELD_UINT8_COMMENT("SPcod_transformation",
                                             (nLastVal == 0) ? "9-7 irreversible":
@@ -1405,7 +1405,7 @@ CPLXMLNode* GDALGetJPEG2000Structure(const char* pszFilename,
          memcmp(abyHeader + 4, jp2_box_jp, sizeof(jp2_box_jp)) != 0) )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "%s is not a JPEG2000 file", pszFilename);
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -1430,6 +1430,6 @@ CPLXMLNode* GDALGetJPEG2000Structure(const char* pszFilename,
         GDALGetJPEG2000StructureInternal(psParent, fp, NULL, papszOptions );
     }
 
-    VSIFCloseL(fp);
+    CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
     return psParent;
 }

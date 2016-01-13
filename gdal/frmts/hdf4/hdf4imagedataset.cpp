@@ -37,16 +37,17 @@
 
 #include <string.h>
 #include <math.h>
+
 #include "cpl_multiproc.h"
+#include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_priv.h"
+#include "ogr_spatialref.h"
 
 #include "hdf.h"
 #include "mfhdf.h"
 
 #include "HdfEosDef.h"
-
-#include "gdal_priv.h"
-#include "cpl_string.h"
-#include "ogr_spatialref.h"
 
 #include "hdf4compat.h"
 #include "hdf4dataset.h"
@@ -55,12 +56,7 @@
 
 #include <algorithm>
 
-
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void GDALRegister_HDF4(void);
-CPL_C_END
 
 static const int HDF4_SDS_MAXNAMELEN = 65;
 
@@ -1105,11 +1101,11 @@ void HDF4ImageDataset::ToGeoref( double *pdfGeoX, double *pdfGeoY )
 /************************************************************************/
 
 void HDF4ImageDataset::ReadCoordinates( const char *pszString,
-                                        double *pdfX, double *pdfY )
+                                        double *pdfCenterY, double *pdfCenterX )
 {
     char **papszStrList = CSLTokenizeString2( pszString, ", ", 0 );
-    *pdfX = CPLAtof( papszStrList[0] );
-    *pdfY = CPLAtof( papszStrList[1] );
+    *pdfCenterY = CPLAtof( papszStrList[0] ); /* lat */
+    *pdfCenterX = CPLAtof( papszStrList[1] ); /* lon */
     CSLDestroy( papszStrList );
 }
 
@@ -1355,7 +1351,10 @@ void HDF4ImageDataset::CaptureNRLGeoTransform()
         char **papszTokens = CSLTokenizeStringComplex( pszCornerLoc, ",",
                                                        FALSE, FALSE );
         if( CSLCount( papszTokens ) != 2 )
+        {
+            CSLDestroy( papszTokens );
             return;
+        }
 
         adfXY[iCorner*2+0] = CPLAtof( papszTokens[1] );
         adfXY[iCorner*2+1] = CPLAtof( papszTokens[0] );
@@ -1570,7 +1569,10 @@ void HDF4ImageDataset::CaptureCoastwatchGCTPInfo()
         CSLFetchNameValue( papszGlobalMetadata, "gctp_parm" ), ",",
         FALSE, FALSE );
     if( CSLCount(papszTokens) < 15 )
+    {
+        CSLDestroy(papszTokens);
         return;
+    }
 
     double adfParms[15];
     for( int iParm = 0; iParm < 15; iParm++ )
@@ -1595,12 +1597,18 @@ void HDF4ImageDataset::CaptureCoastwatchGCTPInfo()
         CSLFetchNameValue( papszGlobalMetadata, "et_affine" ), ",",
         FALSE, FALSE );
     if( CSLCount(papszTokens) != 6 )
+    {
+        CSLDestroy(papszTokens);
         return;
+    }
 
     // We don't seem to have proper ef_affine docs so I don't
     // know which of these two coefficients goes where.
     if( CPLAtof(papszTokens[0]) != 0.0 || CPLAtof(papszTokens[3]) != 0.0 )
+    {
+        CSLDestroy(papszTokens);
         return;
+    }
 
     bHasGeoTransform = TRUE;
     adfGeoTransform[0] = CPLAtof( papszTokens[4] );
@@ -1613,6 +1621,8 @@ void HDF4ImageDataset::CaptureCoastwatchGCTPInfo()
     // Middle of pixel adjustment.
     adfGeoTransform[0] -= adfGeoTransform[1] * 0.5;
     adfGeoTransform[3] -= adfGeoTransform[5] * 0.5;
+    
+    CSLDestroy(papszTokens);
 }
 
 /************************************************************************/
@@ -1721,7 +1731,8 @@ void HDF4ImageDataset::GetSwatAttrs( int32 hSW )
             int32 l_iNumType;
             int32 nValues;
 
-            SWattrinfo( hSW, papszAttributes[i], &l_iNumType, &nValues );
+            if( SWattrinfo( hSW, papszAttributes[i], &l_iNumType, &nValues ) < 0 )
+                continue;
 
             void *pData = NULL;
             if ( l_iNumType == DFNT_CHAR8 || l_iNumType == DFNT_UCHAR8 )
@@ -2059,6 +2070,8 @@ int HDF4ImageDataset::ProcessSwathGeolocation( int32 hSW, char **papszDimList )
 /* -------------------------------------------------------------------- */
     int32 nStrBufSize;
     const int32 nDataFields = SWnentries( hSW, HDFE_NENTGFLD, &nStrBufSize );
+    if( nDataFields < 0 || nDataFields > 1024 * 1024 )
+        return FALSE;
     char *pszGeoList = reinterpret_cast<char *>( CPLMalloc( nStrBufSize + 1 ) );
     int32 *paiRank
         = reinterpret_cast<int32 *>( CPLMalloc( nDataFields * sizeof(int32) ) );
@@ -2208,7 +2221,12 @@ int HDF4ImageDataset::ProcessSwathGeolocation( int32 hSW, char **papszDimList )
     }
 
     if ( *szXGeo == 0 || *szYGeo == 0 )
+    {
+        CPLFree( paiOffset );
+        CPLFree( paiIncrement );
+        CPLFree( pszGeoList );
         return FALSE;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Read geolocation fields.                                        */
@@ -2249,6 +2267,10 @@ int HDF4ImageDataset::ProcessSwathGeolocation( int32 hSW, char **papszDimList )
             CPLDebug( "HDF4Image",
                       "Can't read attributes of geolocation field \"%s\"",
                       papszGeolocations[i] );
+            CSLDestroy(papszGeolocations);
+            CPLFree( paiOffset );
+            CPLFree( paiIncrement );
+            CPLFree( pszGeoList );
             return FALSE;
         }
 
@@ -2259,16 +2281,22 @@ int HDF4ImageDataset::ProcessSwathGeolocation( int32 hSW, char **papszDimList )
         char **papszGeoDimList = CSLTokenizeString2( szGeoDimList,
                                                      ",", CSLT_HONOURSTRINGS );
 
+        int iXGeo = CSLFindString( papszGeoDimList, szXGeo );
+        int iYGeo = CSLFindString( papszGeoDimList, szYGeo );
         if( CSLCount(papszGeoDimList) > H4_MAX_VAR_DIMS 
-            || CSLFindString( papszGeoDimList, szXGeo ) == -1
-            || CSLFindString( papszGeoDimList, szYGeo ) == -1 )
+            || iXGeo < 0
+            || iYGeo < 0 )
         {
             CSLDestroy( papszGeoDimList );
+            CSLDestroy(papszGeolocations);
+            CPLFree( paiOffset );
+            CPLFree( paiIncrement );
+            CPLFree( pszGeoList );
             return FALSE;
         }
 
-        nXPoints = l_aiDimSizes[CSLFindString( papszGeoDimList, szXGeo )];
-        nYPoints = l_aiDimSizes[CSLFindString( papszGeoDimList, szYGeo )];
+        nXPoints = l_aiDimSizes[iXGeo];
+        nYPoints = l_aiDimSizes[iYGeo];
 
         if ( EQUAL(szPixel, papszDimList[iXDim]) )
         {
@@ -3764,6 +3792,18 @@ GDALDataset *HDF4ImageDataset::Create( const char * pszFilename,
         return NULL;
     }
 
+    // Try now to create the file to avoid memory leaks if it is
+    // the SDK that fails to do it.
+    VSILFILE* fpVSIL = VSIFOpenL( pszFilename, "wb" );
+    if( fpVSIL == NULL )
+    {
+        CPLError( CE_Failure, CPLE_OpenFailed, 
+                "Failed to create %s.", pszFilename );
+        return NULL;
+    }
+    VSIFCloseL(fpVSIL);
+    VSIUnlink(pszFilename);
+
     HDF4ImageDataset *poDS = new HDF4ImageDataset();
 
     CPLMutexHolderD(&hHDF4Mutex);
@@ -3875,14 +3915,23 @@ GDALDataset *HDF4ImageDataset::Create( const char * pszFilename,
                 break;
         }
     }
-    else                                            // Should never happen
+    else
+    {
+        // Should never happen
+        CPLReleaseMutex(hHDF4Mutex); // Release mutex otherwise we'll deadlock with GDALDataset own mutex
+        delete poDS;
+        CPLAcquireMutex(hHDF4Mutex, 1000.0);
         return NULL;
+    }
 
     if ( iSDS < 0 )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "Can't create SDS with rank %ld for file %s",
                   static_cast<long>( poDS->iRank ), pszFilename );
+        CPLReleaseMutex(hHDF4Mutex); // Release mutex otherwise we'll deadlock with GDALDataset own mutex
+        delete poDS;
+        CPLAcquireMutex(hHDF4Mutex, 1000.0);
         return NULL;
     }
 
@@ -3915,7 +3964,7 @@ void GDALRegister_HDF4Image()
     if( GDALGetDriverByName( "HDF4Image" ) != NULL )
         return;
 
-    GDALDriver  *poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "HDF4Image" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

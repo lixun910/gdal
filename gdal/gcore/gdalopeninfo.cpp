@@ -107,8 +107,15 @@ retry:
         STARTS_WITH(pszFilename, "/vsitar/") )
     {
         const char* pszExt = CPLGetExtension(pszFilename);
-        if( EQUAL(pszExt, "zip") || EQUAL(pszExt, "tar") || EQUAL(pszExt, "gz") )
+        if( EQUAL(pszExt, "zip") || EQUAL(pszExt, "tar") || EQUAL(pszExt, "gz")
+#ifdef DEBUG
+            /* For AFL, so that .cur_input is detected as the archive filename */
+            || EQUAL( CPLGetFilename(pszFilename), ".cur_input" )
+#endif
+          )
+        {
             bPotentialDirectory = true;
+        }
     }
     else if( STARTS_WITH(pszFilename, "/vsicurl/") )
     {
@@ -145,7 +152,7 @@ retry:
                         VSI_STAT_EXISTS_FLAG | VSI_STAT_NATURE_FLAG ) == 0 &&
             VSI_ISDIR( sStat.st_mode ) )
         {
-            VSIFCloseL(fpL);
+            CPL_IGNORE_RET_VAL(VSIFCloseL(fpL));
             fpL = NULL;
             CPLFree(pabyHeader);
             pabyHeader = NULL;
@@ -231,7 +238,7 @@ GDALOpenInfo::~GDALOpenInfo()
     CPLFree( pszFilename );
 
     if( fpL != NULL )
-        VSIFCloseL( fpL );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpL ));
     CSLDestroy( papszSiblingFiles );
 }
 
@@ -246,7 +253,15 @@ char** GDALOpenInfo::GetSiblingFiles()
     bHasGotSiblingFiles = TRUE;
 
     CPLString osDir = CPLGetDirname( pszFilename );
-    papszSiblingFiles = VSIReadDir( osDir );
+    const int nMaxFiles = atoi(CPLGetConfigOption("GDAL_READDIR_LIMIT_ON_OPEN", "1000"));
+    papszSiblingFiles = VSIReadDirEx( osDir, nMaxFiles );
+    if( nMaxFiles > 0 && CSLCount(papszSiblingFiles) > nMaxFiles )
+    {
+        CPLDebug("GDAL", "GDAL_READDIR_LIMIT_ON_OPEN reached on %s",
+                 osDir.c_str());
+        CSLDestroy(papszSiblingFiles);
+        papszSiblingFiles = NULL;
+    }
 
     /* Small optimization to avoid unnecessary stat'ing from PAux or ENVI */
     /* drivers. The MBTiles driver needs no companion file. */
@@ -260,6 +275,29 @@ char** GDALOpenInfo::GetSiblingFiles()
     return papszSiblingFiles;
 }
 
+/************************************************************************/
+/*                         StealSiblingFiles()                          */
+/*                                                                      */
+/*      Same as GetSiblingFiles() except that the list is stealed       */
+/*      (ie ownership transferred to the caller) and the associated     */
+/*      member variable is set to NULL.                                 */
+/************************************************************************/
+
+char** GDALOpenInfo::StealSiblingFiles()
+{
+    char** papszRet = GetSiblingFiles();
+    papszSiblingFiles = NULL;
+    return papszRet;
+}
+
+/************************************************************************/
+/*                        AreSiblingFilesLoaded()                       */
+/************************************************************************/
+
+bool GDALOpenInfo::AreSiblingFilesLoaded() const
+{
+    return bHasGotSiblingFiles != FALSE;
+}
 
 /************************************************************************/
 /*                           TryToIngest()                              */

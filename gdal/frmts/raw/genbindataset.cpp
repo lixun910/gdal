@@ -28,15 +28,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
-#include "ogr_spatialref.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "ogr_spatialref.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id: ehdrdataset.cpp 12350 2007-10-08 17:41:32Z rouault $");
-
-CPL_C_START
-void	GDALRegister_GenBin(void);
-CPL_C_END
 
 /* ==================================================================== */
 /*      Table relating USGS and ESRI state plane zones.                 */
@@ -366,7 +363,7 @@ GenBinDataset::~GenBinDataset()
     FlushCache();
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpImage ));
 
     CPLFree( pszProjection );
     CSLDestroy( papszHDR );
@@ -592,7 +589,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
         || strstr( achHeader, "ROWS:" ) == NULL 
         || strstr( achHeader, "COLS:" ) == NULL )
     {
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
         return NULL;
     }
 
@@ -607,7 +604,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
                   "instead of the .hdr file.  Please try again selecting\n"
                   "the raw data file corresponding to the header file: %s\n", 
                   poOpenInfo->pszFilename );
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
         return NULL;
     }
 
@@ -645,7 +642,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
         }
     }
 
-    VSIFCloseL( fp );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
     if( CSLFetchNameValue( papszHdr, "COLS" ) == NULL
         || CSLFetchNameValue( papszHdr, "ROWS" ) == NULL
@@ -862,7 +859,7 @@ GDALDataset *GenBinDataset::Open( GDALOpenInfo * poOpenInfo )
 }
 
 /************************************************************************/
-/*                         GDALRegister_GenBin()                          */
+/*                         GDALRegister_GenBin()                        */
 /************************************************************************/
 
 void GDALRegister_GenBin()

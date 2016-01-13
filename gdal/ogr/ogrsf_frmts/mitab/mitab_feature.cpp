@@ -584,7 +584,6 @@ int TABFeature::WriteRecordToDATFile(TABDATFile *poDATFile,
 #endif
 
     CPLAssert(poDATFile);
-    CPLAssert(panIndexNo || GetDefnRef()->GetFieldCount() == 0);
 
     numFields = poDATFile->GetNumFields();
 
@@ -600,6 +599,7 @@ int TABFeature::WriteRecordToDATFile(TABDATFile *poDATFile,
             nStatus = poDATFile->WriteIntegerField( (int)GetFID(), poINDFile, 0 );
             continue;
         }
+        CPLAssert(panIndexNo != NULL);
 
         switch(poDATFile->GetFieldType(iField))
         {
@@ -2271,8 +2271,10 @@ int TABPolyline::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
         /*-------------------------------------------------------------
          * Read data from the coord. block
          *------------------------------------------------------------*/
-        pasSecHdrs = (TABMAPCoordSecHdr*)CPLMalloc(numLineSections*
+        pasSecHdrs = (TABMAPCoordSecHdr*)VSI_MALLOC2_VERBOSE(numLineSections,
                                                    sizeof(TABMAPCoordSecHdr));
+        if( pasSecHdrs == NULL )
+            return -1;
 
         if (ppoCoordBlock != NULL && *ppoCoordBlock != NULL)
             poCoordBlock = *ppoCoordBlock;
@@ -2293,7 +2295,12 @@ int TABPolyline::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
 
         poCoordBlock->SetComprCoordOrigin(m_nComprOrgX, m_nComprOrgY);
 
-        panXY = (GInt32*)CPLMalloc(numPointsTotal*2*sizeof(GInt32));
+        panXY = (GInt32*)VSI_MALLOC2_VERBOSE(numPointsTotal,2*sizeof(GInt32));
+        if( panXY == NULL )
+        {
+            CPLFree(pasSecHdrs);
+            return -1;
+        }
 
         if (poCoordBlock->ReadIntCoords(bComprCoord,numPointsTotal,panXY) != 0)
         {
@@ -2556,9 +2563,13 @@ int TABPolyline::WriteGeometryToMAPFile(TABMAPFile *poMapFile,
         /*-------------------------------------------------------------
          * Build and write array of coord sections headers
          *------------------------------------------------------------*/
-        pasSecHdrs = (TABMAPCoordSecHdr*)CPLCalloc(numLines,
+        pasSecHdrs = (TABMAPCoordSecHdr*)VSI_CALLOC_VERBOSE(numLines,
                                                    sizeof(TABMAPCoordSecHdr));
-
+        if( pasSecHdrs == NULL )
+        {
+            return -1;
+        }
+        
         /*-------------------------------------------------------------
          * In calculation of nDataOffset, we have to take into account that
          * V450 header section uses int32 instead of int16 for numVertices
@@ -3091,8 +3102,10 @@ int TABRegion::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
         /*-------------------------------------------------------------
          * Read data from the coord. block
          *------------------------------------------------------------*/
-        pasSecHdrs = (TABMAPCoordSecHdr*)CPLMalloc(numLineSections*
+        pasSecHdrs = (TABMAPCoordSecHdr*)VSI_MALLOC2_VERBOSE(numLineSections,
                                                    sizeof(TABMAPCoordSecHdr));
+        if( pasSecHdrs == NULL )
+            return -1;
 
         if (ppoCoordBlock != NULL && *ppoCoordBlock != NULL)
             poCoordBlock = *ppoCoordBlock;
@@ -3114,7 +3127,12 @@ int TABRegion::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
             return -1;
         }
 
-        panXY = (GInt32*)CPLMalloc(numPointsTotal*2*sizeof(GInt32));
+        panXY = (GInt32*)VSI_MALLOC2_VERBOSE(numPointsTotal,2*sizeof(GInt32));
+        if( panXY == NULL )
+        {
+            CPLFree(pasSecHdrs);
+            return -1;
+        }
 
         if (poCoordBlock->ReadIntCoords(bComprCoord,numPointsTotal,panXY) != 0)
         {
@@ -3606,7 +3624,6 @@ OGRLinearRing *TABRegion::GetRingRef(int nRequestedRingIndex)
         /*-------------------------------------------------------------
          * Establish number of polygons based on geometry type
          *------------------------------------------------------------*/
-        OGRPolygon      *poPolygon=NULL;
         OGRMultiPolygon *poMultiPolygon = NULL;
         int             iCurRing = 0;
         int             numOGRPolygons = 0;
@@ -3618,7 +3635,6 @@ OGRLinearRing *TABRegion::GetRingRef(int nRequestedRingIndex)
         }
         else
         {
-            poPolygon = (OGRPolygon*)poGeom;
             numOGRPolygons = 1;
         }
 
@@ -3628,6 +3644,7 @@ OGRLinearRing *TABRegion::GetRingRef(int nRequestedRingIndex)
         iCurRing = 0;
         for(int iPoly=0; poRing == NULL && iPoly < numOGRPolygons; iPoly++)
         {
+            OGRPolygon      *poPolygon;
             if (poMultiPolygon)
                 poPolygon = (OGRPolygon*)poMultiPolygon->getGeometryRef(iPoly);
             else
@@ -3670,7 +3687,6 @@ GBool TABRegion::IsInteriorRing(int nRequestedRingIndex)
         /*-------------------------------------------------------------
          * Establish number of polygons based on geometry type
          *------------------------------------------------------------*/
-        OGRPolygon      *poPolygon=NULL;
         OGRMultiPolygon *poMultiPolygon = NULL;
         int             iCurRing = 0;
         int             numOGRPolygons = 0;
@@ -3682,7 +3698,6 @@ GBool TABRegion::IsInteriorRing(int nRequestedRingIndex)
         }
         else
         {
-            poPolygon = (OGRPolygon*)poGeom;
             numOGRPolygons = 1;
         }
 
@@ -3692,6 +3707,7 @@ GBool TABRegion::IsInteriorRing(int nRequestedRingIndex)
         iCurRing = 0;
         for(int iPoly=0; poRing == NULL && iPoly < numOGRPolygons; iPoly++)
         {
+            OGRPolygon* poPolygon;
             if (poMultiPolygon)
                 poPolygon = (OGRPolygon*)poMultiPolygon->getGeometryRef(iPoly);
             else
@@ -5501,7 +5517,7 @@ int TABText::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     if (nStringLen > 0)
     {
         TABMAPCoordBlock        *poCoordBlock;
-        CPLAssert(nCoordBlockPtr > 0);
+
         if (ppoCoordBlock != NULL && *ppoCoordBlock != NULL)
             poCoordBlock = *ppoCoordBlock;
         else
@@ -6541,6 +6557,11 @@ int TABMultiPoint::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
             poCoordBlock = *ppoCoordBlock;
         else
             poCoordBlock = poMapFile->GetCoordBlock(poMPointHdr->m_nCoordBlockPtr);
+        if( poCoordBlock == NULL )
+        {
+            delete poGeometry;
+            return -1;
+        }
         poCoordBlock->SetComprCoordOrigin(m_nComprOrgX, 
                                           m_nComprOrgY);
 
@@ -7139,13 +7160,17 @@ int  TABCollection::ReadLabelAndMBR(TABMAPCoordBlock *poCoordBlock,
         pnLabelX = poCoordBlock->ReadInt16();
         pnLabelY = poCoordBlock->ReadInt16();
 
-        pnLabelX += nComprOrgX;
-        pnLabelY += nComprOrgY;
+        TABSaturatedAdd(pnLabelX, nComprOrgX);
+        TABSaturatedAdd(pnLabelY, nComprOrgY);
 
-        pnMinX = nComprOrgX + poCoordBlock->ReadInt16(); // Read MBR
-        pnMinY = nComprOrgY + poCoordBlock->ReadInt16();
-        pnMaxX = nComprOrgX + poCoordBlock->ReadInt16();
-        pnMaxY = nComprOrgY + poCoordBlock->ReadInt16();
+        pnMinX = poCoordBlock->ReadInt16(); // Read MBR
+        pnMinY = poCoordBlock->ReadInt16();
+        pnMaxX = poCoordBlock->ReadInt16();
+        pnMaxY = poCoordBlock->ReadInt16();
+        TABSaturatedAdd(pnMinX, nComprOrgX);
+        TABSaturatedAdd(pnMinY, nComprOrgY);
+        TABSaturatedAdd(pnMaxX, nComprOrgX);
+        TABSaturatedAdd(pnMaxY, nComprOrgY);
     }
     else
     {
@@ -7271,7 +7296,7 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     /*-----------------------------------------------------------------
      * Region Component
      *----------------------------------------------------------------*/
-    if(poCollHdr->m_nNumRegSections > 0)
+    if(poCoordBlock != NULL && poCollHdr->m_nNumRegSections > 0)
     {
         //
         // Build fake coord section header to pass to TABRegion::ReadGeom...()
@@ -7326,8 +7351,8 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
             return -1;
 
         // Set new coord block ptr for next object
-        if (poCoordBlock)
-            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();
+        /*if (poCoordBlock)
+            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();*/
     }
 
 
@@ -7389,8 +7414,8 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
             return -1;
 
         // Set new coord block ptr for next object
-        if (poCoordBlock)
-            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();
+        /*if (poCoordBlock)
+            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();*/
     }
 
     /*-----------------------------------------------------------------
@@ -7441,8 +7466,8 @@ int TABCollection::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
             return -1;
 
         // Set new coord block ptr for next object (not really useful here)
-        if (poCoordBlock)
-            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();
+        /*if (poCoordBlock)
+            nCurCoordBlockPtr = poCoordBlock->GetCurAddress();*/
     }
 
     /*-----------------------------------------------------------------
@@ -8107,7 +8132,7 @@ int TABDebugFeature::ReadGeometryFromMAPFile(TABMAPFile *poMapFile,
     if (m_nSize > 0)
     {
         poObjBlock->GotoByteRel(-5);    // Go back to beginning of header
-        poObjBlock->ReadBytes(m_nSize, m_abyBuf);
+        poObjBlock->ReadBytes(MIN(m_nSize, (int)sizeof(m_abyBuf)), m_abyBuf);
     }
 
     return 0;

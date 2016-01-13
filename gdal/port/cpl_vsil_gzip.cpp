@@ -121,7 +121,7 @@ typedef struct
     vsi_l_offset  out;
 } GZipSnapshot;
 
-class VSIGZipHandle : public VSIVirtualHandle
+class VSIGZipHandle CPL_FINAL : public VSIVirtualHandle
 {
     VSIVirtualHandle* m_poBaseHandle;
     vsi_l_offset      m_offset;
@@ -176,7 +176,7 @@ class VSIGZipHandle : public VSIVirtualHandle
     virtual int       Close();
 
     VSIGZipHandle*    Duplicate();
-    void              CloseBaseHandle();
+    bool              CloseBaseHandle();
 
     vsi_l_offset      GetLastReadOffset() { return m_nLastReadOffset; }
     const char*       GetBaseFileName() { return m_pszBaseFileName; }
@@ -188,7 +188,7 @@ class VSIGZipHandle : public VSIVirtualHandle
 };
 
 
-class VSIGZipFilesystemHandler : public VSIFilesystemHandler 
+class VSIGZipFilesystemHandler CPL_FINAL : public VSIFilesystemHandler 
 {
     CPLMutex* hMutex;
     VSIGZipHandle* poHandleLastGZipFile;
@@ -206,7 +206,7 @@ public:
     virtual int      Rename( const char *oldpath, const char *newpath );
     virtual int      Mkdir( const char *pszDirname, long nMode );
     virtual int      Rmdir( const char *pszDirname );
-    virtual char   **ReadDir( const char *pszDirname );
+    virtual char   **ReadDirEx( const char *pszDirname, int nMaxFiles );
 
     void  SaveInfo( VSIGZipHandle* poHandle );
     void  SaveInfo_unlocked( VSIGZipHandle* poHandle );
@@ -267,11 +267,13 @@ VSIGZipHandle* VSIGZipHandle::Duplicate()
 /*                     CloseBaseHandle()                                */
 /************************************************************************/
 
-void  VSIGZipHandle::CloseBaseHandle()
+bool  VSIGZipHandle::CloseBaseHandle()
 {
+    bool bRet = true;
     if (m_poBaseHandle)
-        VSIFCloseL((VSILFILE*)m_poBaseHandle);
+        bRet = VSIFCloseL((VSILFILE*)m_poBaseHandle) == 0;
     m_poBaseHandle = NULL;
+    return bRet;
 }
 
 /************************************************************************/
@@ -401,7 +403,7 @@ VSIGZipHandle::~VSIGZipHandle()
     CPLFree(m_pszBaseFileName);
 
     if (m_poBaseHandle)
-        VSIFCloseL((VSILFILE*)m_poBaseHandle);
+        CPL_IGNORE_RET_VAL(VSIFCloseL((VSILFILE*)m_poBaseHandle));
 }
 
 /************************************************************************/
@@ -744,7 +746,7 @@ int VSIGZipHandle::gzseek( vsi_l_offset offset, int whence )
                 while (*pszFirstNonSpace == ' ') pszFirstNonSpace ++;
                 CPL_IGNORE_RET_VAL(VSIFPrintfL(fpCacheLength, "uncompressed_size=%s\n", pszFirstNonSpace));
 
-                VSIFCloseL(fpCacheLength);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fpCacheLength));
             }
         }
     }
@@ -1002,7 +1004,7 @@ int VSIGZipHandle::Close()
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIGZipWriteHandle : public VSIVirtualHandle
+class VSIGZipWriteHandle CPL_FINAL : public VSIVirtualHandle
 {
     VSIVirtualHandle*  m_poBaseHandle;
     z_stream           sStream;
@@ -1112,6 +1114,7 @@ VSIGZipWriteHandle::~VSIGZipWriteHandle()
 int VSIGZipWriteHandle::Close()
 
 {
+    int nRet = 0;
     if( bCompressActive )
     {
         sStream.next_out = pabyOutBuf;
@@ -1138,7 +1141,7 @@ int VSIGZipWriteHandle::Close()
 
         if( bAutoCloseBaseHandle )
         {
-            m_poBaseHandle->Close();
+            nRet = m_poBaseHandle->Close();
 
             delete m_poBaseHandle;
         }
@@ -1146,7 +1149,7 @@ int VSIGZipWriteHandle::Close()
         bCompressActive = false;
     }
 
-    return 0;
+    return nRet;
 }
 
 /************************************************************************/
@@ -1493,7 +1496,7 @@ int VSIGZipFilesystemHandler::Stat( const char *pszFilename,
                 }
             }
 
-            VSIFCloseL(fpCacheLength);
+            CPL_IGNORE_RET_VAL(VSIFCloseL(fpCacheLength));
 
             if (nCompressedSize == (GUIntBig) pStatBuf->st_size)
             {
@@ -1575,10 +1578,11 @@ int VSIGZipFilesystemHandler::Rmdir( CPL_UNUSED const char *pszDirname )
 }
 
 /************************************************************************/
-/*                             ReadDir()                                */
+/*                             ReadDirEx()                                */
 /************************************************************************/
 
-char** VSIGZipFilesystemHandler::ReadDir( CPL_UNUSED const char *pszDirname )
+char** VSIGZipFilesystemHandler::ReadDirEx( const char * /*pszDirname*/,
+                                            int /* nMaxFiles */ )
 {
     return NULL;
 }
@@ -1614,7 +1618,7 @@ void VSIInstallGZipFileHandler(void)
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIZipEntryFileOffset : public VSIArchiveEntryFileOffset
+class VSIZipEntryFileOffset CPL_FINAL : public VSIArchiveEntryFileOffset
 {
 public:
         unz_file_pos m_file_pos;
@@ -1632,7 +1636,7 @@ public:
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIZipReader : public VSIArchiveReader
+class VSIZipReader CPL_FINAL : public VSIArchiveReader
 {
     private:
         unzFile unzF;
@@ -1762,7 +1766,7 @@ int VSIZipReader::GotoFileOffset(VSIArchiveEntryFileOffset* pOffset)
 
 class VSIZipWriteHandle;
 
-class VSIZipFilesystemHandler : public VSIArchiveFilesystemHandler 
+class VSIZipFilesystemHandler CPL_FINAL : public VSIArchiveFilesystemHandler 
 {
     std::map<CPLString, VSIZipWriteHandle*> oMapZipWriteHandles;
     VSIVirtualHandle *OpenForWrite_unlocked( const char *pszFilename,
@@ -1782,7 +1786,7 @@ public:
                                             const char *pszAccess );
 
     virtual int      Mkdir( const char *pszDirname, long nMode );
-    virtual char   **ReadDir( const char *pszDirname );
+    virtual char   **ReadDirEx( const char *pszDirname, int nMaxFiles );
     virtual int      Stat( const char *pszFilename, VSIStatBufL *pStatBuf, int nFlags );
 
     void RemoveFromMap(VSIZipWriteHandle* poHandle);
@@ -1794,7 +1798,7 @@ public:
 /* ==================================================================== */
 /************************************************************************/
 
-class VSIZipWriteHandle : public VSIVirtualHandle
+class VSIZipWriteHandle CPL_FINAL : public VSIVirtualHandle
 {
    VSIZipFilesystemHandler *m_poFS;
    void                    *m_hZIP;
@@ -2014,10 +2018,11 @@ int VSIZipFilesystemHandler::Mkdir( const char *pszDirname, CPL_UNUSED long nMod
 }
 
 /************************************************************************/
-/*                                ReadDir()                             */
+/*                               ReadDirEx()                            */
 /************************************************************************/
 
-char **VSIZipFilesystemHandler::ReadDir( const char *pszDirname )
+char **VSIZipFilesystemHandler::ReadDirEx( const char *pszDirname,
+                                           int nMaxFiles )
 {
     CPLString osInArchiveSubDir;
     char* zipFilename = SplitFilename(pszDirname, osInArchiveSubDir, TRUE);
@@ -2037,7 +2042,7 @@ char **VSIZipFilesystemHandler::ReadDir( const char *pszDirname )
     }
     CPLFree(zipFilename);
 
-    return VSIArchiveFilesystemHandler::ReadDir(pszDirname);
+    return VSIArchiveFilesystemHandler::ReadDirEx(pszDirname, nMaxFiles);
 }
 
 

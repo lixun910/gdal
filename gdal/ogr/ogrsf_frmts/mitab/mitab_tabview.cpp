@@ -1463,14 +1463,14 @@ int  TABRelation::Init(const char *pszViewName,
      * Create new FeatureDefn and copy selected fields definitions
      * while updating the appropriate field maps.
      *----------------------------------------------------------------*/
-    int nIndex, numSelFields = CSLCount(papszSelectedFields);
+    int nIndex;
     OGRFieldDefn *poFieldDefn;
 
     m_poDefn = new OGRFeatureDefn(pszViewName);
     // Ref count defaults to 0... set it to 1
     m_poDefn->Reference();
 
-    for(i=0; i<numSelFields ; i++)
+    for(i=0; papszSelectedFields != NULL && papszSelectedFields[i] != NULL ; i++)
     {
         if (poMainDefn &&
             (nIndex=poMainDefn->GetFieldIndex(papszSelectedFields[i])) >=0)
@@ -1497,7 +1497,8 @@ int  TABRelation::Init(const char *pszViewName,
             CPLError(CE_Warning, CPLE_IllegalArg,
                      "Selected Field %s not found in source tables %s and %s",
                      papszSelectedFields[i], 
-                     poMainDefn->GetName(), poRelDefn->GetName());
+                     poMainDefn?poMainDefn->GetName():"(null)",
+                     poRelDefn?poRelDefn->GetName():"(null)");
         }
     }
     CSLDestroy(papszSelectedFields);

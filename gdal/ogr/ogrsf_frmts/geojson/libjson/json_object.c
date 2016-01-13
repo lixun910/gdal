@@ -302,7 +302,8 @@ static int json_object_object_to_json_string(struct json_object* jso,
 	sprintbuf(pb, "{" /*}*/);
 	if (flags & JSON_C_TO_STRING_PRETTY)
 		sprintbuf(pb, "\n");
-	json_object_object_foreachC(jso, iter)
+        /* the if() is to make gcc 6 -Wnull-dereference happy */
+	if( jso->o_type == json_type_object) json_object_object_foreachC(jso, iter)
 	{
 		if (had_children)
 		{
@@ -738,6 +739,11 @@ struct json_object* json_object_new_array(void)
   jso->_delete = &json_object_array_delete;
   jso->_to_json_string = &json_object_array_to_json_string;
   jso->o.c_array = array_list_new(&json_object_array_entry_free);
+  if( jso->o.c_array == NULL )
+  {
+      free(jso);
+      jso = NULL;
+  }
   return jso;
 }
 

@@ -1004,7 +1004,9 @@ void VSICurlStreamingHandle::StartDownload()
         return;
 
     //if (ENABLE_DEBUG)
+    {
         CPLDebug("VSICURL", "Start download for %s", m_pszURL);
+    }
 
     if (hCurlHandle == NULL)
         hCurlHandle = curl_easy_init();
@@ -1023,7 +1025,9 @@ void VSICurlStreamingHandle::StopDownload()
     if (hThread)
     {
         //if (ENABLE_DEBUG)
+        {
             CPLDebug("VSICURL", "Stop download for %s", m_pszURL);
+        }
 
         AcquireMutex();
         /* Signal to the producer that we ask for download interruption */
@@ -1344,8 +1348,8 @@ void  VSICurlStreamingHandle::AddRegion( vsi_l_offset    nFileOffsetStart,
     if (nFileOffsetStart >= BKGND_BUFFER_SIZE)
         return;
 
-        if (pCachedData == NULL)
-            pCachedData = (GByte*) CPLMalloc(BKGND_BUFFER_SIZE);
+    if (pCachedData == NULL)
+        pCachedData = (GByte*) CPLMalloc(BKGND_BUFFER_SIZE);
 
     if (nFileOffsetStart <= nCachedSize &&
         nFileOffsetStart + nSize > nCachedSize)
@@ -1580,7 +1584,7 @@ void VSIInstallCurlStreamingFileHandler(void)
 /*                       VSIS3StreamingFSHandler                        */
 /************************************************************************/
 
-class VSIS3StreamingFSHandler: public VSICurlStreamingFSHandler
+class VSIS3StreamingFSHandler CPL_FINAL: public VSICurlStreamingFSHandler
 {
     std::map< CPLString, VSIS3UpdateParams > oMapBucketsToS3Params;
 
@@ -1631,7 +1635,7 @@ void VSIS3StreamingFSHandler::UpdateHandleFromMap(VSIS3HandleHelper * poS3Handle
 /*                            VSIS3StreamingHandle                      */
 /************************************************************************/
 
-class VSIS3StreamingHandle: public VSICurlStreamingHandle
+class VSIS3StreamingHandle CPL_FINAL: public VSICurlStreamingHandle
 {
     VSIS3HandleHelper* m_poS3HandleHelper;
 
@@ -1724,6 +1728,8 @@ bool VSIS3StreamingHandle::CanRestartOnError(const char* pszErrorMsg)
  *
  * The AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID configuration options *must* be
  * set.
+ * The AWS_SESSION_TOKEN configuration option must be set when temporary credentials
+ * are used.
  * The AWS_REGION configuration option may be set to one of the supported
  * <a href="http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region">S3 regions</a>
  * and defaults to 'us-east-1'

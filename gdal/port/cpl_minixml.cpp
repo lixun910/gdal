@@ -859,7 +859,8 @@ CPLXMLNode *CPLParseXMLString( const char *pszString )
 /* -------------------------------------------------------------------- */
 /*      Did we pop all the way out of our stack?                        */
 /* -------------------------------------------------------------------- */
-    if( CPLGetLastErrorType() != CE_Failure && sContext.nStackSize != 0 )
+    if( CPLGetLastErrorType() != CE_Failure && sContext.nStackSize > 0 &&
+        sContext.papsStack != NULL )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "Parse error at EOF, not all elements have been closed,\n"
@@ -1011,7 +1012,8 @@ CPLSerializeXMLNode( const CPLXMLNode *psNode, int nIndent,
     {
         bool bHasNonAttributeChildren = false;
 
-        memset( *ppszText + *pnLength, ' ', nIndent );
+        if( nIndent )
+            memset( *ppszText + *pnLength, ' ', nIndent );
         *pnLength += nIndent;
         (*ppszText)[*pnLength] = '\0';
 
@@ -1075,7 +1077,8 @@ CPLSerializeXMLNode( const CPLXMLNode *psNode, int nIndent,
 
             if( !bJustText )
             {
-                memset( *ppszText + *pnLength, ' ', nIndent );
+                if( nIndent )
+                    memset( *ppszText + *pnLength, ' ', nIndent );
                 *pnLength += nIndent;
                 (*ppszText)[*pnLength] = '\0';
             }
@@ -1830,7 +1833,7 @@ int CPLSetXMLValue( CPLXMLNode *psRoot,  const char *pszPath,
     char **papszTokens = CSLTokenizeStringComplex( pszPath, ".", FALSE, FALSE );
     int iToken = 0;
 
-    while( papszTokens[iToken] != NULL && psRoot != NULL )
+    while( papszTokens[iToken] != NULL )
     {
         bool        bIsAttribute = false;
         const char *pszName = papszTokens[iToken];
@@ -2052,7 +2055,7 @@ int CPLSerializeXMLTreeToFile( const CPLXMLNode *psTree, const char *pszFilename
         CPLError( CE_Failure, CPLE_FileIO,
                   "Failed to write whole XML document (%.500s).",
                   pszFilename );
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
         CPLFree( pszDoc );
         return FALSE;
     }
@@ -2060,10 +2063,16 @@ int CPLSerializeXMLTreeToFile( const CPLXMLNode *psTree, const char *pszFilename
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
 /* -------------------------------------------------------------------- */
-    VSIFCloseL( fp );
+    int bRet = VSIFCloseL( fp ) == 0;
+    if( !bRet )
+    {
+        CPLError( CE_Failure, CPLE_FileIO,
+                  "Failed to write whole XML document (%.500s).",
+                  pszFilename );
+    }
     CPLFree( pszDoc );
 
-    return TRUE;
+    return bRet;
 }
 
 /************************************************************************/

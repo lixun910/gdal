@@ -221,7 +221,6 @@ int VFKReaderSQLite::ReadDataRecords(IVFKDataBlock *poDataBlock)
     sqlite3_stmt *hStmt;
 
     pszName = NULL;
-    nDataRecords = 0;
 
     if (poDataBlock) { /* read records only for selected data block */
         /* table name */
@@ -642,7 +641,11 @@ OGRErr VFKReaderSQLite::AddFeature(IVFKDataBlock *poDataBlock, VFKFeature *poFea
 
     if (EQUAL(pszBlockName, "SBP")) {
         poProperty = poFeature->GetProperty("PORADOVE_CISLO_BODU");
-        CPLAssert(NULL != poProperty);
+        if( poProperty == NULL )
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Cannot find property PORADOVE_CISLO_BODU");
+            return OGRERR_FAILURE;
+        }
         if (!EQUAL(poProperty->GetValueS(), "1"))
             return OGRERR_NONE;
     }

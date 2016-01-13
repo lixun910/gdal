@@ -139,7 +139,7 @@ int CPLSpawn(const char * const papszArgv[], VSILFILE* fin, VSILFILE* fout,
     FillFileFromPipe(err_child, ferr);
     CPLSpawnAsyncCloseErrorFileHandle(sp);
 
-    VSIFCloseL(ferr);
+    CPL_IGNORE_RET_VAL(VSIFCloseL(ferr));
     vsi_l_offset nDataLength = 0;
     GByte* pData = VSIGetMemFileBuffer(osName.c_str(), &nDataLength, TRUE);
     if( nDataLength > 0 )
@@ -784,7 +784,11 @@ CPLSpawnedProcess* CPLSpawnAsync(int (*pfnMain)(CPL_FILE_HANDLE, CPL_FILE_HANDLE
 #ifdef HAVE_VFORK
     /* coverity[dead_error_line] */
     if( papszArgv != NULL && !bDup2In && !bDup2Out && !bDup2Err )
-        pid = vfork();
+    {
+        /* Workaround clang static analyzer warning about unsafe use of vfork */
+        pid_t (*p_vfork)(void) = vfork;
+        pid = p_vfork();
+    }
     else
 #endif
         pid = fork();
@@ -919,8 +923,7 @@ int CPLSpawnAsyncFinish(CPLSpawnedProcess* p, int bWait, CPL_UNUSED int bKill)
                 break;
         }
     }
-    else
-        bWait = FALSE;
+
     CPLSpawnAsyncCloseInputFileHandle(p);
     CPLSpawnAsyncCloseOutputFileHandle(p);
     CPLSpawnAsyncCloseErrorFileHandle(p);

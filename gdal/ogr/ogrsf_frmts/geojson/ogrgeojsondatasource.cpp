@@ -593,7 +593,8 @@ void OGRGeoJSONDataSource::LoadLayers(char** papszOpenOptionsIn)
                 json_object* poExceededTransferLimit =
                     json_object_object_get(poObj, "exceededTransferLimit");
                 if( poExceededTransferLimit && json_object_get_type(poExceededTransferLimit) == json_type_boolean )
-                    bOtherPages_ = json_object_get_boolean(poExceededTransferLimit);
+                    bOtherPages_ = CPL_TO_BOOL(
+                        json_object_get_boolean(poExceededTransferLimit) );
             }
             reader.ReadLayers( this );
         }
@@ -659,7 +660,8 @@ void OGRGeoJSONDataSource::LoadLayers(char** papszOpenOptionsIn)
                 json_object* poExceededTransferLimit =
                     json_object_object_get(poProperties, "exceededTransferLimit");
                 if( poExceededTransferLimit && json_object_get_type(poExceededTransferLimit) == json_type_boolean )
-                    bOtherPages_ = json_object_get_boolean(poExceededTransferLimit);
+                  bOtherPages_ = CPL_TO_BOOL(
+                      json_object_get_boolean(poExceededTransferLimit) );
             }
         }
 
@@ -735,7 +737,8 @@ void OGRGeoJSONDataSource::FlushCache()
                         bAlreadyDone = true;
                         json_object* poObj = OGRGeoJSONWriteFeature( poFeature,
                                                                      FALSE/* bWriteBBOX */,
-                                                                     -1 /*nCoordPrecision*/ );
+                                                                     -1 /*nCoordPrecision*/,
+                                                                     -1 /* nSignificatnFigures*/);
                         VSILFILE* fp = VSIFOpenL(pszName_, "wb");
                         if( fp != NULL )
                         {

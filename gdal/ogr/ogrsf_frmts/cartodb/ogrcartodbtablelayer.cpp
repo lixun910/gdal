@@ -827,6 +827,7 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 
         osSQL += ")";
     }
+    CPL_IGNORE_RET_VAL(bMustComma);
 
     if( !bHasUserFieldMatchingFID && osFIDColName.size() && nNextFID >= 0 )
     {
@@ -913,8 +914,6 @@ OGRErr OGRCARTODBTableLayer::ICreateFeature( OGRFeature *poFeature )
 OGRErr OGRCARTODBTableLayer::ISetFeature( OGRFeature *poFeature )
 
 {
-    int i;
-
     if( bDeferedCreation && RunDeferedCreationIfNecessary() != OGRERR_NONE )
         return OGRERR_FAILURE;
     if( FlushDeferedInsert() != OGRERR_NONE )
@@ -939,7 +938,7 @@ OGRErr OGRCARTODBTableLayer::ISetFeature( OGRFeature *poFeature )
     CPLString osSQL;
     osSQL.Printf("UPDATE %s SET ", OGRCARTODBEscapeIdentifier(osName).c_str());
     int bMustComma = FALSE;
-    for(i = 0; i < poFeatureDefn->GetFieldCount(); i++)
+    for( int i = 0; i < poFeatureDefn->GetFieldCount(); i++ )
     {
         if( bMustComma )
             osSQL += ", ";
@@ -972,7 +971,7 @@ OGRErr OGRCARTODBTableLayer::ISetFeature( OGRFeature *poFeature )
         }
     }
 
-    for(i = 0; i < poFeatureDefn->GetGeomFieldCount(); i++)
+    for( int i = 0; i < poFeatureDefn->GetGeomFieldCount(); i++ )
     {
         if( bMustComma )
             osSQL += ", ";

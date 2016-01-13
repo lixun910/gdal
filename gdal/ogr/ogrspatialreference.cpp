@@ -5514,6 +5514,11 @@ OGRErr OSRSetVDG( OGRSpatialReferenceH hSRS,
 OGRErr OGRSpatialReference::SetUTM( int nZone, int bNorth )
 
 {
+    if( nZone < 0 || nZone > 60 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid zone: %d", nZone);
+        return OGRERR_FAILURE;
+    }
     SetProjection( SRS_PT_TRANSVERSE_MERCATOR );
     SetNormProjParm( SRS_PP_LATITUDE_OF_ORIGIN, 0 );
     SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, nZone * 6 - 183 );
@@ -5718,6 +5723,38 @@ OGRErr OSRSetQSC( OGRSpatialReferenceH hSRS,
 
     return ((OGRSpatialReference *) hSRS)->SetQSC(
         dfCenterLat, dfCenterLong );
+}
+
+/************************************************************************/
+/*                            SetSCH()                     */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetSCH( double dfPegLat, double dfPegLong,
+                                    double dfPegHeading, double dfPegHgt)
+
+{
+    SetProjection( SRS_PT_SCH );
+    SetNormProjParm( SRS_PP_PEG_POINT_LATITUDE, dfPegLat );
+    SetNormProjParm( SRS_PP_PEG_POINT_LONGITUDE, dfPegLong );
+    SetNormProjParm( SRS_PP_PEG_POINT_HEADING, dfPegHeading );
+    SetNormProjParm( SRS_PP_PEG_POINT_HEIGHT, dfPegHgt);
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                           OSRSetSCH()                   */
+/************************************************************************/
+
+OGRErr OSRSetSCH( OGRSpatialReferenceH hSRS,
+                       double dfPegLat, double dfPegLong,
+                       double dfPegHeading, double dfPegHgt)
+
+{
+    VALIDATE_POINTER1( hSRS, "OSRSetSCH", OGRERR_FAILURE );
+
+    return ((OGRSpatialReference *) hSRS)->SetSCH(
+        dfPegLat, dfPegLong, dfPegHeading, dfPegHgt );
 }
 
 /************************************************************************/

@@ -29,6 +29,7 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include "gdal_frmts.h"
 #include "wmsdriver.h"
 #include "wmsmetadataset.h"
 
@@ -40,6 +41,8 @@
 #include "minidriver_virtualearth.h"
 #include "minidriver_arcgis_server.h"
 #include "minidriver_iip.h"
+
+#include <limits>
 
 /************************************************************************/
 /*              GDALWMSDatasetGetConfigFromURL()                        */
@@ -159,6 +162,7 @@ CPLXMLNode * GDALWMSDatasetGetConfigFromURL(GDALOpenInfo *poOpenInfo)
         nTileSize = 1024;
 
     int nXSize, nYSize;
+    double dXSize, dYSize;
 
     int nOverviewCount = (osOverviewCount.size()) ? atoi(osOverviewCount) : 20;
 
@@ -172,29 +176,50 @@ CPLXMLNode * GDALWMSDatasetGetConfigFromURL(GDALOpenInfo *poOpenInfo)
             dfMinResolution *= 2;
         }
 
-        nXSize = (int) ((dfMaxX - dfMinX) / dfMinResolution + 0.5);
-        nYSize = (int) ((dfMaxY - dfMinY) / dfMinResolution + 0.5);
+        // Determine a suitable size that doesn't overflow max int.
+        dXSize = ((dfMaxX - dfMinX) / dfMinResolution + 0.5);
+        dYSize = ((dfMaxY - dfMinY) / dfMinResolution + 0.5);
+
+        while (dXSize > (std::numeric_limits<int>::max)() || 
+               dYSize > (std::numeric_limits<int>::max)())
+        {
+            dfMinResolution *= 2;
+
+            dXSize = ((dfMaxX - dfMinX) / dfMinResolution + 0.5);
+            dYSize = ((dfMaxY - dfMinY) / dfMinResolution + 0.5);
+        }
     }
     else
     {
         double dfRatio = (dfMaxX - dfMinX) / (dfMaxY - dfMinY);
         if (dfRatio > 1)
         {
-            nXSize = nTileSize;
-            nYSize = (int) (nXSize / dfRatio);
+            dXSize = nTileSize;
+            dYSize = dXSize / dfRatio;
         }
         else
         {
-            nYSize = nTileSize;
-            nXSize = (int) (nYSize * dfRatio);
+            dYSize = nTileSize;
+            dXSize = dYSize * dfRatio;
         }
 
         if (nOverviewCount < 0 || nOverviewCount > 20)
             nOverviewCount = 20;
 
-        nXSize = nXSize * (1 << nOverviewCount);
-        nYSize = nYSize * (1 << nOverviewCount);
+        dXSize = dXSize * (1 << nOverviewCount);
+        dYSize = dYSize * (1 << nOverviewCount);
+
+        // Determine a suitable size that doesn't overflow max int.
+        while (dXSize > (std::numeric_limits<int>::max)() || 
+               dYSize > (std::numeric_limits<int>::max)())
+        {
+            dXSize /= 2;
+            dYSize /= 2;
+        }
     }
+
+    nXSize = (int) dXSize;
+    nYSize = (int) dYSize;
 
     int bTransparent = osTransparent.size() ? CSLTestBoolean(osTransparent) : FALSE;
 
@@ -956,33 +981,35 @@ static void GDALDeregister_WMS( GDALDriver * )
 /*                          GDALRegister_WMS()                          */
 /************************************************************************/
 
-void GDALRegister_WMS() {
-    GDALDriver *poDriver;
-    if (GDALGetDriverByName("WMS") == NULL) {
-        poDriver = new GDALDriver();
+void GDALRegister_WMS()
 
-        poDriver->SetDescription("WMS");
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "OGC Web Map Service");
-        poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC, "frmt_wms.html");
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
+{
+    if( GDALGetDriverByName( "WMS" ) != NULL )
+        return;
 
-        poDriver->pfnOpen = GDALWMSDataset::Open;
-        poDriver->pfnIdentify = GDALWMSDataset::Identify;
-        poDriver->pfnUnloadDriver = GDALDeregister_WMS;
-        poDriver->pfnCreateCopy = GDALWMSDataset::CreateCopy;
+    GDALDriver *poDriver = new GDALDriver();
 
-        GetGDALDriverManager()->RegisterDriver(poDriver);
+    poDriver->SetDescription("WMS");
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "OGC Web Map Service" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_wms.html" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
 
-        GDALWMSMiniDriverManager *const mdm = GetGDALWMSMiniDriverManager();
-        mdm->Register(new GDALWMSMiniDriverFactory_WMS());
-        mdm->Register(new GDALWMSMiniDriverFactory_TileService());
-        mdm->Register(new GDALWMSMiniDriverFactory_WorldWind());
-        mdm->Register(new GDALWMSMiniDriverFactory_TMS());
-        mdm->Register(new GDALWMSMiniDriverFactory_TiledWMS());
-        mdm->Register(new GDALWMSMiniDriverFactory_VirtualEarth());
-        mdm->Register(new GDALWMSMiniDriverFactory_AGS());
-        mdm->Register(new GDALWMSMiniDriverFactory_IIP());
-    }
+    poDriver->pfnOpen = GDALWMSDataset::Open;
+    poDriver->pfnIdentify = GDALWMSDataset::Identify;
+    poDriver->pfnUnloadDriver = GDALDeregister_WMS;
+    poDriver->pfnCreateCopy = GDALWMSDataset::CreateCopy;
+
+    GetGDALDriverManager()->RegisterDriver(poDriver);
+
+    GDALWMSMiniDriverManager *const mdm = GetGDALWMSMiniDriverManager();
+    mdm->Register(new GDALWMSMiniDriverFactory_WMS());
+    mdm->Register(new GDALWMSMiniDriverFactory_TileService());
+    mdm->Register(new GDALWMSMiniDriverFactory_WorldWind());
+    mdm->Register(new GDALWMSMiniDriverFactory_TMS());
+    mdm->Register(new GDALWMSMiniDriverFactory_TiledWMS());
+    mdm->Register(new GDALWMSMiniDriverFactory_VirtualEarth());
+    mdm->Register(new GDALWMSMiniDriverFactory_AGS());
+    mdm->Register(new GDALWMSMiniDriverFactory_IIP());
 }

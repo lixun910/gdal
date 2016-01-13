@@ -94,6 +94,7 @@
  **********************************************************************/
 
 #include "mitab.h"
+#include "mitab_utils.h"
 
 /*=====================================================================
  *                      class TABMAPCoordBlock
@@ -181,6 +182,15 @@ int     TABMAPCoordBlock::InitBlockFromData(GByte *pabyBuf,
      *----------------------------------------------------------------*/
     GotoByteInBlock(0x002);
     m_numDataBytes = ReadInt16();       /* Excluding 8 bytes header */
+    if( m_numDataBytes < 0 || m_numDataBytes + MAP_COORD_HEADER_SIZE > nBlockSize )
+    {
+        CPLError(CE_Failure, CPLE_FileIO,
+                 "TABMAPCoordBlock::InitBlockFromData(): m_numDataBytes=%d incompatible with block size %d",
+                 m_numDataBytes, nBlockSize);
+        CPLFree(m_pabyBuf);
+        m_pabyBuf = NULL;
+        return -1;
+    }
 
     m_nNextCoordBlock = ReadInt32();
 
@@ -233,6 +243,7 @@ int     TABMAPCoordBlock::CommitToFile()
     GotoByteInBlock(0x000);
 
     WriteInt16(TABMAP_COORD_BLOCK);    // Block type code
+    CPLAssert(m_nSizeUsed >= MAP_COORD_HEADER_SIZE && m_nSizeUsed < MAP_COORD_HEADER_SIZE + 32768);
     WriteInt16((GInt16)(m_nSizeUsed - MAP_COORD_HEADER_SIZE)); // num. bytes used
     WriteInt32(m_nNextCoordBlock);
 
@@ -358,8 +369,10 @@ int     TABMAPCoordBlock::ReadIntCoord(GBool bCompressed,
 {
     if (bCompressed)
     {   
-        nX = m_nComprOrgX + ReadInt16();
-        nY = m_nComprOrgY + ReadInt16();
+        nX = ReadInt16();
+        nY = ReadInt16();
+        TABSaturatedAdd(nX, m_nComprOrgX);
+        TABSaturatedAdd(nY, m_nComprOrgY);
     }
     else
     {
@@ -399,8 +412,10 @@ int     TABMAPCoordBlock::ReadIntCoords(GBool bCompressed, int numCoordPairs,
     {   
         for(i=0; i<numValues; i+=2)
         {
-            panXY[i]   = m_nComprOrgX + ReadInt16();
-            panXY[i+1] = m_nComprOrgY + ReadInt16();
+            panXY[i]   = ReadInt16();
+            panXY[i+1] = ReadInt16();
+            TABSaturatedAdd(panXY[i], m_nComprOrgX);
+            TABSaturatedAdd(panXY[i+1], m_nComprOrgY);
             if (CPLGetLastErrorType() != 0)
                 return -1;
         }
@@ -469,10 +484,14 @@ int     TABMAPCoordBlock::ReadCoordSecHdrs(GBool bCompressed,
      * V800 header section uses int32 for numHoles but there is no need
      * for the 2 alignment bytes so the size is the same as V450
      *------------------------------------------------------------*/
-    if (nVersion >= 450)
-        nTotalHdrSizeUncompressed = 28 * numSections;
-    else
-        nTotalHdrSizeUncompressed = 24 * numSections;
+    const int nSectionSize = (nVersion >= 450) ? 28 : 24;
+    if( numSections > INT_MAX / nSectionSize )
+    {
+        CPLError(CE_Failure, CPLE_AssertionFailed,
+                 "Invalid numSections");
+        return -1;
+    }
+    nTotalHdrSizeUncompressed = nSectionSize * numSections;
 
     numVerticesTotal = 0;
 
@@ -488,17 +507,41 @@ int     TABMAPCoordBlock::ReadCoordSecHdrs(GBool bCompressed,
             pasHdrs[i].numVertices = ReadInt32();
         else
             pasHdrs[i].numVertices = ReadInt16();
+        if( pasHdrs[i].numVertices < 0 )
+        {
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "Invalid number of vertices for section %d", i);
+            return -1;
+        }
         if (nVersion >= 800)
             pasHdrs[i].numHoles = ReadInt32();
         else
             pasHdrs[i].numHoles = ReadInt16();
+        if( pasHdrs[i].numHoles < 0 )
+        {
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "Invalid number of holes for section %d", i);
+            return -1;
+        }
         ReadIntCoord(bCompressed, pasHdrs[i].nXMin, pasHdrs[i].nYMin);
         ReadIntCoord(bCompressed, pasHdrs[i].nXMax, pasHdrs[i].nYMax);
         pasHdrs[i].nDataOffset = ReadInt32();
+        if( pasHdrs[i].nDataOffset < nTotalHdrSizeUncompressed )
+        {
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "Invalid data offset for section %d", i);
+            return -1;
+        }
 
         if (CPLGetLastErrorType() != 0)
             return -1;
 
+        if( numVerticesTotal > INT_MAX - pasHdrs[i].numVertices )
+        {
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "Invalid number of vertices for section %d", i);
+            return -1;
+        }
         numVerticesTotal += pasHdrs[i].numVertices;
 
 
@@ -528,6 +571,7 @@ int     TABMAPCoordBlock::ReadCoordSecHdrs(GBool bCompressed,
          * inside the [0..numVerticesTotal] range.)
          *------------------------------------------------------------*/
         if ( pasHdrs[i].nVertexOffset < 0 || 
+             pasHdrs[i].nVertexOffset > INT_MAX - pasHdrs[i].numVertices ||
              (pasHdrs[i].nVertexOffset +
                            pasHdrs[i].numVertices ) > numVerticesTotal)
         {

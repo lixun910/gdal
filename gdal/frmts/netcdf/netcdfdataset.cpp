@@ -32,6 +32,7 @@
 
 #include "cpl_error.h"
 #include "cpl_multiproc.h"
+#include "gdal_frmts.h"
 #include "netcdfdataset.h"
 
 #include <map> //for NCDFWriteProjAttribs()
@@ -278,7 +279,7 @@ netCDFRasterBand::netCDFRasterBand( netCDFDataset *poNCDFDS,
     if ( ! bGotNoData ) {
         nc_inq_vartype( cdfid, nZId, &vartype );
         dfNoData = NCDFGetDefaultNoDataValue( vartype );
-        bGotNoData = TRUE;
+        /*bGotNoData = true;*/
         CPLDebug( "GDAL_netCDF", 
                   "did not get nodata value for variable #%d, using default %f", 
                   nZId, dfNoData );
@@ -2064,10 +2065,6 @@ void netCDFDataset::SetProjectionFromVar( int nVarId )
                     poDS->FetchCopyParm( szGridMappingValue, 
                                          CF_PP_LONG_CENTRAL_MERIDIAN, 0.0 );
 
-                dfCenterLat = 
-                    poDS->FetchCopyParm( szGridMappingValue, 
-                                         CF_PP_LAT_PROJ_ORIGIN, 0.0 );
-
                 dfFalseEasting = 
                     poDS->FetchCopyParm( szGridMappingValue, 
                                          CF_PP_FALSE_EASTING, 0.0 );
@@ -2273,7 +2270,7 @@ void netCDFDataset::SetProjectionFromVar( int nVarId )
                         /* with center lon instead */
                         else 
                             dfStdP1 = dfCenterLat;
-                        dfStdP2 = dfStdP1;
+                        /*dfStdP2 = dfStdP1;*/
 
                         /* test if we should actually compute scale factor */
                         if ( ! CPLIsEqual( dfStdP1, dfCenterLat ) ) {
@@ -3836,7 +3833,7 @@ CPLErr netCDFDataset::AddProjectionVars( GDALProgressFunc pfnProgress,
                     NCDF_ERR(status);
                 }
 
-                if ( j % (nRasterYSize/10) == 0 ) {
+                if ( (nRasterYSize/10) >0 && (j % (nRasterYSize/10) == 0) ) {
                     dfProgress += 0.08;
                     pfnProgress( dfProgress , NULL, pProgressData );
                 }
@@ -5223,7 +5220,7 @@ netCDFDataset::Create( const char * pszFilename,
 
 
 template <class T>
-CPLErr  NCDFCopyBand( GDALRasterBand *poSrcBand, GDALRasterBand *poDstBand,
+static CPLErr  NCDFCopyBand( GDALRasterBand *poSrcBand, GDALRasterBand *poDstBand,
                       int nXSize, int nYSize,
                       GDALProgressFunc pfnProgress, void * pProgressData )
 {
@@ -5776,7 +5773,9 @@ int netCDFDataset::DefVarDeflate(
             size_t chunksize[ MAX_NC_DIMS ];
             int nd;
             nc_inq_varndims( cdfid, nVarId, &nd );
-            for( int i=0; i<nd; i++ ) chunksize[i] = (size_t)1;
+            chunksize[0] = (size_t)1;
+            chunksize[1] = (size_t)1;
+            for( int i=2; i<nd; i++ ) chunksize[i] = (size_t)1;
             chunksize[nd-1] = (size_t)nRasterXSize;
 
             CPLDebug( "GDAL_netCDF", 
@@ -5819,7 +5818,7 @@ static void NCDFUnloadDriver(CPL_UNUSED GDALDriver* poDriver)
 void GDALRegister_netCDF()
 
 {
-    if (! GDAL_CHECK_VERSION("netCDF driver"))
+    if( !GDAL_CHECK_VERSION( "netCDF driver" ) )
         return;
 
     if( GDALGetDriverByName( "netCDF" ) != NULL )
@@ -6404,12 +6403,10 @@ static CPLErr NCDFGetAttr1( int nCdfId, int nVarId, const char *pszAttrName,
         default:
             CPLDebug( "GDAL_netCDF", "NCDFGetAttr unsupported type %d for attribute %s",
                       nAttrType,pszAttrName);
-            CPLFree( pszAttrValue );
-            pszAttrValue = NULL;
             break;
     }
 
-    if ( nAttrLen > 1  && nAttrType!= NC_CHAR )    
+    if ( nAttrLen > 1  && nAttrType!= NC_CHAR )
         NCDFSafeStrcat(&pszAttrValue, "}", &nAttrValueSize);
 
     /* set return values */
@@ -6443,10 +6440,6 @@ static CPLErr NCDFPutAttr( int nCdfId, int nVarId,
     int     status = 0;
     char    *pszTemp = NULL;
 
-    int     nValue = 0;
-    float   fValue = 0.0f;
-    double  dfValue = 0.0;
-
     /* get the attribute values as tokens */
     char **papszValues = NCDFTokenizeArray( pszValue );
     if ( papszValues == NULL ) 
@@ -6460,8 +6453,7 @@ static CPLErr NCDFPutAttr( int nCdfId, int nVarId,
     for ( size_t i=0; i<nAttrLen; i++ ) {
         nTmpAttrType = NC_CHAR;
         errno = 0;
-        nValue = static_cast<int>(strtol( papszValues[i], &pszTemp, 10 ));
-        dfValue = (double) nValue;
+        CPL_IGNORE_RET_VAL(strtol( papszValues[i], &pszTemp, 10 ));
         /* test for int */
         /* TODO test for Byte and short - can this be done safely? */
         if ( (errno == 0) && (papszValues[i] != pszTemp) && (*pszTemp == 0) ) {
@@ -6470,12 +6462,12 @@ static CPLErr NCDFPutAttr( int nCdfId, int nVarId,
         else {
             /* test for double */
             errno = 0;
-            dfValue = CPLStrtod( papszValues[i], &pszTemp );
+            double dfValue = CPLStrtod( papszValues[i], &pszTemp );
             if ( (errno == 0) && (papszValues[i] != pszTemp) && (*pszTemp == 0) ) {
                 /* test for float instead of double */
                 /* strtof() is C89, which is not available in MSVC */
                 /* see if we loose precision if we cast to float and write to char* */
-                fValue = float(dfValue);
+                float fValue = float(dfValue);
                 char    szTemp[ 256 ];
                 CPLsnprintf( szTemp, sizeof(szTemp), "%.8g",fValue);
                 if ( EQUAL(szTemp, papszValues[i] ) )

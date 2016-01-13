@@ -250,7 +250,8 @@ void TABFile::ResetReading()
  * Returns 0 on success, -1 on error.
  **********************************************************************/
 int TABFile::Open(const char *pszFname, TABAccess eAccess,
-                  GBool bTestOpenNoError /*=FALSE*/ )
+                  GBool bTestOpenNoError /*=FALSE*/,
+                  int nBlockSizeForCreate)
 {
     char *pszTmpFname = NULL;
     int nFnameLen = 0;
@@ -471,7 +472,8 @@ int TABFile::Open(const char *pszFname, TABAccess eAccess,
 
         GetFeatureCountByType( numPoints, numLines, numRegions, numTexts);
 
-        numPoints += numTexts;
+        if( numPoints >= 0 && numTexts >= 0 && numPoints < INT_MAX - numTexts )
+            numPoints += numTexts;
         if( numPoints > 0 && numLines == 0 && numRegions == 0 )
             m_poDefn->SetGeomType( wkbPoint );
         else if( numPoints == 0 && numLines > 0 && numRegions == 0 )
@@ -480,10 +482,15 @@ int TABFile::Open(const char *pszFname, TABAccess eAccess,
             /* we leave it unknown indicating a mixture */
         }
     }
-    else if (m_poMAPFile->Open(pszTmpFname, eAccess) != 0)
+    else if (m_poMAPFile->Open(pszTmpFname, eAccess, FALSE, nBlockSizeForCreate) != 0)
     {
         // Open Failed for write... 
         // an error has already been reported, just return.
+
+        m_poMAPFile->Close();
+        delete m_poMAPFile;
+        m_poMAPFile = NULL;
+
         CPLFree(pszTmpFname);
         Close();
         if (bTestOpenNoError)
@@ -750,7 +757,7 @@ int TABFile::ParseTABFileFields()
                                                     " \t(),;",
                                                     TRUE, FALSE);
                 numTok = CSLCount(papszTok);
-                nStatus = -1;
+
                 CPLAssert(m_poDefn);
                 poFieldDefn = NULL;
                 if (numTok >= 3 && EQUAL(papszTok[1], "char"))
@@ -958,15 +965,16 @@ int TABFile::WriteTABFile()
 {
     VSILFILE *fp;
 
+    if (!m_bNeedTABRewrite )
+    {
+        return 0;
+    }
+
     if (m_poMAPFile == NULL || m_eAccessMode == TABRead)
     {
         CPLError(CE_Failure, CPLE_NotSupported,
                  "WriteTABFile() can be used only with Write access.");
         return -1;
-    }
-    if (!m_bNeedTABRewrite )
-    {
-        return 0;
     }
 
     // First update file version number...
@@ -1090,14 +1098,14 @@ int TABFile::Close()
 
     // Commit the latest changes to the file...
 
-    // In Write access, it's time to write the .TAB file.
-    if (m_eAccessMode != TABRead)
-    {
-        WriteTABFile();
-    }
-
     if (m_poMAPFile)
     {
+        // In Write access, it's time to write the .TAB file.
+        if (m_eAccessMode != TABRead)
+        {
+            WriteTABFile();
+        }
+
         m_poMAPFile->Close();
         delete m_poMAPFile;
         m_poMAPFile = NULL;

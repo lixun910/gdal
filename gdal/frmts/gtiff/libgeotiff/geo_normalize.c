@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: geo_normalize.c 2685 2015-11-18 18:46:20Z rouault $
+ * $Id: geo_normalize.c 2712 2016-01-11 11:36:59Z rouault $
  *
  * Project:  libgeotiff
  * Purpose:  Code to normalize PCS and other composite codes in a GeoTIFF file.
@@ -74,6 +74,29 @@
 #define EPSGTopocentricOriginHeight 8836
 
 #define CT_Ext_Mercator_2SP     -CT_Mercator
+
+#ifndef CPL_INLINE
+#if (defined(__GNUC__) && !defined(__NO_INLINE__)) || defined(_MSC_VER)
+#define HAS_CPL_INLINE  1
+#define CPL_INLINE __inline
+#elif defined(__SUNPRO_CC)
+#define HAS_CPL_INLINE  1
+#define CPL_INLINE inline
+#else
+#define CPL_INLINE
+#endif
+#endif
+
+#ifndef CPL_UNUSED
+#if defined(__GNUC__) && __GNUC__ >= 4
+#  define CPL_UNUSED __attribute((__unused__))
+#else
+/* TODO: add cases for other compilers */
+#  define CPL_UNUSED
+#endif
+#endif
+
+CPL_INLINE static void CPL_IGNORE_RET_VAL_INT(CPL_UNUSED int unused) {}
 
 /************************************************************************/
 /*                           GTIFGetPCSInfo()                           */
@@ -948,10 +971,7 @@ int GTIFGetUOMAngleInfo( int nUOMAngleCode,
     {
         if( ppszUOMName != NULL )
         {
-            if( pszUOMName != NULL )
-                *ppszUOMName = CPLStrdup( pszUOMName );
-            else
-                *ppszUOMName = NULL;
+            *ppszUOMName = CPLStrdup( pszUOMName );
         }
 
         if( pdfInDegrees != NULL )
@@ -991,6 +1011,9 @@ int GTIFGetUOMAngleInfo( int nUOMAngleCode,
             dfInRadians = (dfFactorB / dfFactorC);
             dfInDegrees = dfInRadians * 180.0 / M_PI;
         }
+
+        if( ppszUOMName != NULL )
+            *ppszUOMName = CPLStrdup( pszUOMName );
     }
     else
     {
@@ -1000,13 +1023,6 @@ int GTIFGetUOMAngleInfo( int nUOMAngleCode,
 /* -------------------------------------------------------------------- */
 /*      Return to caller.                                               */
 /* -------------------------------------------------------------------- */
-    if( ppszUOMName != NULL )
-    {
-        if( pszUOMName != NULL )
-            *ppszUOMName = CPLStrdup( pszUOMName );
-        else
-            *ppszUOMName = NULL;
-    }
 
     if( pdfInDegrees != NULL )
         *pdfInDegrees = dfInDegrees;
@@ -2439,8 +2455,8 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
 /*      to warn if they conflict with provided information, but for     */
 /*      now we just override.                                           */
 /* -------------------------------------------------------------------- */
-    GTIFKeyGetDOUBLE(psGTIF, GeogSemiMajorAxisGeoKey, &(psDefn->SemiMajor), 0, 1 );
-    GTIFKeyGetDOUBLE(psGTIF, GeogSemiMinorAxisGeoKey, &(psDefn->SemiMinor), 0, 1 );
+    CPL_IGNORE_RET_VAL_INT(GTIFKeyGetDOUBLE(psGTIF, GeogSemiMajorAxisGeoKey, &(psDefn->SemiMajor), 0, 1 ));
+    CPL_IGNORE_RET_VAL_INT(GTIFKeyGetDOUBLE(psGTIF, GeogSemiMinorAxisGeoKey, &(psDefn->SemiMinor), 0, 1 ));
     
     if( GTIFKeyGetDOUBLE(psGTIF, GeogInvFlatteningGeoKey, &dfInvFlattening, 
                    0, 1 ) == 1 )
@@ -2463,8 +2479,8 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
     }
     else
     {
-        GTIFKeyGetDOUBLE(psGTIF, GeogPrimeMeridianLongGeoKey,
-                   &(psDefn->PMLongToGreenwich), 0, 1 );
+        CPL_IGNORE_RET_VAL_INT(GTIFKeyGetDOUBLE(psGTIF, GeogPrimeMeridianLongGeoKey,
+                   &(psDefn->PMLongToGreenwich), 0, 1 ));
 
         psDefn->PMLongToGreenwich =
             GTIFAngleToDD( psDefn->PMLongToGreenwich,
@@ -2494,7 +2510,7 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
     }
     else
     {
-        GTIFKeyGetDOUBLE(psGTIF,ProjLinearUnitSizeGeoKey,&(psDefn->UOMLengthInMeters),0,1);
+        CPL_IGNORE_RET_VAL_INT(GTIFKeyGetDOUBLE(psGTIF,ProjLinearUnitSizeGeoKey,&(psDefn->UOMLengthInMeters),0,1));
     }
 
 /* -------------------------------------------------------------------- */

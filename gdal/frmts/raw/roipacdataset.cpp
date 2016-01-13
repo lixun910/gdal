@@ -27,14 +27,11 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void    GDALRegister_ROIPAC(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -160,11 +157,17 @@ ROIPACDataset::~ROIPACDataset()
     FlushCache();
     if ( fpRsc != NULL )
     {
-        VSIFCloseL( fpRsc );
+        if( VSIFCloseL( fpRsc ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
     }
     if ( fpImage != NULL )
     {
-        VSIFCloseL( fpImage );
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
     }
     CPLFree( pszRscFilename );
     CPLFree( pszProjection );
@@ -242,7 +245,7 @@ GDALDataset *ROIPACDataset::Open( GDALOpenInfo *poOpenInfo )
         || CSLFetchNameValue( papszRsc, "FILE_LENGTH" ) == NULL )
     {
         CSLDestroy( papszRsc );
-        VSIFCloseL( fpRsc );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpRsc ));
         return NULL;
     }
     const int nWidth = atoi( CSLFetchNameValue( papszRsc, "WIDTH" ) );
@@ -621,7 +624,7 @@ GDALDataset *ROIPACDataset::Create( const char *pszFilename,
 /* -------------------------------------------------------------------- */
     CPL_IGNORE_RET_VAL(VSIFWriteL( reinterpret_cast<void *>( const_cast<char *>( "\0\0" ) ),
                 2, 1, fp ));
-    VSIFCloseL( fp );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
 /* -------------------------------------------------------------------- */
 /*      Open the RSC file.                                              */
@@ -641,7 +644,7 @@ GDALDataset *ROIPACDataset::Create( const char *pszFilename,
 /* -------------------------------------------------------------------- */
     CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%-40s %d\n", "WIDTH", nXSize ));
     CPL_IGNORE_RET_VAL(VSIFPrintfL( fp, "%-40s %d\n", "FILE_LENGTH", nYSize ));
-    VSIFCloseL( fp );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
 
     return reinterpret_cast<GDALDataset *>(
         GDALOpen( pszFilename, GA_Update ) );
@@ -850,12 +853,12 @@ ROIPACRasterBand::ROIPACRasterBand( GDALDataset *poDSIn, int nBandIn, void *fpRa
 /*                        GDALRegister_ROIPAC()                         */
 /************************************************************************/
 
-void GDALRegister_ROIPAC( void )
+void GDALRegister_ROIPAC()
 {
-    if (!GDAL_CHECK_VERSION("ROI_PAC"))
+    if( !GDAL_CHECK_VERSION( "ROI_PAC" ) )
         return;
 
-    if ( GDALGetDriverByName( "ROI_PAC" ) != NULL )
+    if( GDALGetDriverByName( "ROI_PAC" ) != NULL )
         return;
 
     GDALDriver *poDriver = new GDALDriver();

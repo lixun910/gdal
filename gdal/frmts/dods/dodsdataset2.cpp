@@ -65,17 +65,14 @@
 #include <Error.h>
 #include <escaping.h>
 
-#include "gdal_priv.h"		// GDAL
-#include "ogr_spatialref.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_priv.h"
+#include "ogr_spatialref.h"
 
 using namespace libdap;
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void GDALRegister_DODS(void);
-CPL_C_END
 
 /** Attribute names used to encode geo-referencing information. Note that
     these are not C++ objects to avoid problems with static global
@@ -1718,26 +1715,24 @@ double DODSRasterBand::GetNoDataValue( int * pbSuccess )
 /*                         GDALRegister_DODS()                          */
 /************************************************************************/
 
-void 
-GDALRegister_DODS()
-{
-    GDALDriver *poDriver;
+void GDALRegister_DODS()
 
-    if (! GDAL_CHECK_VERSION("GDAL/DODS driver"))
+{
+    if( !GDAL_CHECK_VERSION("GDAL/DODS driver") )
         return;
 
-    if( GDALGetDriverByName( "DODS" ) == NULL ) {
-        poDriver = new GDALDriver();
+    if( GDALGetDriverByName( "DODS" ) != NULL )
+        return;
 
-        poDriver->SetDescription( "DODS" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "DAP 3.x servers" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_various.html#DODS" );
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->pfnOpen = DODSDataset::Open;
+    poDriver->SetDescription( "DODS" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "DAP 3.x servers" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#DODS" );
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    poDriver->pfnOpen = DODSDataset::Open;
+
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }
 

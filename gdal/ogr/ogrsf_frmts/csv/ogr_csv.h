@@ -50,6 +50,15 @@ char **OGRCSVReadParseLineL( VSILFILE * fp, char chDelimiter,
                              int bKeepLeadingAndClosingQuotes = FALSE,
                              int bMergeDelimiter = FALSE);
 
+typedef enum
+{
+    CREATE_FIELD_DO_NOTHING,
+    CREATE_FIELD_PROCEED,
+    CREATE_FIELD_ERROR
+} OGRCSVCreateFieldAction;
+
+void OGRCSVDriverRemoveFromMap(const char* pszName, GDALDataset* poDS);
+
 /************************************************************************/
 /*                             OGRCSVLayer                              */
 /************************************************************************/
@@ -90,6 +99,9 @@ class OGRCSVLayer : public OGRLayer
     int                 iLongitudeField;
     int                 iLatitudeField;
     int                 iZField;
+    CPLString           osXField;
+    CPLString           osYField;
+    CPLString           osZField;
 
     int                 bIsEurostatTSV;
     int                 nEurostatDims;
@@ -114,6 +126,18 @@ class OGRCSVLayer : public OGRLayer
     OGRCSVLayer( const char *pszName, VSILFILE *fp, const char *pszFilename,
                  int bNew, int bInWriteMode, char chDelimiter );
    ~OGRCSVLayer();
+   
+    const char*         GetFilename() const { return pszFilename; }
+    char                GetDelimiter() const { return chDelimiter; }
+    int                 GetCRLF() const { return bUseCRLF; }
+    int                 GetCreateCSVT() const { return bCreateCSVT; }
+    int                 GetWriteBOM() const { return bWriteBOM; }
+    OGRCSVGeometryFormat GetGeometryFormat() const { return eGeometryFormat; }
+    int                 HasHiddenWKTColumn() const { return bHiddenWKTColumn; }
+    GIntBig             GetTotalFeatureCount() const { return nTotalFeatures; }
+    const CPLString&    GetXField() const { return osXField; }
+    const CPLString&    GetYField() const { return osYField; }
+    const CPLString&    GetZField() const { return osZField; }
 
     void                BuildFeatureDefn( const char* pszNfdcGeomField = NULL,
                                           const char* pszGeonamesGeomFieldPrefix = NULL,
@@ -129,6 +153,9 @@ class OGRCSVLayer : public OGRLayer
 
     virtual OGRErr      CreateField( OGRFieldDefn *poField,
                                      int bApproxOK = TRUE );
+
+    static OGRCSVCreateFieldAction PreCreateField( OGRFeatureDefn* poFeatureDefn,
+                                    OGRFieldDefn *poNewField, int bApproxOK );
     virtual OGRErr      CreateGeomField( OGRGeomFieldDefn *poGeomField,
                                          int bApproxOK = TRUE );
 
@@ -142,6 +169,7 @@ class OGRCSVLayer : public OGRLayer
     void                SetWriteBOM(int bWriteBOM);
 
     virtual GIntBig     GetFeatureCount( int bForce = TRUE );
+    virtual OGRErr      SyncToDisk();
 
     OGRErr              WriteHeader();
 };
@@ -154,7 +182,7 @@ class OGRCSVDataSource : public OGRDataSource
 {
     char                *pszName;
 
-    OGRCSVLayer       **papoLayers;
+    OGRLayer          **papoLayers;
     int                 nLayers;
 
     int                 bUpdate;

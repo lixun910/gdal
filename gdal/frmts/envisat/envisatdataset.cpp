@@ -28,21 +28,18 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "timedelta.hpp"
 #include "adsrange.hpp"
 #include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_srs_api.h"
+#include "timedelta.hpp"
 
 CPL_CVSID("$Id$");
 
 CPL_C_START
 #include "EnvisatFile.h"
 #include "records.h"
-CPL_C_END
-
-CPL_C_START
-void	GDALRegister_Envisat(void);
 CPL_C_END
 
 /************************************************************************/
@@ -223,7 +220,7 @@ EnvisatDataset::~EnvisatDataset()
         EnvisatFile_Close( hEnvisatFile );
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpImage ));
 
     if( nGCPCount > 0 )
     {
@@ -1154,16 +1151,14 @@ void GDALRegister_Envisat()
     if( GDALGetDriverByName( "ESAT" ) != NULL )
         return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "ESAT" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                               "Envisat Image Format" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "Envisat Image Format" );
     poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
                                "frmt_various.html#Envisat" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "n1" );
-
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
     poDriver->pfnOpen = EnvisatDataset::Open;

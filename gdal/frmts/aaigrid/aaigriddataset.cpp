@@ -29,21 +29,22 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
+// We need cpl_port as first include to avoid VSIStatBufL being not
+// defined on i586-mingw32msvc.
+#include "cpl_port.h"
+
 #include <ctype.h>
-#include <limits.h>
+#include <climits>
+
 #include "cpl_string.h"
+#include "gdal_pam.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
 
 CPL_CVSID("$Id$");
 
-CPL_C_START
-void    GDALRegister_AAIGrid(void);
-void    GDALRegister_GRASSASCIIGrid(void);
-CPL_C_END
-
-static CPLString OSR_GDS( char **papszNV, const char * pszField, 
-                           const char *pszDefaultValue );
+static CPLString OSR_GDS( char **papszNV, const char * pszField,
+                          const char *pszDefaultValue );
 
 typedef enum
 {
@@ -68,7 +69,6 @@ class CPL_DLL AAIGDataset : public GDALPamDataset
     char        **papszPrj;
     CPLString   osPrjFilename;
     char        *pszProjection;
-
 
     unsigned char achReadBuf[256];
     GUIntBig    nBufferOffset;
@@ -100,9 +100,11 @@ class CPL_DLL AAIGDataset : public GDALPamDataset
     static int          Identify( GDALOpenInfo * );
     static CPLErr       Delete( const char *pszFilename );
     static CPLErr       Remove( const char *pszFilename, int bRepError );
-    static GDALDataset *CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
-                                int bStrict, char ** papszOptions,
-                                GDALProgressFunc pfnProgress, void * pProgressData );
+    static GDALDataset *CreateCopy( const char * pszFilename,
+                                    GDALDataset *poSrcDS,
+                                    int bStrict, char ** papszOptions,
+                                    GDALProgressFunc pfnProgress,
+                                    void * pProgressData );
 
     virtual CPLErr GetGeoTransform( double * );
     virtual const char *GetProjectionRef(void);
@@ -346,7 +348,12 @@ AAIGDataset::~AAIGDataset()
     FlushCache();
 
     if( fp != NULL )
-        VSIFCloseL( fp );
+    {
+        if( VSIFCloseL( fp ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
 
     CPLFree( pszProjection );
     CSLDestroy( papszPrj );
@@ -1097,7 +1104,7 @@ GDALDataset * AAIGDataset::CreateCopy(
 
     if( VSIFWriteL( szHeader, strlen(szHeader), 1, fpImage ) != 1)
     {
-        VSIFCloseL(fpImage);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fpImage));
         return NULL;
     }
 
@@ -1191,7 +1198,8 @@ GDALDataset * AAIGDataset::CreateCopy(
 
     CPLFree( panScanline );
     CPLFree( padfScanline );
-    VSIFCloseL( fpImage );
+    if( VSIFCloseL( fpImage ) != 0 )
+        eErr = CE_Failure;
 
     if( eErr != CE_None )
         return NULL;
@@ -1222,7 +1230,7 @@ GDALDataset * AAIGDataset::CreateCopy(
             oSRS.exportToWkt( &pszESRIProjection );
             CPL_IGNORE_RET_VAL(VSIFWriteL( pszESRIProjection, 1, strlen(pszESRIProjection), fp ));
 
-            VSIFCloseL( fp );
+            CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             CPLFree( pszESRIProjection );
         }
         else
@@ -1304,30 +1312,28 @@ static CPLString OSR_GDS( char **papszNV, const char * pszField,
 void GDALRegister_AAIGrid()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "AAIGrid" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "AAIGrid" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "AAIGrid" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "Arc/Info ASCII Grid" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_various.html#AAIGrid" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "asc" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
-                                   "Byte UInt16 Int16 Int32 Float32" );
+    poDriver->SetDescription( "AAIGrid" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "Arc/Info ASCII Grid" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
+                               "frmt_various.html#AAIGrid" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "asc" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte UInt16 Int16 Int32 Float32" );
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST, 
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>\n"
 "   <Option name='FORCE_CELLSIZE' type='boolean' description='Force use of CELLSIZE, default is FALSE.'/>\n"
 "   <Option name='DECIMAL_PRECISION' type='int' description='Number of decimal when writing floating-point numbers(%f).'/>\n"
 "   <Option name='SIGNIFICANT_DIGITS' type='int' description='Number of significant digits when writing floating-point numbers(%g).'/>\n"
 "</CreationOptionList>\n" );
-        poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST, 
+    poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
 "<OpenOptionLists>\n"
 "   <Option name='DATATYPE' type='string-select' description='Data type to be used.'>\n"
 "       <Value>Int32</Value>\n"
@@ -1336,12 +1342,11 @@ void GDALRegister_AAIGrid()
 "   </Option>\n"
 "</OpenOptionLists>\n" );
 
-        poDriver->pfnOpen = AAIGDataset::Open;
-        poDriver->pfnIdentify = AAIGDataset::Identify;
-        poDriver->pfnCreateCopy = AAIGDataset::CreateCopy;
+    poDriver->pfnOpen = AAIGDataset::Open;
+    poDriver->pfnIdentify = AAIGDataset::Identify;
+    poDriver->pfnCreateCopy = AAIGDataset::CreateCopy;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }
 
 /************************************************************************/
@@ -1351,24 +1356,21 @@ void GDALRegister_AAIGrid()
 void GDALRegister_GRASSASCIIGrid()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "GRASSASCIIGrid" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "GRASSASCIIGrid" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "GRASSASCIIGrid" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                                   "GRASS ASCII Grid" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                                   "frmt_various.html#GRASSASCIIGrid" );
+    poDriver->SetDescription( "GRASSASCIIGrid" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "GRASS ASCII Grid" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
+                               "frmt_various.html#GRASSASCIIGrid" );
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-        poDriver->pfnOpen = GRASSASCIIDataset::Open;
-        poDriver->pfnIdentify = GRASSASCIIDataset::Identify;
+    poDriver->pfnOpen = GRASSASCIIDataset::Open;
+    poDriver->pfnIdentify = GRASSASCIIDataset::Identify;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

@@ -30,15 +30,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_pam.h"
 #include "gifabstractdataset.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_BIGGIF(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -382,7 +379,7 @@ void GDALRegister_BIGGIF()
     if( GDALGetDriverByName( "BIGGIF" ) != NULL )
         return;
 
-     GDALDriver	*poDriver = new GDALDriver();
+     GDALDriver *poDriver = new GDALDriver();
 
      poDriver->SetDescription( "BIGGIF" );
      poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

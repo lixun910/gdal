@@ -995,7 +995,25 @@ CPLErr GDALECWCompressor::Initialize(
 
         m_OStream.Access( fpVSIL, TRUE, (BOOLEAN) bSeekable, pszFilename, 
 			  0, -1 );
-    }    
+    }
+    else
+    {
+        if( !STARTS_WITH(pszFilename, "/vsi") )
+        {
+            // Try now to create the file to avoid memory leaks if it is
+            // the SDK that fails to do it.
+            fpVSIL = VSIFOpenL( pszFilename, "wb" );
+            if( fpVSIL == NULL )
+            {
+                CPLError( CE_Failure, CPLE_OpenFailed, 
+                        "Failed to open/create %s.", pszFilename );
+                return CE_Failure;
+            }
+            VSIFCloseL(fpVSIL);
+            VSIUnlink(pszFilename);
+            fpVSIL = NULL;
+        }
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Check if we can enable large files.  This option should only    */
@@ -1175,9 +1193,8 @@ ECWCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 /* -------------------------------------------------------------------- */
 /*      For ECW, confirm the datatype is 8bit (or uint16 for ECW v3)    */
 /* -------------------------------------------------------------------- */
-    bool bECWV3 = false;
-
     #if ECWSDK_VERSION >= 50
+    bool bECWV3 = false;
     if (bIsJPEG2000 == FALSE){
         const char* pszOption = CSLFetchNameValue(papszOptions, "ECW_FORMAT_VERSION");
         if( pszOption != NULL )
@@ -1186,7 +1203,11 @@ ECWCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         }
     }
     #endif
-    if( !(eType == GDT_Byte  || (bECWV3 && eType == GDT_UInt16 ) || bIsJPEG2000 ) )
+    if( !(eType == GDT_Byte  ||
+#if ECWSDK_VERSION >= 50
+        (bECWV3 && eType == GDT_UInt16 ) ||
+#endif
+        bIsJPEG2000 ) )
     {
         if( bStrict )
         {
@@ -1352,10 +1373,9 @@ ECWCreateCopyECW( const char * pszFilename, GDALDataset *poSrcDS,
                   "with an extension other than .ecw" );
         return NULL;
     }
-    bool bECWV3 = false;
 
 #if ECWSDK_VERSION >= 50
-
+    bool bECWV3 = false;
     const char* pszOption = CSLFetchNameValue(papszOptions, "ECW_FORMAT_VERSION");
     if( pszOption != NULL )
     {
@@ -1366,7 +1386,9 @@ ECWCreateCopyECW( const char * pszFilename, GDALDataset *poSrcDS,
 
     GDALDataType eDataType = poSrcDS->GetRasterBand(1)->GetRasterDataType();
     if( eDataType != GDT_Byte 
+#if ECWSDK_VERSION >= 50
         && !(bECWV3 && (eDataType == GDT_UInt16))  
+#endif
         && bStrict )
     {
 #if ECWSDK_VERSION >= 50

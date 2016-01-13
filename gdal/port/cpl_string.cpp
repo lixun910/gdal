@@ -334,7 +334,7 @@ char **CSLLoad2( const char *pszFname, int nMaxLines, int nMaxCols,
                                 nAllocatedLines * sizeof(char*) ) );
             if (papszStrListNew == NULL)
             {
-                VSIFCloseL(fp);
+                CPL_IGNORE_RET_VAL( VSIFCloseL(fp) );
                 CPLReadLineL( NULL );
                 CPLError( CE_Failure, CPLE_OutOfMemory,  "CSLLoad2(\"%s\") "
                           "failed: not enough memory to allocate lines.",
@@ -348,7 +348,7 @@ char **CSLLoad2( const char *pszFname, int nMaxLines, int nMaxCols,
         ++nLines;
     }
 
-    VSIFCloseL(fp);
+    CPL_IGNORE_RET_VAL( VSIFCloseL(fp) );
 
     // Free the internal thread local line buffer.
     CPLReadLineL( NULL );
@@ -366,7 +366,7 @@ char **CSLLoad2( const char *pszFname, int nMaxLines, int nMaxCols,
  * The VSI*L API is used, so VSIFOpenL() supported objects that aren't
  * physical files can also be accessed.  Files are returned as a string list,
  * with one item in the string list per line.  End of line markers are
- * stripped (by CPLReadLineL()). 
+ * stripped (by CPLReadLineL()).
  *
  * If reading the file fails a CPLError() will be issued and NULL returned.
  *
@@ -419,7 +419,12 @@ int CSLSave(char **papszStrList, const char *pszFname)
         ++papszStrList;
     }
 
-    VSIFCloseL(fp);
+    if( VSIFCloseL(fp) != 0 )
+    {
+        CPLError( CE_Failure, CPLE_FileIO,
+                  "CSLSave(\"%s\") failed: unable to write to output file.",
+                  pszFname );
+    }
 
     return nLines;
 }
@@ -758,7 +763,7 @@ char ** CSLTokenizeStringComplex( const char * pszString,
 /************************************************************************/
 
 /**
- * Tokenize a string. 
+ * Tokenize a string.
  *
  * This function will split a string into tokens based on specified'
  * delimiter(s) with a variety of options.  The returned result is a
@@ -823,7 +828,7 @@ char ** CSLTokenizeString2( const char * pszString,
     char *pszToken = reinterpret_cast<char *>( CPLCalloc(10,1) );
     int nTokenMax = 10;
 
-    while( pszString != NULL && *pszString != '\0' )
+    while( *pszString != '\0' )
     {
         bool bInString = false;
         bool bStartString = true;
@@ -832,6 +837,15 @@ char ** CSLTokenizeString2( const char * pszString,
         /* Try to find the next delimiter, marking end of token */
         for( ; *pszString != '\0'; ++pszString )
         {
+            /*
+             * Extend token buffer if we are running close to its end.
+             */
+            if( nTokenLen >= nTokenMax-3 )
+            {
+                nTokenMax = nTokenMax * 2 + 10;
+                pszToken = static_cast<char *>(
+                    CPLRealloc( pszToken, nTokenMax ));
+            }
 
             /* End if this is a delimiter skip it and break. */
             if( !bInString && strchr(pszDelimiters, *pszString) != NULL )
@@ -883,16 +897,6 @@ char ** CSLTokenizeString2( const char * pszString,
                 continue;
 
             bStartString = false;
-
-            /*
-             * Extend token buffer if we are running close to its end.
-             */
-            if( nTokenLen >= nTokenMax-3 )
-            {
-                nTokenMax = nTokenMax * 2 + 10;
-                pszToken = static_cast<char *>(
-                    CPLRealloc( pszToken, nTokenMax ));
-            }
 
             pszToken[nTokenLen] = *pszString;
             ++nTokenLen;
@@ -977,7 +981,7 @@ const char *CPLSPrintf(const char *fmt, ...)
 /*      time.                                                           */
 /* -------------------------------------------------------------------- */
     int *pnBufIndex = reinterpret_cast<int *>( pachBufRingInfo );
-    const int nOffset = sizeof(int) + *pnBufIndex * CPLSPrintf_BUF_SIZE;
+    const size_t nOffset = sizeof(int) + *pnBufIndex * CPLSPrintf_BUF_SIZE;
     char *pachBuffer = pachBufRingInfo + nOffset;
 
     *pnBufIndex = (*pnBufIndex + 1) % CPLSPrintf_BUF_Count;
@@ -1462,6 +1466,29 @@ int CPL_DLL CPLsscanf(const char* str, const char* fmt, ...)
 }
 
 /************************************************************************/
+/*                         CPLTestBool()                                */
+/************************************************************************/
+
+/**
+ * Test what boolean value contained in the string.
+ *
+ * If pszValue is "NO", "FALSE", "OFF" or "0" will be returned false.
+ * Otherwise, true will be returned.
+ *
+ * @param pszValue the string should be tested.
+ *
+ * @return true or false.
+ */
+
+bool CPLTestBool( const char *pszValue )
+{
+  return !( EQUAL(pszValue,"NO")
+            || EQUAL(pszValue,"FALSE")
+            || EQUAL(pszValue,"OFF")
+            || EQUAL(pszValue,"0") );
+}
+
+/************************************************************************/
 /*                         CSLTestBoolean()                             */
 /************************************************************************/
 
@@ -1471,6 +1498,10 @@ int CPL_DLL CPLsscanf(const char* str, const char* fmt, ...)
  * If pszValue is "NO", "FALSE", "OFF" or "0" will be returned FALSE.
  * Otherwise, TRUE will be returned.
  *
+ * Deprecated.  Removed in GDAL 3.x.
+ *
+ * Use CPLTestBoolean() for C and CPLTestBool() for C++.
+ *
  * @param pszValue the string should be tested.
  *
  * @return TRUE or FALSE.
@@ -1478,14 +1509,31 @@ int CPL_DLL CPLsscanf(const char* str, const char* fmt, ...)
 
 int CSLTestBoolean( const char *pszValue )
 {
-    if( EQUAL(pszValue,"NO")
-        || EQUAL(pszValue,"FALSE")
-        || EQUAL(pszValue,"OFF")
-        || EQUAL(pszValue,"0") )
-        return FALSE;
-
-    return TRUE;
+    return CPLTestBool( pszValue ) ? TRUE : FALSE;
 }
+
+/************************************************************************/
+/*                         CPLTestBoolean()                             */
+/************************************************************************/
+
+/**
+ * Test what boolean value contained in the string.
+ *
+ * If pszValue is "NO", "FALSE", "OFF" or "0" will be returned FALSE.
+ * Otherwise, TRUE will be returned.
+ *
+ * Use this only in C code.  In C++, prefer CPLTestBool().
+ *
+ * @param pszValue the string should be tested.
+ *
+ * @return TRUE or FALSE.
+ */
+
+int CPLTestBoolean( const char *pszValue )
+{
+    return CPLTestBool( pszValue ) ? TRUE : FALSE;
+}
+
 
 /**********************************************************************
  *                       CSLFetchBoolean()
@@ -1873,7 +1921,8 @@ void CSLSetNameValueSeparator( char ** papszList, const char *pszSeparator )
  * to embed as CDATA within an XML element.  The '\\0' is not escaped and
  * should not be included in the input.
  *
- * CPLES_URL(2): Everything except alphanumerics and the underscore are
+ * CPLES_URL(2): Everything except alphanumerics and the characters 
+ * '$', '-', '_', '.', '+', '!', '*', ''', '(', ')' and ',' (see RFC1738) are 
  * converted to a percent followed by a two digit hex encoding of the character
  * (leading zero supplied if needed).  This is the mechanism used for encoding
  * values to be passed in URLs.
@@ -2012,7 +2061,12 @@ char *CPLEscapeString( const char *pszInput, int nLength,
             if( (pszInput[iIn] >= 'a' && pszInput[iIn] <= 'z')
                 || (pszInput[iIn] >= 'A' && pszInput[iIn] <= 'Z')
                 || (pszInput[iIn] >= '0' && pszInput[iIn] <= '9')
-                || pszInput[iIn] == '_' || pszInput[iIn] == '.' )
+                || pszInput[iIn] == '$' || pszInput[iIn] == '-'
+                || pszInput[iIn] == '_' || pszInput[iIn] == '.' 
+                || pszInput[iIn] == '+' || pszInput[iIn] == '!'
+                || pszInput[iIn] == '*' || pszInput[iIn] == '\''
+                || pszInput[iIn] == '(' || pszInput[iIn] == ')'
+                || pszInput[iIn] == '"' || pszInput[iIn] == ',' )
             {
                 pszOutput[iOut++] = pszInput[iIn];
             }

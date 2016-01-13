@@ -30,10 +30,11 @@
 
 #define NO_DELETE
 
-#include "gdaljp2abstractdataset.h"
-#include "ogr_spatialref.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdaljp2abstractdataset.h"
 #include "gdaljp2metadata.h"
+#include "ogr_spatialref.h"
 #include <string>
 
 #include <geo_normalize.h>
@@ -1108,7 +1109,7 @@ char *MrSIDDataset::SerializeMetadataRec( const LTIMetadataRecord *poMetadataRec
             pszMetadata = (char *)CPLRealloc( pszMetadata, iLength );
             if ( !EQUAL( pszMetadata, "" ) )
                 strncat( pszMetadata, ",", 1 );
-            strncat( pszMetadata, osTemp, iLength );
+            CPLStrlcat( pszMetadata, osTemp, iLength );
         }
     }
 
@@ -2799,6 +2800,8 @@ char *MrSIDDataset::GetOGISDefn( GTIFDefn *psDefnIn )
 
         for( i = 0; i < MIN(10,psDefnIn->nParms); i++ )
             adfParm[i] = psDefnIn->ProjParm[i];
+        for( ; i < 10; i++)
+            adfParm[i] = 0;
 
         adfParm[0] /= psDefnIn->UOMAngleInDegrees;
         adfParm[1] /= psDefnIn->UOMAngleInDegrees;
@@ -3557,29 +3560,30 @@ JP2CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 void GDALRegister_MrSID()
 
 {
-    GDALDriver  *poDriver;
-
-    if (! GDAL_CHECK_VERSION("MrSID driver"))
+    if( !GDAL_CHECK_VERSION( "MrSID driver" ) )
         return;
 
 /* -------------------------------------------------------------------- */
 /*      MrSID driver.                                                   */
 /* -------------------------------------------------------------------- */
-    if( GDALGetDriverByName( "MrSID" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    if( GDALGetDriverByName( "MrSID" ) != NULL )
+        return;
 
-        poDriver->SetDescription( "MrSID" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                        "Multi-resolution Seamless Image Database (MrSID)" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_mrsid.html" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "sid" );
+    GDALDriver *poDriver = new GDALDriver();
+
+    poDriver->SetDescription( "MrSID" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "Multi-resolution Seamless Image Database "
+                               "(MrSID)" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_mrsid.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "sid" );
 
 #ifdef MRSID_ESDK
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
-                                   "Byte Int16 UInt16 Int32 UInt32 Float32 Float64" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte Int16 UInt16 Int32 UInt32 "
+                               "Float32 Float64" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>"
 // Version 2 Options
 "   <Option name='COMPRESSION' type='double' description='Set compression ratio (0.0 default is meant to be lossless)'/>"
@@ -3592,55 +3596,50 @@ void GDALRegister_MrSID()
 "   <Option name='VERSION' type='int' description='Valid versions are 2 and 3, default = 3'/>"
 "</CreationOptionList>" );
 
-        poDriver->pfnCreateCopy = MrSIDCreateCopy;
+    poDriver->pfnCreateCopy = MrSIDCreateCopy;
 
 #else
-        /* In read-only mode, we support VirtualIO. I don't think this is the case */
-        /* for MrSIDCreateCopy() */
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    // In read-only mode, we support VirtualIO. I don't think this is the case
+    // for MrSIDCreateCopy().
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 #endif
-        poDriver->pfnIdentify = MrSIDIdentify;
-        poDriver->pfnOpen = MrSIDOpen;
+    poDriver->pfnIdentify = MrSIDIdentify;
+    poDriver->pfnOpen = MrSIDOpen;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 
 /* -------------------------------------------------------------------- */
 /*      JP2MRSID driver.                                                */
 /* -------------------------------------------------------------------- */
 #ifdef MRSID_J2K
-    if( GDALGetDriverByName( "JP2MrSID" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "JP2MrSID" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                        "MrSID JPEG2000" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_jp2mrsid.html" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "jp2" );
+    poDriver->SetDescription( "JP2MrSID" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "MrSID JPEG2000" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_jp2mrsid.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "jp2" );
 
 #ifdef MRSID_ESDK
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
-                                   "Byte Int16 UInt16" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte Int16 UInt16" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>"
 "   <Option name='COMPRESSION' type='double' description='Set compression ratio (0.0 default is meant to be lossless)'/>"
 "   <Option name='WORLDFILE' type='boolean' description='Write out world file'/>"
 "   <Option name='XMLPROFILE' type='string' description='Use named xml profile file'/>"
 "</CreationOptionList>" );
 
-        poDriver->pfnCreateCopy = JP2CreateCopy;
+    poDriver->pfnCreateCopy = JP2CreateCopy;
 #else
         /* In read-only mode, we support VirtualIO. I don't think this is the case */
         /* for JP2CreateCopy() */
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 #endif
-        poDriver->pfnIdentify = JP2Identify;
-        poDriver->pfnOpen = JP2Open;
+    poDriver->pfnIdentify = JP2Identify;
+    poDriver->pfnOpen = JP2Open;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 #endif /* def MRSID_J2K */
 }
 

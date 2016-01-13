@@ -247,6 +247,7 @@ OGRLayer * OGRMSSQLSpatialDataSource::ICreateLayer( const char * pszLayerName,
     {
       int length = static_cast<int>(pszDotPos - pszLayerName);
       pszSchemaName = (char*)CPLMalloc(length+1);
+      CPLAssert(pszSchemaName != NULL); /* to make Coverity happy and not believe a REVERSE_INULL is possible */
       strncpy(pszSchemaName, pszLayerName, length);
       pszSchemaName[length] = '\0';
 
@@ -287,8 +288,8 @@ OGRLayer * OGRMSSQLSpatialDataSource::ICreateLayer( const char * pszLayerName,
             if( CSLFetchNameValue( papszOptions, "OVERWRITE" ) != NULL
                 && !EQUAL(CSLFetchNameValue(papszOptions,"OVERWRITE"),"NO") )
             {
-                if (!pszSchemaName)
-                    pszSchemaName = CPLStrdup(papoLayers[iLayer]->GetSchemaName());
+                CPLFree(pszSchemaName);
+                pszSchemaName = CPLStrdup(papoLayers[iLayer]->GetSchemaName());
 
                 DeleteLayer( iLayer );
             }
@@ -543,8 +544,7 @@ int OGRMSSQLSpatialDataSource::ParseValue(char** pszValue, char* pszSource, cons
             EQUALN(pszSource + nStart, pszKey, nLen))
     {
         *pszValue = (char*)CPLMalloc( sizeof(char) * (nNext - nStart - nLen + 1) );
-        if (*pszValue)
-            strncpy(*pszValue, pszSource + nStart + nLen, nNext - nStart - nLen);
+        strncpy(*pszValue, pszSource + nStart + nLen, nNext - nStart - nLen);
         (*pszValue)[nNext - nStart - nLen] = 0;
 
         if (bRemove)

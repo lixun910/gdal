@@ -71,6 +71,11 @@ CPLErr GDALRasterBand::IRasterIO( GDALRWFlag eRWFlag,
         eFlushBlockErr = CE_None;
         return eErr;
     }
+    if( nBlockXSize <= 0 || nBlockYSize <= 0 )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined, "Invalid block size" );
+        return CE_Failure;
+    }
 
 /* ==================================================================== */
 /*      A common case is the data requested with the destination        */
@@ -1864,7 +1869,7 @@ inline void GDALCopyWordsComplexOutT(const Tin* const CPL_RESTRICT pSrcData, int
 
     for (std::ptrdiff_t n = 0; n < nWordCount; n++)
     {
-        const Tin tValue = *reinterpret_cast<const Tin* const>(pSrcDataPtr + n * nSrcPixelStride);
+        const Tin tValue = *reinterpret_cast<const Tin*>(pSrcDataPtr + n * nSrcPixelStride);
         Tout* const pPixelOut = reinterpret_cast<Tout*>(pDstDataPtr + nDstOffset);
         GDALCopyWord(tValue, *pPixelOut);
 

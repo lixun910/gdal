@@ -28,14 +28,11 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gxfopen.h"
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
+#include "gxfopen.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_GXF(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -233,7 +230,7 @@ const char *GXFDataset::GetProjectionRef()
 GDALDataset *GXFDataset::Open( GDALOpenInfo * poOpenInfo )
 
 {
-    GXFHandle	hGXF;
+    GXFHandle	l_hGXF;
     int		i, bFoundKeyword, bFoundIllegal;
 
 /* -------------------------------------------------------------------- */
@@ -302,9 +299,9 @@ GDALDataset *GXFDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      Try opening the dataset.                                        */
 /* -------------------------------------------------------------------- */
 
-    hGXF = GXFOpen( poOpenInfo->pszFilename );
+    l_hGXF = GXFOpen( poOpenInfo->pszFilename );
 
-    if( hGXF == NULL )
+    if( l_hGXF == NULL )
         return( NULL );
 
 /* -------------------------------------------------------------------- */
@@ -312,7 +309,7 @@ GDALDataset *GXFDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     if( poOpenInfo->eAccess == GA_Update )
     {
-        GXFClose(hGXF);
+        GXFClose(l_hGXF);
         CPLError( CE_Failure, CPLE_NotSupported, 
                   "The GXF driver does not support update access to existing"
                   " datasets.\n" );
@@ -335,18 +332,18 @@ GDALDataset *GXFDataset::Open( GDALOpenInfo * poOpenInfo )
         eDT = GDT_Float32;
     }
 
-    poDS->hGXF = hGXF;
+    poDS->hGXF = l_hGXF;
     poDS->eDataType = eDT;
 
 /* -------------------------------------------------------------------- */
 /*	Establish the projection.					*/
 /* -------------------------------------------------------------------- */
-    poDS->pszProjection = GXFGetMapProjectionAsOGCWKT( hGXF );
+    poDS->pszProjection = GXFGetMapProjectionAsOGCWKT( l_hGXF );
 
 /* -------------------------------------------------------------------- */
 /*      Capture some information from the file that is of interest.     */
 /* -------------------------------------------------------------------- */
-    GXFGetRawInfo( hGXF, &(poDS->nRasterXSize), &(poDS->nRasterYSize), NULL,
+    GXFGetRawInfo( l_hGXF, &(poDS->nRasterXSize), &(poDS->nRasterYSize), NULL,
                    NULL, NULL, &(poDS->dfNoDataValue) );
 
     if  (poDS->nRasterXSize <= 0 || poDS->nRasterYSize <= 0)
@@ -385,22 +382,19 @@ GDALDataset *GXFDataset::Open( GDALOpenInfo * poOpenInfo )
 void GDALRegister_GXF()
 
 {
-    GDALDriver	*poDriver;
+    if( GDALGetDriverByName( "GXF" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "GXF" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "GXF" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "GeoSoft Grid Exchange Format" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_various.html#GXF" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "gxf" );
+    poDriver->SetDescription( "GXF" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "GeoSoft Grid Exchange Format" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#GXF" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "gxf" );
 
-        poDriver->pfnOpen = GXFDataset::Open;
+    poDriver->pfnOpen = GXFDataset::Open;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

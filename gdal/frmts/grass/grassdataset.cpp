@@ -30,15 +30,12 @@
 
 #include <libgrass.h>
 
-#include "gdal_priv.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_priv.h"
 #include "ogr_spatialref.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_GRASS(void);
-CPL_C_END
 
 /************************************************************************/
 /*                         Grass2CPLErrorHook()                         */
@@ -585,25 +582,21 @@ GDALDataset *GRASSDataset::Open( GDALOpenInfo * poOpenInfo )
 void GDALRegister_GRASS()
 
 {
-    GDALDriver	*poDriver;
-
-    if (! GDAL_CHECK_VERSION("GDAL/GRASS driver"))
+    if( !GDAL_CHECK_VERSION( "GDAL/GRASS driver" ) )
         return;
 
-    if( GDALGetDriverByName( "GRASS" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    if( GDALGetDriverByName( "GRASS" ) != NULL )
+        return;
 
-        poDriver->SetDescription( "GRASS" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "GRASS Database Rasters" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_grass.html" );
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->pfnOpen = GRASSDataset::Open;
+    poDriver->SetDescription( "GRASS" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "GRASS Database Rasters" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_grass.html" );
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    poDriver->pfnOpen = GRASSDataset::Open;
+
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }
 

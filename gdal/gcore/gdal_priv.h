@@ -181,6 +181,8 @@ class CPL_DLL GDALDefaultOverviews
                            char **papszSiblingFiles = NULL,
                            int bNameIsOVR = FALSE );
 
+    void       TransferSiblingFiles(char** papszSiblingFiles);
+
     int        IsInitialized();
 
     int        CloseDependentDatasets();
@@ -254,6 +256,8 @@ class CPL_DLL GDALOpenInfo
 
     int         TryToIngest(int nBytes);
     char      **GetSiblingFiles();
+    char      **StealSiblingFiles();
+    bool        AreSiblingFilesLoaded() const;
 
   private:
     CPL_DISALLOW_COPY_ASSIGN(GDALOpenInfo);
@@ -697,8 +701,8 @@ class CPL_DLL GDALAbstractBandBlockCache
             GDALRasterBlock* CreateBlock(int nXBlockOff, int nYBlockOff);
             void             AddBlockToFreeList( GDALRasterBlock * );
 
-            virtual int              Init() = 0;
-            virtual int              IsInitOK() = 0;
+            virtual bool             Init() = 0;
+            virtual bool             IsInitOK() = 0;
             virtual CPLErr           FlushCache() = 0;
             virtual CPLErr           AdoptBlock( GDALRasterBlock* poBlock ) = 0;
             virtual GDALRasterBlock *TryGetLockedBlockRef( int nXBlockOff,

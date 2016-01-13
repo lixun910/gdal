@@ -46,7 +46,7 @@ int   RemapImgUTMNames(OGRSpatialReference* pOgr, const char* pszProjCSName,
 int   RemapNameBasedOnKeyName(OGRSpatialReference* pOgr, const char* pszName, 
                              const char* pszkeyName, char **mappingTable);
 int   RemapNamesBasedOnTwo(OGRSpatialReference* pOgr, const char* name1, const char* name2, 
-                             char **mappingTable, long nTableStepSize, 
+                             char **mappingTable, int nTableStepSize, 
                              char** pszkeyNames, long nKeys);
 int   RemapPValuesBasedOnProjCSAndPName(OGRSpatialReference* pOgr, 
                              const char* pszProgCSName, char **mappingTable);
@@ -1275,6 +1275,7 @@ OGRErr OGRSpatialReference::morphToESRI()
 /* -------------------------------------------------------------------- */
 /*      Remap parameters used for Albers.                               */
 /* -------------------------------------------------------------------- */
+    CPL_IGNORE_RET_VAL(pszProjection); /* we don't remove the previous pszProjection assignment, to easy mainability */
     pszProjection = GetAttrValue("PROJECTION");
     poProjCS = GetAttrNode( "PROJCS" );
 
@@ -2115,7 +2116,7 @@ int RemapNameBasedOnKeyName( OGRSpatialReference* pOgr, const char* pszName, con
 /************************************************************************/
 
 int RemapNamesBasedOnTwo( OGRSpatialReference* pOgr, const char* name1, const char* name2, 
-                          char **mappingTable, long nTableStepSize, 
+                          char **mappingTable, int nTableStepSize, 
                           char** pszkeyNames, long nKeys )
 {
     int i;
@@ -2415,6 +2416,9 @@ OGRErr OGRSpatialReference::ImportFromESRIStatePlaneWKT(  int code, const char* 
     }
     else /* Find state plane prj str by all inputs. */
     {
+        if( code < 0 || code > INT_MAX / 10 )
+            return OGRERR_FAILURE;
+
         /* Need to have a special EPSG-ESRI zone code mapping first. */
         for(int i=0; statePlaneZoneMapping[i] != 0; i+=3)
         {

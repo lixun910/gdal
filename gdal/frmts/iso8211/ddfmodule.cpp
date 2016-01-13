@@ -102,7 +102,7 @@ void DDFModule::Close()
 /* -------------------------------------------------------------------- */
     if( fpDDF != NULL )
     {
-        VSIFCloseL( fpDDF );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpDDF ));
         fpDDF = NULL;
     }
 
@@ -116,12 +116,14 @@ void DDFModule::Close()
     }
 
 /* -------------------------------------------------------------------- */
-/*      Cleanup the clones.  Deleting them will cause a callback to     */
-/*      remove them from the list.                                      */
+/*      Cleanup the clones.                                             */
 /* -------------------------------------------------------------------- */
-    while( nCloneCount > 0 )
-        delete papoClones[0];
-
+    for( int i = 0; i < nCloneCount; i++ )
+    {
+        papoClones[i]->RemoveIsCloneFlag();
+        delete papoClones[i];
+    }
+    nCloneCount = 0;
     nMaxCloneCount = 0;
     CPLFree( papoClones );
     papoClones = NULL;
@@ -129,9 +131,7 @@ void DDFModule::Close()
 /* -------------------------------------------------------------------- */
 /*      Cleanup the field definitions.                                  */
 /* -------------------------------------------------------------------- */
-    int i;
-
-    for( i = 0; i < nFieldDefnCount; i++ )
+    for( int i = 0; i < nFieldDefnCount; i++ )
         delete papoFieldDefns[i];
     CPLFree( papoFieldDefns );
     papoFieldDefns = NULL;
@@ -191,7 +191,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
 
     if( (int)VSIFReadL( achLeader, 1, nLeaderSize, fpDDF ) != nLeaderSize )
     {
-        VSIFCloseL( fpDDF );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpDDF ));
         fpDDF = NULL;
 
         if( !bFailQuietly )
@@ -257,7 +257,7 @@ int DDFModule::Open( const char * pszFilename, int bFailQuietly )
 /* -------------------------------------------------------------------- */
     if( !bValid )
     {
-        VSIFCloseL( fpDDF );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpDDF ));
         fpDDF = NULL;
 
         if( !bFailQuietly )

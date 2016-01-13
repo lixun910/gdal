@@ -173,7 +173,11 @@ int GDALJP2Box::ReadBox()
             CPL_MSBPTR32( abyXLBox+4 );
             memcpy( &nBoxLength, abyXLBox+4, 4 );
         }
-
+        if( nBoxLength < 0 )
+        {
+            CPLDebug("GDALJP2", "Invalid length for box %s", szBoxType);
+            return FALSE;
+        }
         nDataOffset = nBoxOffset + 16;
     }
 
@@ -403,7 +407,7 @@ void GDALJP2Box::AppendUInt8( GByte nVal )
 /************************************************************************/
 
 GDALJP2Box *GDALJP2Box::CreateUUIDBox( 
-    const GByte *pabyUUID, int nDataSize, const GByte *pabyData )
+    const GByte *pabyUUID, int nDataSize, const GByte *pabyDataIn )
 
 {
     GDALJP2Box *poBox;
@@ -412,7 +416,7 @@ GDALJP2Box *GDALJP2Box::CreateUUIDBox(
     poBox->SetType( "uuid" );
 
     poBox->AppendWritableData( 16, pabyUUID );
-    poBox->AppendWritableData( nDataSize, pabyData );
+    poBox->AppendWritableData( nDataSize, pabyDataIn );
 
     return poBox;
 }

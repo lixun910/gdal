@@ -36,6 +36,8 @@
 
 CPL_CVSID("$Id$");
 
+CPL_INLINE static void CPL_IGNORE_RET_VAL_INT(CPL_UNUSED int unused) {}
+
 static int NITFWriteBLOCKA( VSILFILE* fp, vsi_l_offset nOffsetUDIDL,
                             int *pnOffset,
                             char **papszOptions );
@@ -98,15 +100,14 @@ NITFFile *NITFOpenEx(VSILFILE *fp, const char *pszFilename)
 /* -------------------------------------------------------------------- */
 /*      Check file type.                                                */
 /* -------------------------------------------------------------------- */
-    VSIFSeekL( fp, 0, SEEK_SET );
-    VSIFReadL( szTemp, 1, 9, fp );
-
-    if( !STARTS_WITH_CI(szTemp, "NITF") && !STARTS_WITH_CI(szTemp, "NSIF") )
+    if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 ||
+        VSIFReadL( szTemp, 1, 9, fp ) != 9 ||
+        (!STARTS_WITH_CI(szTemp, "NITF") && !STARTS_WITH_CI(szTemp, "NSIF")) )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "The file %s is not an NITF file.", 
                   pszFilename );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -119,7 +120,7 @@ NITFFile *NITFOpenEx(VSILFILE *fp, const char *pszFilename)
         CPLError( CE_Failure, CPLE_NotSupported, 
                   "Unable to read FSDWNG field from NITF file.  File is either corrupt\n"
                   "or empty." );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -137,21 +138,23 @@ NITFFile *NITFOpenEx(VSILFILE *fp, const char *pszFilename)
         CPLError( CE_Failure, CPLE_NotSupported, 
                   "Unable to read header length from NITF file.  File is either corrupt\n"
                   "or empty." );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         return NULL;
     }
 
     szTemp[6] = '\0';
     nHeaderLen = atoi(szTemp);
 
-    VSIFSeekL( fp, nHeaderLen, SEEK_SET );
-    currentPos = VSIFTellL( fp ) ;
+    if( VSIFSeekL( fp, nHeaderLen, SEEK_SET ) != 0 )
+        currentPos = 0;
+    else
+        currentPos = VSIFTellL( fp ) ;
     if( nHeaderLen < nHeaderLenOffset || nHeaderLen > currentPos )
     {
         CPLError( CE_Failure, CPLE_NotSupported, 
                   "NITF Header Length (%d) seems to be corrupt.",
                   nHeaderLen );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -161,15 +164,15 @@ NITFFile *NITFOpenEx(VSILFILE *fp, const char *pszFilename)
     pachHeader = (char *) VSI_MALLOC_VERBOSE(nHeaderLen);
     if (pachHeader == NULL)
     {
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         return NULL;
     }
-    VSIFSeekL( fp, 0, SEEK_SET );
-    if ((int)VSIFReadL( pachHeader, 1, nHeaderLen, fp ) != nHeaderLen)
+    if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 ||
+        (int)VSIFReadL( pachHeader, 1, nHeaderLen, fp ) != nHeaderLen )
     {
         CPLError( CE_Failure, CPLE_FileIO, 
                   "Cannot read %d bytes for NITF header", (nHeaderLen));
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
         CPLFree(pachHeader);
         return NULL;
     }
@@ -270,26 +273,29 @@ retry_read_header:
         GUIntBig nFileSize;
         GByte abyDELIM2_L2[12];
         GByte abyL1_DELIM1[11];
+        int bOK;
 
         bTriedStreamingFileHeader = TRUE;
         CPLDebug("NITF", "Total file unknown. Trying to get a STREAMING_FILE_HEADER");
 
-        VSIFSeekL( fp, 0, SEEK_END );
+        bOK = VSIFSeekL( fp, 0, SEEK_END ) == 0;
         nFileSize = VSIFTellL(fp);
 
-        VSIFSeekL( fp, nFileSize - 11, SEEK_SET );
+        bOK &= VSIFSeekL( fp, nFileSize - 11, SEEK_SET ) == 0;
         abyDELIM2_L2[11] = '\0';
 
-        if (VSIFReadL( abyDELIM2_L2, 1, 11, fp ) == 11 &&
+        if (bOK &&
+            VSIFReadL( abyDELIM2_L2, 1, 11, fp ) == 11 &&
             abyDELIM2_L2[0] == 0x0E && abyDELIM2_L2[1] == 0xCA &&
             abyDELIM2_L2[2] == 0x14 && abyDELIM2_L2[3] == 0xBF)
         {
             int SFHL2 = atoi((const char*)(abyDELIM2_L2 + 4));
             if (SFHL2 > 0 && (nFileSize > (size_t)(11 + SFHL2 + 11)) )
             {
-                VSIFSeekL( fp, nFileSize - 11 - SFHL2 - 11 , SEEK_SET );
+                bOK &= VSIFSeekL( fp, nFileSize - 11 - SFHL2 - 11 , SEEK_SET ) == 0;
 
-                if ( VSIFReadL( abyL1_DELIM1, 1, 11, fp ) == 11 &&
+                if ( bOK &&
+                     VSIFReadL( abyL1_DELIM1, 1, 11, fp ) == 11 &&
                      abyL1_DELIM1[7] == 0x0A && abyL1_DELIM1[8] == 0x6E &&
                      abyL1_DELIM1[9] == 0x1D && abyL1_DELIM1[10] == 0x97 &&
                      memcmp(abyL1_DELIM1, abyDELIM2_L2 + 4, 7) == 0 )
@@ -301,7 +307,7 @@ retry_read_header:
 
                         if ( (int)VSIFReadL( pachHeader, 1, SFHL2, fp ) != SFHL2 )
                         {
-                            VSIFCloseL(fp);
+                            CPL_IGNORE_RET_VAL_INT(VSIFCloseL(fp));
                             CPLFree(pachHeader);
                             CPLFree(psFile);
                             return NULL;
@@ -311,6 +317,11 @@ retry_read_header:
                     }
                 }
             }
+        }
+        if( !bOK )
+        {
+            NITFClose(psFile);
+            return NULL;
         }
     }
 
@@ -468,7 +479,7 @@ void NITFClose( NITFFile *psFile )
 
     CPLFree( psFile->pasSegmentInfo );
     if( psFile->fp != NULL )
-        VSIFCloseL( psFile->fp );
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL( psFile->fp ));
     CPLFree( psFile->pachHeader );
     CSLDestroy( psFile->papszMetadata );
     CPLFree( psFile->pachTRE );
@@ -479,8 +490,9 @@ void NITFClose( NITFFile *psFile )
     CPLFree( psFile );
 }
 
-static void NITFGotoOffset(VSILFILE* fp, GUIntBig nLocation)
+static int NITFGotoOffset(VSILFILE* fp, GUIntBig nLocation)
 {
+    int bOK = TRUE;
     GUIntBig nCurrentLocation = VSIFTellL(fp);
     if (nLocation > nCurrentLocation)
     {
@@ -488,21 +500,25 @@ static void NITFGotoOffset(VSILFILE* fp, GUIntBig nLocation)
         size_t iFill;
         char cSpace = ' ';
 
-        VSIFSeekL(fp, 0, SEEK_END);
+        bOK &= VSIFSeekL(fp, 0, SEEK_END) == 0;
         nFileSize = VSIFTellL(fp);
-        if (nLocation > nFileSize)
+        if (bOK && nLocation > nFileSize)
         {
-            for(iFill = 0; iFill < nLocation - nFileSize; iFill++)
-                VSIFWriteL(&cSpace, 1, 1, fp);
+            for(iFill = 0; bOK && iFill < nLocation - nFileSize; iFill++)
+                bOK &= VSIFWriteL(&cSpace, 1, 1, fp) == 1;
         }
         else
-            VSIFSeekL(fp, nLocation, SEEK_SET);
+            bOK &= VSIFSeekL(fp, nLocation, SEEK_SET) == 0;
     }
     else if (nLocation < nCurrentLocation)
     {
-        VSIFSeekL(fp, nLocation, SEEK_SET);
+        bOK &= VSIFSeekL(fp, nLocation, SEEK_SET) == 0;
     }
-
+    if( !bOK )
+    {
+        CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+    }
+    return bOK;
 }
 
 /************************************************************************/
@@ -533,6 +549,7 @@ int NITFCreate( const char *pszFilename,
     const char *pszNUMI;
     int iGS, nGS = 0; // number of graphic segment
     const char *pszNUMS; // graphic segment option string
+    int bOK;
 
     if (nBands <= 0 || nBands > 99999)
     {
@@ -757,24 +774,26 @@ int NITFCreate( const char *pszFilename,
 
 #define PLACE(location,name,text)  { \
     const char* _text = text; \
-    NITFGotoOffset(fp, location); \
-    VSIFWriteL(_text, 1, strlen(_text), fp); }
+    bOK &= NITFGotoOffset(fp, location); \
+    bOK &= VSIFWriteL(_text, 1, strlen(_text), fp) == strlen(_text); }
 
 #define OVR(width,location,name,text) { 				\
     const char* _text = text; \
     const char *pszParmValueMacro; 						\
+    size_t to_write; \
     pszParmValueMacro = CSLFetchNameValue( papszOptions, #name ); 		\
     if( pszParmValueMacro == NULL )						\
         pszParmValueMacro = _text;						\
-    NITFGotoOffset(fp, location); \
-    VSIFWriteL(pszParmValueMacro, 1, MIN(width,strlen(pszParmValueMacro)), fp); }
+    bOK &= NITFGotoOffset(fp, location); \
+    to_write = MIN(width,strlen(pszParmValueMacro)); \
+    bOK &= VSIFWriteL(pszParmValueMacro, 1, to_write, fp) == to_write; }
 
 #define WRITE_BYTE(location, val) { \
     char cVal = val; \
-    NITFGotoOffset(fp, location); \
-    VSIFWriteL(&cVal, 1, 1, fp); }
+    bOK &= NITFGotoOffset(fp, location); \
+    bOK &= VSIFWriteL(&cVal, 1, 1, fp) == 1; }
 
-    VSIFSeekL(fp, 0, SEEK_SET);
+    bOK = VSIFSeekL(fp, 0, SEEK_SET) == 0;
 
     PLACE (  0, FDHR_FVER,    pszVersion                      );
     OVR( 2,  9, CLEVEL,       "03"                            );  /* Patched at the end */
@@ -851,7 +870,7 @@ int NITFCreate( const char *pszFilename,
 
     if( CSLFetchNameValue(papszOptions,"FILE_TRE") != NULL )
     {
-        NITFWriteTREsFromOptions(
+        bOK &= NITFWriteTREsFromOptions(
             fp,
             nHL - 10,
             &nHL,
@@ -862,7 +881,7 @@ int NITFCreate( const char *pszFilename,
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Too big file header length : %d", nHL);
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL( fp ));
         return FALSE;
     }
 
@@ -900,7 +919,7 @@ int NITFCreate( const char *pszFilename,
         }
     }
 
-    VSIFSeekL(fp, nCur, SEEK_SET);
+    bOK &= VSIFSeekL(fp, nCur, SEEK_SET) == 0;
 
     PLACE (nCur+  0, IM           , "IM"                           );
     OVR(10,nCur+  2, IID1         , "Missing"                      );
@@ -954,13 +973,15 @@ int NITFCreate( const char *pszFilename,
         {
             int nLenICOM = (int)strlen(pszICOM);
             int nICOM = (79 + nLenICOM) / 80;
+            size_t nToWrite;
             if (nICOM > 9)
             {
                 CPLError(CE_Warning, CPLE_NotSupported, "ICOM will be truncated");
                 nICOM = 9;
             }
             PLACE (nCur+nOffset, NICOM    , CPLSPrintf("%01d",nICOM) );
-            VSIFWriteL(pszICOM, 1, MIN(nICOM * 80, nLenICOM), fp);
+            nToWrite = MIN(nICOM * 80, nLenICOM);
+            bOK &= VSIFWriteL(pszICOM, 1, nToWrite, fp) == nToWrite;
             nOffset += nICOM * 80;
         }
         else
@@ -1124,7 +1145,7 @@ int NITFCreate( const char *pszFilename,
 
     if( CSLFetchNameValue(papszOptions,"TRE") != NULL )
     {
-        NITFWriteTREsFromOptions(
+        bOK &= NITFWriteTREsFromOptions(
             fp,
             nOffsetUDIDL, 
             &nOffset, 
@@ -1140,7 +1161,7 @@ int NITFCreate( const char *pszFilename,
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Too big image header length : %d", nIHSize);
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL( fp ));
         return FALSE;
     }
 
@@ -1182,7 +1203,7 @@ int NITFCreate( const char *pszFilename,
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Too big file : " CPL_FRMT_GUIB, nCur);
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL_INT(VSIFCloseL( fp ));
         return FALSE;
     }
 
@@ -1195,13 +1216,14 @@ int NITFCreate( const char *pszFilename,
     if( EQUAL(pszIC,"NC") )
     {
         char cNul = 0;
-        VSIFSeekL( fp, nCur-1, SEEK_SET );
-        VSIFWriteL( &cNul, 1, 1, fp );
+        bOK &= VSIFSeekL( fp, nCur-1, SEEK_SET ) == 0;
+        bOK &= VSIFWriteL( &cNul, 1, 1, fp ) == 1;
     }
 
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+        bOK = FALSE;
 
-    return TRUE;
+    return bOK;
 }
 
 /************************************************************************/
@@ -1216,12 +1238,13 @@ static int NITFWriteTRE( VSILFILE* fp,
 {
     char szTemp[12];
     int  nOldOffset;
+    int bOK = TRUE;
 
 /* -------------------------------------------------------------------- */
 /*      Update IXSHDL.                                                  */
 /* -------------------------------------------------------------------- */
-    VSIFSeekL(fp, nOffsetUDIDL + 5, SEEK_SET);
-    VSIFReadL(szTemp, 1, 5, fp);
+    bOK &= VSIFSeekL(fp, nOffsetUDIDL + 5, SEEK_SET) == 0;
+    bOK &= VSIFReadL(szTemp, 1, 5, fp) == 5;
     szTemp[5] = 0;
     nOldOffset = atoi(szTemp);
 
@@ -1246,16 +1269,16 @@ static int NITFWriteTRE( VSILFILE* fp,
 /* -------------------------------------------------------------------- */
     snprintf( szTemp, sizeof(szTemp), "%-6s%05d", 
              pszTREName, nTREDataSize );
-    VSIFSeekL(fp, nOffsetUDIDL + 10 + nOldOffset, SEEK_SET);
-    VSIFWriteL(szTemp, 11, 1, fp);
-    VSIFWriteL(pabyTREData, nTREDataSize, 1, fp);
+    bOK &= VSIFSeekL(fp, nOffsetUDIDL + 10 + nOldOffset, SEEK_SET) == 0;
+    bOK &= VSIFWriteL(szTemp, 11, 1, fp) == 1;
+    bOK &= (int)VSIFWriteL(pabyTREData, 1, nTREDataSize, fp) == nTREDataSize;
 
 /* -------------------------------------------------------------------- */
 /*      Increment values.                                               */
 /* -------------------------------------------------------------------- */
     *pnOffset += nTREDataSize + 11;
 
-    return TRUE;
+    return bOK;
 }
 
 /************************************************************************/
@@ -1651,6 +1674,9 @@ void NITFExtractMetadata( char ***ppapszMetadata, const char *pachHeader,
 {
     char szWork[400];
     char* pszWork;
+
+    if( nLength <= 0 )
+        return;
 
     if (nLength >= (int)(sizeof(szWork) - 1))
         pszWork = (char*)CPLMalloc(nLength + 1);
@@ -2133,19 +2159,31 @@ static char** NITFGenericMetadataReadTREInternal(char **papszMD,
                 const char* pszLengthVar = CPLGetXMLValue(psIter, "length_var", NULL);
                 if (pszLengthVar != NULL)
                 {
-                    char** papszMDIter = papszMD;
-                    while(papszMDIter != NULL && *papszMDIter != NULL)
+                    // Preferably look for item at the same level as ours.
+                    const char* pszLengthValue =
+                        CSLFetchNameValue( papszMD,  CPLSPrintf("%s%s", pszMDPrefix, pszLengthVar) );
+                    if( pszLengthValue != NULL )
                     {
-                        if (strstr(*papszMDIter, pszLengthVar) != NULL)
+                        nLength = atoi(pszLengthValue);
+                    }
+                    else
+                    {
+                        char** papszMDIter = papszMD;
+                        while(papszMDIter != NULL && *papszMDIter != NULL)
                         {
-                            const char* pszEqual = strchr(*papszMDIter, '=');
-                            if (pszEqual != NULL)
+                            if (strstr(*papszMDIter, pszLengthVar) != NULL)
                             {
-                                nLength = atoi(pszEqual + 1);
-                                break;
+                                const char* pszEqual = strchr(*papszMDIter, '=');
+                                if (pszEqual != NULL)
+                                {
+                                    nLength = atoi(pszEqual + 1);
+                                    // Voluntary missing break so as to find the
+                                    // "closest" item to ours in case it is not
+                                    // defined in the same level
+                                }
                             }
+                            papszMDIter ++;
                         }
-                        papszMDIter ++;
                     }
                 }
             }

@@ -29,16 +29,13 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
+#include "rawdataset.h"
 #include <algorithm>
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void GDALRegister_ENVI(void);
-CPL_C_END
 
 static const int anUsgsEsriZones[] =
 {
@@ -343,9 +340,19 @@ ENVIDataset::~ENVIDataset()
 {
     FlushCache();
     if( fpImage )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
     if( fp )
-        VSIFCloseL( fp );
+    {
+        if( VSIFCloseL( fp ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
     CPLFree( pszProjection );
     CSLDestroy( papszHeader );
     CPLFree(pszHDRFilename);
@@ -1735,7 +1742,7 @@ void ENVIDataset::ProcessStatsFile()
     int lTestHeader[10];
     if( VSIFReadL( lTestHeader, sizeof(int), 10, fpStaFile ) != 10 )
     {
-        VSIFCloseL( fpStaFile );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpStaFile ));
         osStaFilename = "";
         return;
     }
@@ -1793,7 +1800,7 @@ void ENVIDataset::ProcessStatsFile()
             CPLFree(dStats);
         }
     }
-    VSIFCloseL( fpStaFile );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fpStaFile ));
 }
 
 int ENVIDataset::byteSwapInt(int swapMe)
@@ -1984,12 +1991,12 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( VSIFReadL( szTestHdr, 4, 1, fpHeader ) != 1 )
     {
-        VSIFCloseL( fpHeader );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpHeader ));
         return NULL;
     }
     if( !STARTS_WITH(szTestHdr, "ENVI") )
     {
-        VSIFCloseL( fpHeader );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpHeader ));
         return NULL;
     }
 
@@ -2250,13 +2257,20 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     int	nDataSize = GDALGetDataTypeSize(eType)/8;
     int nPixelOffset, nLineOffset;
     vsi_l_offset nBandOffset;
-    bool bIntOverflow = false;
+    CPLAssert(nDataSize != 0);
+    CPLAssert(nBands != 0);
 
     if( STARTS_WITH_CI(pszInterleave, "bil") )
     {
         poDS->interleave = BIL;
         poDS->SetMetadataItem( "INTERLEAVE", "LINE", "IMAGE_STRUCTURE" );
-        if (nSamples > INT_MAX / (nDataSize * nBands)) bIntOverflow = true;
+        if (nSamples > INT_MAX / (nDataSize * nBands))
+        {
+            delete poDS;
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "Int overflow occurred.");
+            return NULL;
+        }
         nLineOffset = nDataSize * nSamples * nBands;
         nPixelOffset = nDataSize;
         nBandOffset = (vsi_l_offset)nDataSize * nSamples;
@@ -2265,7 +2279,13 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     {
         poDS->interleave = BIP;
         poDS->SetMetadataItem( "INTERLEAVE", "PIXEL", "IMAGE_STRUCTURE" );
-        if (nSamples > INT_MAX / (nDataSize * nBands)) bIntOverflow = true;
+        if (nSamples > INT_MAX / (nDataSize * nBands))
+        {
+            delete poDS;
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "Int overflow occurred.");
+            return NULL;
+        }
         nLineOffset = nDataSize * nSamples * nBands;
         nPixelOffset = nDataSize * nBands;
         nBandOffset = nDataSize;
@@ -2274,24 +2294,23 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     {
         poDS->interleave = BSQ;
         poDS->SetMetadataItem( "INTERLEAVE", "BAND", "IMAGE_STRUCTURE" );
-        if (nSamples > INT_MAX / nDataSize) bIntOverflow = true;
+        if (nSamples > INT_MAX / nDataSize)
+        {
+            delete poDS;
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "Int overflow occurred.");
+            return NULL;
+        }
         nLineOffset = nDataSize * nSamples;
         nPixelOffset = nDataSize;
         nBandOffset = (vsi_l_offset)nLineOffset * nLines;
-    }
-
-    if (bIntOverflow)
-    {
-        delete poDS;
-        CPLError( CE_Failure, CPLE_AppDefined,
-                  "Int overflow occurred.");
-        return NULL;
     }
 
 /* -------------------------------------------------------------------- */
 /*      Create band information objects.                                */
 /* -------------------------------------------------------------------- */
     poDS->nBands = nBands;
+    CPLErrorReset();
     for( int i = 0; i < poDS->nBands; i++ )
     {
         poDS->SetBand( i + 1,
@@ -2299,6 +2318,12 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
                                          nHeaderSize + nBandOffset * i,
                                          nPixelOffset, nLineOffset, eType,
                                          bNativeOrder, TRUE) );
+        if( CPLGetLastErrorType() != CE_None )
+        {
+            poDS->nBands = i + 1;
+            delete poDS;
+            return NULL;
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -2583,7 +2608,8 @@ GDALDataset *ENVIDataset::Create( const char * pszFilename,
 /* -------------------------------------------------------------------- */
     bool bRet = VSIFWriteL( reinterpret_cast<void *>( const_cast<char *>( "\0\0" ) ),
                 2, 1, fp ) == 1;
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+        bRet = false;
     if( !bRet )
         return NULL;
 
@@ -2640,7 +2666,8 @@ GDALDataset *ENVIDataset::Create( const char * pszFilename,
     bRet &= VSIFPrintfL( fp, "interleave = %s\n", pszInterleaving) > 0;
     bRet &= VSIFPrintfL( fp, "byte order = %d\n", iBigEndian ) > 0;
 
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+        bRet = false;
 
     if( !bRet )
         return FALSE;
@@ -2692,14 +2719,12 @@ void GDALRegister_ENVI()
     if( GDALGetDriverByName( "ENVI" ) != NULL )
         return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "ENVI" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                               "ENVI .hdr Labelled" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC,
-                               "frmt_various.html#ENVI" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "ENVI .hdr Labelled" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#ENVI" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "" );
     poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
                                "Byte Int16 UInt16 Int32 UInt32 "

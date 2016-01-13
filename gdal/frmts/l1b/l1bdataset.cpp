@@ -34,15 +34,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "gdal_pam.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "gdal_pam.h"
 #include "ogr_srs_api.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void    GDALRegister_L1B(void);
-CPL_C_END
 
 typedef enum {                  // File formats
     L1B_NONE,           // Not a L1B format
@@ -608,7 +605,7 @@ L1BDataset::~L1BDataset()
     if ( pszGCPProjection )
         CPLFree( pszGCPProjection );
     if( fp != NULL )
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
     delete poMaskBand;
 }
 
@@ -1095,7 +1092,7 @@ void L1BDataset::FetchMetadata()
     }
 
     CPLFree(pabyRecordHeader);
-    VSIFCloseL(fpCSV);
+    CPL_IGNORE_RET_VAL(VSIFCloseL(fpCSV));
 }
 
 /************************************************************************/
@@ -1315,7 +1312,7 @@ void L1BDataset::FetchMetadataNOAA15()
     }
 
     CPLFree(pabyRecordHeader);
-    VSIFCloseL(fpCSV);
+    CPL_IGNORE_RET_VAL(VSIFCloseL(fpCSV));
 }
 
 /************************************************************************/
@@ -3173,7 +3170,7 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
     if ( eL1BFormat == L1B_NONE )
     {
         if( fp != NULL )
-            VSIFCloseL(fp);
+            CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -3186,7 +3183,7 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
                   "The L1B driver does not support update access to existing"
                   " datasets.\n" );
         if( fp != NULL )
-            VSIFCloseL(fp);
+            CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -3509,25 +3506,21 @@ bad:
 void GDALRegister_L1B()
 
 {
-    GDALDriver  *poDriver;
+    if( GDALGetDriverByName( "L1B" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "L1B" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "L1B" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "NOAA Polar Orbiter Level 1b Data Set" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_l1b.html" );
+    poDriver->SetDescription( "L1B" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "NOAA Polar Orbiter Level 1b Data Set" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_l1b.html" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_SUBDATASETS, "YES" );
+    poDriver->pfnOpen = L1BDataset::Open;
+    poDriver->pfnIdentify = L1BDataset::Identify;
 
-        poDriver->pfnOpen = L1BDataset::Open;
-        poDriver->pfnIdentify = L1BDataset::Identify;
-
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

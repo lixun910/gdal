@@ -34,6 +34,8 @@
 
 #include <string>
 
+#include "gdal_frmts.h"
+
 using std::string;
 
 /* used by ilwsicoordinatesystem.cpp */
@@ -1855,7 +1857,11 @@ ValueRange::ValueRange(string sRng) :
 
     char *p1 = strchr(sRange, ':');
     if (0 == p1)
+    {
+        delete[] sRange;
+        init();
         return;
+    }
 
     char *p3 = strstr(sRange, ",offset=");
     if (0 == p3)
@@ -2036,8 +2042,7 @@ void GDALRegister_ILWIS()
 
     poDriver->SetDescription( "ILWIS" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                               "ILWIS Raster Map" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "ILWIS Raster Map" );
     poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "mpr/mpl" );
     poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
                                "Byte Int16 Int32 Float64" );

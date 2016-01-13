@@ -28,9 +28,10 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_srs_api.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
 
@@ -87,7 +88,12 @@ CTable2Dataset::~CTable2Dataset()
     FlushCache();
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
 }
 
 /************************************************************************/
@@ -419,13 +425,17 @@ GDALDataset *CTable2Dataset::Create( const char * pszFilename,
 /* -------------------------------------------------------------------- */
     CPLFree( pafLine );
 
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+    {
+        CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        return NULL;
+    }
 
     return (GDALDataset *) GDALOpen( pszFilename, GA_Update );
 }
 
 /************************************************************************/
-/*                         GDALRegister_CTable2()                          */
+/*                         GDALRegister_CTable2()                       */
 /************************************************************************/
 
 void GDALRegister_CTable2()
@@ -434,16 +444,14 @@ void GDALRegister_CTable2()
     if( GDALGetDriverByName( "CTable2" ) != NULL )
       return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "CTable2" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
-                               "CTable2 Datum Grid Shift" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "CTable2 Datum Grid Shift" );
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-                               "Float32" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, "Float32" );
 
     poDriver->pfnOpen = CTable2Dataset::Open;
     poDriver->pfnIdentify = CTable2Dataset::Identify;

@@ -35,6 +35,7 @@
 #include <limits.h>
 #include <assert.h>
 
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
 
 #ifndef DBL_MAX
@@ -62,10 +63,6 @@
 #endif /* SHRT_MAX */
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_GSBG(void);
-CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
@@ -290,7 +287,7 @@ CPLErr GSBGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     GSBGDataset *poGDS = reinterpret_cast<GSBGDataset *>(poDS);
     if( VSIFSeekL( poGDS->fp,
 		   GSBGDataset::nHEADER_SIZE +
-                        4 * nRasterXSize * (nRasterYSize - nBlockYOff - 1),
+                        4 * static_cast<vsi_l_offset>(nRasterXSize) * (nRasterYSize - nBlockYOff - 1),
 		   SEEK_SET ) != 0 )
     {
 	CPLError( CE_Failure, CPLE_FileIO,
@@ -1136,34 +1133,31 @@ GDALDataset *GSBGDataset::CreateCopy( const char *pszFilename,
 }
 
 /************************************************************************/
-/*                          GDALRegister_GSBG()                          */
+/*                          GDALRegister_GSBG()                         */
 /************************************************************************/
 
 void GDALRegister_GSBG()
 
 {
-    GDALDriver	*poDriver;
+    if( GDALGetDriverByName( "GSBG" ) != NULL )
+        return;
 
-    if( GDALGetDriverByName( "GSBG" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetDescription( "GSBG" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "Golden Software Binary Grid (.grd)" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_various.html#GSBG" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "grd" );
-	poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
-				   "Byte Int16 UInt16 Float32" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetDescription( "GSBG" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "Golden Software Binary Grid (.grd)" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#GSBG" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "grd" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte Int16 UInt16 Float32" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
-        poDriver->pfnIdentify = GSBGDataset::Identify;
-        poDriver->pfnOpen = GSBGDataset::Open;
-	poDriver->pfnCreate = GSBGDataset::Create;
-	poDriver->pfnCreateCopy = GSBGDataset::CreateCopy;
+    poDriver->pfnIdentify = GSBGDataset::Identify;
+    poDriver->pfnOpen = GSBGDataset::Open;
+    poDriver->pfnCreate = GSBGDataset::Create;
+    poDriver->pfnCreateCopy = GSBGDataset::CreateCopy;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

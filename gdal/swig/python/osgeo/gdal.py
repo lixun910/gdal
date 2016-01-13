@@ -81,8 +81,8 @@ def deprecation_warn( module ):
   from warnings import warn
   warn('%s.py was placed in a namespace, it is now available as osgeo.%s' % (module,module),
        DeprecationWarning)
-       
-       
+
+
 from gdalconst import *
 import gdalconst
 
@@ -365,13 +365,13 @@ def Translate(destName, srcDS, **kwargs):
 
     return TranslateInternal(destName, srcDS, opts, callback, callback_data)
 
-def WarpOptions(options = [], format = 'GTiff', 
+def WarpOptions(options = [], format = 'GTiff',
          outputBounds = None,
          outputBoundsSRS = None,
          xRes = None, yRes = None, targetAlignedPixels = False,
          width = 0, height = 0,
          srcSRS = None, dstSRS = None,
-         srcAlpha = False, dstAlpha = False, 
+         srcAlpha = False, dstAlpha = False,
          warpOptions = None, errorThreshold = None,
          warpMemoryLimit = None, creationOptions = None, outputType = GDT_Unknown,
          workingType = GDT_Unknown, resampleAlg = None,
@@ -551,7 +551,7 @@ def Warp(destNameOrDestDS, srcDSOrSrcDSTab, **kwargs):
         return wrapper_GDALWarpDestDS(destNameOrDestDS, srcDSTab, opts, callback, callback_data)
 
 
-def VectorTranslateOptions(options = [], format = 'ESRI Shapefile', 
+def VectorTranslateOptions(options = [], format = 'ESRI Shapefile',
          accessMode = None,
          srcSRS = None, dstSRS = None, reproject = True,
          SQLStatement = None, SQLDialect = None, where = None, selectFields = None, spatFilter = None,
@@ -561,6 +561,7 @@ def VectorTranslateOptions(options = [], format = 'ESRI Shapefile',
          layerName = None,
          geometryType = None,
          segmentizeMaxDist= None,
+         zField = None,
          callback = None, callback_data = None):
     """ Create a VectorTranslateOptions() object that can be passed to gdal.VectorTranslate()
         Keyword arguments are :
@@ -581,6 +582,7 @@ def VectorTranslateOptions(options = [], format = 'ESRI Shapefile',
           layerName --- output layer name
           geometryType --- output layer geometry type ('POINT', ....)
           segmentizeMaxDist --- maximum distance between consecutive nodes of a line geometry
+          zField --- name of field to use to set the Z component of geometries
           callback --- callback method
           callback_data --- user data for callback
     """
@@ -637,6 +639,8 @@ def VectorTranslateOptions(options = [], format = 'ESRI Shapefile',
             new_options += ['-nln', layerName]
         if geometryType is not None:
             new_options += ['-nlt', geometryType]
+        if zField is not None:
+            new_options += ['-zfield', zField]
 
     if callback is not None:
         new_options += [ '-progress' ]
@@ -745,7 +749,7 @@ def DEMProcessing(destName, srcDS, processing, **kwargs):
     return DEMProcessingInternal(destName, srcDS, processing, colorFilename, opts, callback, callback_data)
 
 
-def NearblackOptions(options = [], format = 'GTiff', 
+def NearblackOptions(options = [], format = 'GTiff',
          creationOptions = None, white = False, colors = None,
          maxNonBlack = None, nearDist = None, setAlpha = False, setMask = False,
          callback = None, callback_data = None):
@@ -756,7 +760,7 @@ def NearblackOptions(options = [], format = 'GTiff',
           creationOptions --- list of creation options
           white --- whether to search for nearly white (255) pixels instead of nearly black pixels.
           colors --- list of colors  to search for, e.g. ((0,0,0),(255,255,255)). The pixels that are considered as the collar are set to 0
-          maxNonBlack --- number of non-black (or other searched colors specified with white / colors) pixels that can be encountered before the giving up search inwards. Defaults to 2. 
+          maxNonBlack --- number of non-black (or other searched colors specified with white / colors) pixels that can be encountered before the giving up search inwards. Defaults to 2.
           nearDist --- select how far from black, white or custom colors the pixel values can be and still considered near black, white or custom color.  Defaults to 15.
           setAlpha --- adds an alpha band if the output file.
           setMask --- adds a mask band to the output file.
@@ -915,7 +919,7 @@ def Grid(destName, srcDS, **kwargs):
 
     return GridInternal(destName, srcDS, opts, callback, callback_data)
 
-def RasterizeOptions(options = [], format = None, 
+def RasterizeOptions(options = [], format = None,
          creationOptions = None, noData = None, initValues = None,
          outputBounds = None, outputSRS = None,
          width = None, height = None,
@@ -1106,7 +1110,7 @@ def FindFile(*args):
   return _gdal.FindFile(*args)
 
 def ReadDir(*args):
-  """ReadDir(char const * utf8_path) -> char **"""
+  """ReadDir(char const * utf8_path, int nMaxFiles=0) -> char **"""
   return _gdal.ReadDir(*args)
 
 def ReadDirRecursive(*args):
@@ -1326,6 +1330,7 @@ class ColorEntry(_object):
     __setattr__ = lambda self, name, value: _swig_setattr(self, ColorEntry, name, value)
     __swig_getmethods__ = {}
     __getattr__ = lambda self, name: _swig_getattr(self, ColorEntry, name)
+    def __init__(self, *args, **kwargs): raise AttributeError("No constructor defined")
     __repr__ = _swig_repr
     __swig_setmethods__["c1"] = _gdal.ColorEntry_c1_set
     __swig_getmethods__["c1"] = _gdal.ColorEntry_c1_get
@@ -1339,13 +1344,6 @@ class ColorEntry(_object):
     __swig_setmethods__["c4"] = _gdal.ColorEntry_c4_set
     __swig_getmethods__["c4"] = _gdal.ColorEntry_c4_get
     if _newclass:c4 = _swig_property(_gdal.ColorEntry_c4_get, _gdal.ColorEntry_c4_set)
-    def __init__(self, *args): 
-        """__init__(GDALColorEntry self) -> ColorEntry"""
-        this = _gdal.new_ColorEntry(*args)
-        try: self.this.append(this)
-        except: self.this = this
-    __swig_destroy__ = _gdal.delete_ColorEntry
-    __del__ = lambda self : None;
 ColorEntry_swigregister = _gdal.ColorEntry_swigregister
 ColorEntry_swigregister(ColorEntry)
 
@@ -1396,7 +1394,7 @@ class GCP(_object):
     def serialize(self,with_Z=0):
       base = [CXT_Element,'GCP']
       base.append([CXT_Attribute,'Id',[CXT_Text,self.Id]])
-      pixval = '%0.15E' % self.GCPPixel       
+      pixval = '%0.15E' % self.GCPPixel
       lineval = '%0.15E' % self.GCPLine
       xval = '%0.15E' % self.GCPX
       yval = '%0.15E' % self.GCPY
@@ -1406,7 +1404,7 @@ class GCP(_object):
       base.append([CXT_Attribute,'X',[CXT_Text,xval]])
       base.append([CXT_Attribute,'Y',[CXT_Text,yval]])
       if with_Z:
-          base.append([CXT_Attribute,'Z',[CXT_Text,zval]])        
+          base.append([CXT_Attribute,'Z',[CXT_Text,zval]])
       return base
 
 GCP_swigregister = _gdal.GCP_swigregister
@@ -1840,7 +1838,7 @@ class Dataset(MajorObject):
 
     def GetSubDatasets(self):
         sd_list = []
-        
+
         sd = self.GetMetadata('SUBDATASETS')
         if sd is None:
             return sd_list
@@ -2178,7 +2176,7 @@ class Band(MajorObject):
                                             resample_alg = resample_alg,
                                             callback = callback,
                                             callback_data = callback_data)
-      
+
     def WriteArray(self, array, xoff=0, yoff=0,
                    resample_alg = GRIORA_NearestNeighbour,
                    callback = None,
@@ -2255,7 +2253,7 @@ class Band(MajorObject):
 
     def __get_array_interface__(self):
         shape = [1, self.XSize, self.YSize]
-        
+
 
 Band_swigregister = _gdal.Band_swigregister
 Band_swigregister(Band)
@@ -2713,7 +2711,7 @@ def GeneralCmdLineProcessor(*args):
   """GeneralCmdLineProcessor(char ** papszArgv, int nOptions=0) -> char **"""
   return _gdal.GeneralCmdLineProcessor(*args)
 GeneralCmdLineProcessor = _gdal.GeneralCmdLineProcessor
-__version__ = _gdal.VersionInfo("RELEASE_NAME") 
+__version__ = _gdal.VersionInfo("RELEASE_NAME")
 
 class GDALInfoOptions(_object):
     """Proxy of C++ GDALInfoOptions class"""

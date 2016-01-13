@@ -28,9 +28,10 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "ogr_spatialref.h"
+#include "rawdataset.h"
 
 #include <cmath>
 
@@ -38,9 +39,6 @@
 
 CPL_CVSID("$Id$");
 
-CPL_C_START
-void GDALRegister_LAN(void);
-CPL_C_END
 
 /**
 
@@ -213,10 +211,10 @@ CPLErr LAN4BitRasterBand::IReadBlock( CPL_UNUSED int nBlockXOff,
 /* -------------------------------------------------------------------- */
 /*      Seek to profile.                                                */
 /* -------------------------------------------------------------------- */
-    const int nOffset =
+    const vsi_l_offset nOffset =
         ERD_HEADER_SIZE
-        + (nBlockYOff * nRasterXSize * poLAN_DS->GetRasterCount()) / 2
-        + ((nBand - 1) * nRasterXSize) / 2;
+        + (static_cast<vsi_l_offset>(nBlockYOff) * nRasterXSize * poLAN_DS->GetRasterCount()) / 2
+        + (static_cast<vsi_l_offset>(nBand - 1) * nRasterXSize) / 2;
 
     if( VSIFSeekL( poLAN_DS->fpImage, nOffset, SEEK_SET ) != 0 )
     {
@@ -328,7 +326,12 @@ LANDataset::~LANDataset()
     FlushCache();
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
 
     CPLFree( pszProjection );
 }
@@ -471,10 +474,19 @@ GDALDataset *LANDataset::Open( GDALOpenInfo * poOpenInfo )
         delete poDS;
         return NULL;
     }
+    
+    if( nPixelOffset != -1 && poDS->nRasterXSize > INT_MAX / (nPixelOffset*nBandCount) )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Int overflow occurred.");
+        delete poDS;
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Create band information object.                                 */
 /* -------------------------------------------------------------------- */
+    CPLErrorReset();
     for( int iBand = 1; iBand <= nBandCount; iBand++ )
     {
         if( nPixelOffset == -1 ) /* 4 bit case */
@@ -489,6 +501,11 @@ GDALDataset *LANDataset::Open( GDALOpenInfo * poOpenInfo )
                                    nPixelOffset, 
                                    poDS->nRasterXSize*nPixelOffset*nBandCount,
                                    eDataType, !bNeedSwap, TRUE ));
+        if( CPLGetLastErrorType() != CE_None )
+        {
+            delete poDS;
+            return NULL;
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -578,7 +595,7 @@ GDALDataset *LANDataset::Open( GDALOpenInfo * poOpenInfo )
         char szTRLData[896];
 
         CPL_IGNORE_RET_VAL(VSIFReadL( szTRLData, 1, 896, fpTRL ));
-        VSIFCloseL( fpTRL );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpTRL ));
 
         GDALColorTable *poCT = new GDALColorTable();
         for( int iColor = 0; iColor < 256; iColor++ )
@@ -858,7 +875,7 @@ void LANDataset::CheckForStatistics()
         poBand->SetStatistics( nMin, nMax, fMean, fStdDev );
     }
 
-    VSIFCloseL( fpSTA );
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fpSTA ));
 }
 
 /************************************************************************/
@@ -984,7 +1001,7 @@ GDALDataset *LANDataset::Create( const char * pszFilename,
         if( VSIFWriteL( abyHeader, 1, (size_t)nWriteThisTime, fp ) 
             != nWriteThisTime )
         {
-            VSIFCloseL( fp );
+            CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             CPLError( CE_Failure, CPLE_FileIO,
                       "Failed to write whole Istar file." );
             return NULL;
@@ -992,7 +1009,12 @@ GDALDataset *LANDataset::Create( const char * pszFilename,
         nImageBytes -= nWriteThisTime;
     }
 
-    VSIFCloseL( fp );
+    if( VSIFCloseL( fp ) != 0 )
+    {
+        CPLError( CE_Failure, CPLE_FileIO,
+                  "Failed to write whole Istar file." );
+        return NULL;
+    }
 
     return (GDALDataset *) GDALOpen( pszFilename, GA_Update );
 }
@@ -1007,8 +1029,7 @@ void GDALRegister_LAN()
     if( GDALGetDriverByName( "LAN" ) != NULL )
         return;
 
-    GDALDriver	*poDriver;
-    poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "LAN" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

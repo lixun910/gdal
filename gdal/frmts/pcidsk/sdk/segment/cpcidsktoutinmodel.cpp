@@ -312,12 +312,12 @@ CPCIDSKToutinModelSegment::BinaryToSRITInfo()
 
     if( SRITModel->nSensor == -999)
     {
-        throw PCIDSKException("Invalid Sensor : %s.",
+        return (SRITInfo_t*)ThrowPCIDSKExceptionPtr("Invalid Sensor : %s.",
                               SRITModel->OrbitPtr->SatelliteSensor.c_str());
     }
     if( SRITModel->nModel == -999)
     {
-	throw PCIDSKException("Invalid Model from sensor number: %d.",
+        return (SRITInfo_t*)ThrowPCIDSKExceptionPtr("Invalid Model from sensor number: %d.",
                               SRITModel->nSensor);
     }
 
@@ -327,13 +327,15 @@ CPCIDSKToutinModelSegment::BinaryToSRITInfo()
     if (SRITModel->OrbitPtr->AttitudeSeg != NULL ||
         SRITModel->OrbitPtr->RadarSeg != NULL)
     {
-        if (SRITModel->OrbitPtr->Type == OrbAttitude)
+        AttitudeSeg_t *attitudeSeg
+            = SRITModel->OrbitPtr->AttitudeSeg;
+
+        if (SRITModel->OrbitPtr->Type == OrbAttitude &&
+            attitudeSeg != NULL)
         {
             int  ndata;
-            AttitudeSeg_t *attitudeSeg
-                = SRITModel->OrbitPtr->AttitudeSeg;
 
-            ndata = SRITModel->OrbitPtr->AttitudeSeg->NumberOfLine;
+            ndata = attitudeSeg->NumberOfLine;
 
             for (i=0; i<ndata; i++)
             {
@@ -455,7 +457,8 @@ CPCIDSKToutinModelSegment::SRITInfoToBinary( SRITInfo_t *SRITModel )
         SRITModel->OrbitPtr->RadarSeg != NULL ||
         SRITModel->OrbitPtr->AvhrrSeg != NULL )
     {
-        if (SRITModel->OrbitPtr->Type == OrbAttitude) 
+        if (SRITModel->OrbitPtr->Type == OrbAttitude &&
+            SRITModel->OrbitPtr->AttitudeSeg != NULL) 
 	{
 	    if (SRITModel->OrbitPtr->AttitudeSeg->NumberOfLine != 0)
                 seg_data.Put("3",nPos+20,1);
@@ -742,7 +745,7 @@ int  CPCIDSKToutinModelSegment::GetSensor( EphemerisSeg_t *OrbitPtr)
         nSensor = NEW;
     else
     {
-        throw PCIDSKException("Invalid Sensor %s",
+        return ThrowPCIDSKException(0, "Invalid Sensor %s",
             OrbitPtr->SatelliteSensor.c_str());
     }
 
@@ -756,8 +759,6 @@ int  CPCIDSKToutinModelSegment::GetSensor( EphemerisSeg_t *OrbitPtr)
 int CPCIDSKToutinModelSegment::GetModel( int nSensor )
 {
     int  nModel;
-
-    nModel = -999;
 
     switch (nSensor)
     {
@@ -884,7 +885,7 @@ int CPCIDSKToutinModelSegment::GetModel( int nSensor )
         break;
 
     default:
-        throw PCIDSKException("Invalid sensor type.");
+        return ThrowPCIDSKException(0, "Invalid sensor type.");
         break;
     }
 

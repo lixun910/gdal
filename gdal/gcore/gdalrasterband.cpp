@@ -91,7 +91,7 @@ GDALRasterBand::~GDALRasterBand()
 
     delete poBandBlockCache;
 
-    if( nBlockReads > nBlocksPerRow * nBlocksPerColumn
+    if( static_cast<GIntBig>(nBlockReads) > static_cast<GIntBig>(nBlocksPerRow) * nBlocksPerColumn
         && nBand == 1 && poDS != NULL )
     {
         CPLDebug( "GDAL", "%d block reads on %d block band 1 of %s.",
@@ -750,6 +750,13 @@ int GDALRasterBand::InitBlockInfo()
                   nRasterXSize, nRasterYSize );
         return FALSE;
     }
+    
+    const int nDataTypeSize = GDALGetDataTypeSize(eDataType) / 8;
+    if( nDataTypeSize == 0 )
+    {
+        ReportError( CE_Failure, CPLE_AppDefined, "Invalid data type" );
+        return FALSE;
+    }
 
     if (nBlockXSize >= 10000 || nBlockYSize >= 10000)
     {
@@ -757,11 +764,8 @@ int GDALRasterBand::InitBlockInfo()
         /* (reasonably) assumed in many places (GDALRasterBlock::Internalize(), */
         /* GDALRasterBand::Fill(), many drivers...) */
         /* As 10000 * 10000 * 16 < INT_MAX, we don't need to do the multiplication in other cases */
-
-        int nSizeInBytes = nBlockXSize * nBlockYSize * (GDALGetDataTypeSize(eDataType) / 8);
-
-        GIntBig nBigSizeInBytes = (GIntBig)nBlockXSize * nBlockYSize * (GDALGetDataTypeSize(eDataType) / 8);
-        if ((GIntBig)nSizeInBytes != nBigSizeInBytes)
+        if( nBlockXSize > INT_MAX / nDataTypeSize ||
+            nBlockYSize > INT_MAX / (nDataTypeSize * nBlockXSize) )
         {
             ReportError( CE_Failure, CPLE_NotSupported, "Too big block : %d * %d",
                         nBlockXSize, nBlockYSize );
@@ -780,7 +784,7 @@ int GDALRasterBand::InitBlockInfo()
             (poDS->nOpenFlags & GDAL_OF_BLOCK_ACCESS_MASK) ==
                                             GDAL_OF_DEFAULT_BLOCK_ACCESS )
         {
-            bUseArray = ( nBlocksPerRow < 1024 * 1024  / nBlocksPerColumn );
+            bUseArray = ( static_cast<GIntBig>(nBlocksPerRow) * nBlocksPerColumn < 1024 * 1024  );
         }
         else if( (poDS->nOpenFlags & GDAL_OF_BLOCK_ACCESS_MASK) ==
                                             GDAL_OF_HASHSET_BLOCK_ACCESS )
@@ -1148,7 +1152,7 @@ GDALRasterBlock * GDALRasterBand::GetLockedBlockRef( int nXBlockOff,
         if( !bJustInitialize )
         {
             nBlockReads++;
-            if( nBlockReads == nBlocksPerRow * nBlocksPerColumn + 1 
+            if( static_cast<GIntBig>(nBlockReads) == static_cast<GIntBig>(nBlocksPerRow) * nBlocksPerColumn + 1 
                 && nBand == 1 && poDS != NULL )
             {
                 CPLDebug( "GDAL", "Potential thrashing on band %d of %s.",
@@ -4626,7 +4630,15 @@ GDALRasterBand *GDALRasterBand::GetMaskBand()
                 if (i == poDS->GetRasterCount())
                 {
                     nMaskFlags = GMF_NODATA | GMF_PER_DATASET;
-                    poMask = new GDALNoDataValuesMaskBand ( poDS );
+                    try
+                    {
+                        poMask = new GDALNoDataValuesMaskBand ( poDS );
+                    }
+                    catch( const std::bad_alloc& )
+                    {
+                        CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
+                        poMask = NULL;
+                    }
                     bOwnMask = true;
                     CSLDestroy(papszNoDataValues);
                     return poMask;
@@ -4660,7 +4672,15 @@ GDALRasterBand *GDALRasterBand::GetMaskBand()
     if( bHaveNoData )
     {
         nMaskFlags = GMF_NODATA;
-        poMask = new GDALNoDataMaskBand( this );
+        try
+        {
+            poMask = new GDALNoDataMaskBand( this );
+        }
+        catch( const std::bad_alloc& )
+        {
+            CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
+            poMask = NULL;
+        }
         bOwnMask = true;
         return poMask;
     }
@@ -4695,7 +4715,15 @@ GDALRasterBand *GDALRasterBand::GetMaskBand()
         else if( poDS->GetRasterBand(4)->GetRasterDataType() == GDT_UInt16 )
         {
             nMaskFlags = GMF_ALPHA | GMF_PER_DATASET;
-            poMask = new GDALRescaledAlphaBand( poDS->GetRasterBand(4) );
+            try
+            {
+                poMask = new GDALRescaledAlphaBand( poDS->GetRasterBand(4) );
+            }
+            catch( const std::bad_alloc& )
+            {
+                CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
+                poMask = NULL;
+            }
             bOwnMask = true;
             return poMask;
         }
@@ -4705,7 +4733,15 @@ GDALRasterBand *GDALRasterBand::GetMaskBand()
 /*      Fallback to all valid case.                                     */
 /* -------------------------------------------------------------------- */
     nMaskFlags = GMF_ALL_VALID;
-    poMask = new GDALAllValidMaskBand( this );
+    try
+    {
+        poMask = new GDALAllValidMaskBand( this );
+    }
+    catch( const std::bad_alloc& )
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
+        poMask = NULL;
+    }
     bOwnMask = true;
 
     return poMask;

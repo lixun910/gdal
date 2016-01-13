@@ -137,7 +137,7 @@ typedef FILE VSILFILE;
 #endif
 
 VSILFILE CPL_DLL *  VSIFOpenL( const char *, const char * ) CPL_WARN_UNUSED_RESULT;
-int CPL_DLL     VSIFCloseL( VSILFILE * );
+int CPL_DLL     VSIFCloseL( VSILFILE * ) EXPERIMENTAL_CPL_WARN_UNUSED_RESULT;
 int CPL_DLL     VSIFSeekL( VSILFILE *, vsi_l_offset, int ) EXPERIMENTAL_CPL_WARN_UNUSED_RESULT;
 vsi_l_offset CPL_DLL VSIFTellL( VSILFILE * ) CPL_WARN_UNUSED_RESULT;
 void CPL_DLL    VSIRewindL( VSILFILE * );
@@ -232,6 +232,7 @@ GIntBig CPL_DLL CPLGetUsablePhysicalRAM(void);
 #define CPLReadDir VSIReadDir
 char CPL_DLL **VSIReadDir( const char * );
 char CPL_DLL **VSIReadDirRecursive( const char *pszPath );
+char CPL_DLL **VSIReadDirEx( const char *pszPath, int nMaxFiles );
 int CPL_DLL VSIMkdir( const char * pathname, long mode );
 int CPL_DLL VSIRmdir( const char * pathname );
 int CPL_DLL VSIUnlink( const char * pathname );

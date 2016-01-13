@@ -64,10 +64,43 @@ CPL_CVSID("$Id$");
 
 char **VSIReadDir(const char *pszPath)
 {
+    return VSIReadDirEx(pszPath, 0);
+}
+
+/************************************************************************/
+/*                             VSIReadDir()                             */
+/************************************************************************/
+
+/**
+ * \brief Read names in a directory.
+ *
+ * This function abstracts access to directory contains.  It returns a
+ * list of strings containing the names of files, and directories in this
+ * directory.  The resulting string list becomes the responsibility of the
+ * application and should be freed with CSLDestroy() when no longer needed.
+ *
+ * Note that no error is issued via CPLError() if the directory path is
+ * invalid, though NULL is returned.
+ *
+ * If nMaxFiles is set to a positive number, directory listing will stop after
+ * that limit has been reached. Note that to indicate truncate, at least one
+ * element more than the nMaxFiles limit will be returned. If CSLCount() on the
+ * result is lesser or equal to nMaxFiles, then no truncation occured.
+ *
+ * @param pszPath the relative, or absolute path of a directory to read.  
+ * UTF-8 encoded.
+ * @param nMaxFiles maximum number of files after which to stop, or 0 for no limit.
+ * @return The list of entries in the directory, or NULL if the directory
+ * doesn't exist.  Filenames are returned in UTF-8 encoding.
+ * @since GDAL 2.1
+ */
+
+char **VSIReadDirEx(const char *pszPath, int nMaxFiles)
+{
     VSIFilesystemHandler *poFSHandler = 
         VSIFileManager::GetHandler( pszPath );
 
-    return poFSHandler->ReadDir( pszPath );
+    return poFSHandler->ReadDirEx( pszPath, nMaxFiles );
 }
 
 /************************************************************************/
@@ -947,7 +980,7 @@ int VSIIngestFile( VSILFILE* fp,
         if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 )
         {
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
         while(true)
@@ -962,7 +995,7 @@ int VSIIngestFile( VSILFILE* fp,
                     VSIFree( *ppabyRet );
                     *ppabyRet = NULL;
                     if( bFreeFP )
-                        VSIFCloseL( fp );
+                        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
                     return FALSE;
                 }
                 GByte* pabyNew = (GByte*)VSIRealloc(*ppabyRet, (size_t)nDataAlloc);
@@ -974,7 +1007,7 @@ int VSIIngestFile( VSILFILE* fp,
                     VSIFree( *ppabyRet );
                     *ppabyRet = NULL;
                     if( bFreeFP )
-                        VSIFCloseL( fp );
+                        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
                     return FALSE;
                 }
                 *ppabyRet = pabyNew;
@@ -991,7 +1024,7 @@ int VSIIngestFile( VSILFILE* fp,
                 if( pnSize != NULL )
                     *pnSize = 0;
                 if( bFreeFP )
-                    VSIFCloseL( fp );
+                    CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
                 return FALSE;
             }
 
@@ -1007,7 +1040,7 @@ int VSIIngestFile( VSILFILE* fp,
         if( VSIFSeekL( fp, 0, SEEK_END ) != 0 )
         {
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
         nDataLen = VSIFTellL( fp );
@@ -1020,14 +1053,14 @@ int VSIIngestFile( VSILFILE* fp,
             CPLError( CE_Failure, CPLE_AppDefined,
                       "Input file too large to be opened" );
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
 
         if( VSIFSeekL( fp, 0, SEEK_SET ) != 0 )
         {
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
 
@@ -1038,7 +1071,7 @@ int VSIIngestFile( VSILFILE* fp,
                       "Cannot allocated " CPL_FRMT_GIB " bytes",
                       nDataLen + 1 );
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
 
@@ -1051,14 +1084,14 @@ int VSIIngestFile( VSILFILE* fp,
             VSIFree( *ppabyRet );
             *ppabyRet = NULL;
             if( bFreeFP )
-                VSIFCloseL( fp );
+                CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
             return FALSE;
         }
         if( pnSize != NULL )
             *pnSize = nDataLen;
     }
     if( bFreeFP )
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
     return TRUE;
 }
 

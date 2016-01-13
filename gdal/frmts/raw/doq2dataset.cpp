@@ -28,13 +28,14 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
 
 CPL_C_START
-void	GDALRegister_DOQ2(void);
+void GDALRegister_DOQ2();
 CPL_C_END
 
 #define UTM_FORMAT \
@@ -101,7 +102,7 @@ DOQ2Dataset::~DOQ2Dataset()
 
     CPLFree( pszProjection );
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpImage ));
 }
 
 /************************************************************************/
@@ -318,7 +319,7 @@ GDALDataset *DOQ2Dataset::Open( GDALOpenInfo * poOpenInfo )
         || nBandTypes < 1 || nBandTypes > 9 )
     {
         CSLDestroy( papszMetadata );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -332,7 +333,7 @@ GDALDataset *DOQ2Dataset::Open( GDALOpenInfo * poOpenInfo )
                   "DOQ Data Type (%d) is not a supported configuration.\n",
                   nBandTypes );
         CSLDestroy( papszMetadata );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
@@ -345,7 +346,7 @@ GDALDataset *DOQ2Dataset::Open( GDALOpenInfo * poOpenInfo )
         CPLError( CE_Failure, CPLE_NotSupported, 
                   "The DOQ2 driver does not support update access to existing"
                   " datasets.\n" );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 /* -------------------------------------------------------------------- */
@@ -385,8 +386,10 @@ GDALDataset *DOQ2Dataset::Open( GDALOpenInfo * poOpenInfo )
     if (nProjType == 1)
     {
 	poDS->pszProjection = 
-            CPLStrdup(CPLSPrintf( UTM_FORMAT, pszDatumShort, nZone, 
-                                  pszDatumLong, nZone * 6 - 183, pszUnits ));
+            CPLStrdup(CPLSPrintf( UTM_FORMAT, pszDatumShort ? pszDatumShort : "", nZone, 
+                                  pszDatumLong ? pszDatumLong : "",
+                                  (nZone >= 1 && nZone <= 60) ? nZone * 6 - 183 : 0,
+                                  pszUnits ? pszUnits : ""));
     }
     else
     {
@@ -431,10 +434,8 @@ void GDALRegister_DOQ2()
 
     poDriver->SetDescription( "DOQ2" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                               "USGS DOQ (New Style)" );
-    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                               "frmt_various.html#DOQ2" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, "USGS DOQ (New Style)" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_various.html#DOQ2" );
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
     poDriver->pfnOpen = DOQ2Dataset::Open;

@@ -28,8 +28,9 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "rawdataset.h"
 #include "cpl_string.h"
+#include "gdal_frmts.h"
+#include "rawdataset.h"
 
 CPL_CVSID("$Id$");
 
@@ -73,7 +74,12 @@ KRODataset::~KRODataset()
     FlushCache();
 
     if( fpImage != NULL )
-        VSIFCloseL( fpImage );
+    {
+        if( VSIFCloseL( fpImage ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        }
+    }
 }
 
 /************************************************************************/
@@ -144,7 +150,7 @@ GDALDataset *KRODataset::Open( GDALOpenInfo * poOpenInfo )
     memcpy(&nComp, achHeader + 16, 4);
     CPL_MSBPTR32( &nComp );
 
-    if (!GDALCheckDatasetDimensions(poDS->nRasterXSize, poDS->nRasterYSize) ||
+    if (!GDALCheckDatasetDimensions(nXSize, nYSize) ||
         !GDALCheckBandCount(nComp, FALSE))
     {
         delete poDS;
@@ -170,10 +176,20 @@ GDALDataset *KRODataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
     const int nDataTypeSize = nDepth / 8;
+    
+    if( nComp == 0 || nDataTypeSize == 0 ||
+        poDS->nRasterXSize > INT_MAX / (nComp * nDataTypeSize) )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Too large width / number of bands");
+        delete poDS;
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Create bands.                                                   */
 /* -------------------------------------------------------------------- */
+    CPLErrorReset();
     for( int iBand = 0; iBand < nComp; iBand++ )
     {
         RawRasterBand *poBand = 
@@ -187,6 +203,11 @@ GDALDataset *KRODataset::Open( GDALOpenInfo * poOpenInfo )
             poBand->SetColorInterpretation( (GDALColorInterp) (GCI_RedBand + iBand) );
         }
         poDS->SetBand( iBand+1, poBand );
+        if( CPLGetLastErrorType() != CE_None )
+        {
+            delete poDS;
+            return NULL;
+        }
     }
 
     if( nComp > 1 )
@@ -266,7 +287,11 @@ GDALDataset *KRODataset::Create( const char * pszFilename,
               SEEK_CUR));
     GByte byNul = 0;
     nRet += VSIFWriteL(&byNul, 1, 1, fp);
-    VSIFCloseL(fp);
+    if( VSIFCloseL(fp) != 0 )
+    {
+        CPLError(CE_Failure, CPLE_FileIO, "I/O error");
+        return NULL;
+    }
 
     if( nRet != 6 )
         return NULL;
@@ -284,7 +309,7 @@ void GDALRegister_KRO()
     if( GDALGetDriverByName( "KRO" ) != NULL )
         return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "KRO" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );

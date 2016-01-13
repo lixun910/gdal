@@ -113,7 +113,7 @@ GDALDataset *XPMDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( VSIFSeekL( fp, 0, SEEK_END ) != 0 )
     {
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
     unsigned int nFileSize = static_cast<unsigned int>( VSIFTellL( fp ) );
@@ -121,7 +121,7 @@ GDALDataset *XPMDataset::Open( GDALOpenInfo * poOpenInfo )
     char *pszFileContents = reinterpret_cast<char *>( VSI_MALLOC_VERBOSE(nFileSize+1) );
     if( pszFileContents == NULL  )
     {
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
     pszFileContents[nFileSize] = '\0';
@@ -133,11 +133,11 @@ GDALDataset *XPMDataset::Open( GDALOpenInfo * poOpenInfo )
         CPLError( CE_Failure, CPLE_FileIO, 
                   "Failed to read all %d bytes from file %s.",
                   nFileSize, poOpenInfo->pszFilename );
-        VSIFCloseL(fp);
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
         return NULL;
     }
 
-    VSIFCloseL(fp);
+    CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
     fp = NULL;
 
 /* -------------------------------------------------------------------- */
@@ -388,7 +388,7 @@ XPMCreateCopy( const char * pszFilename,
                0, 0, NULL ) != CE_None )
         {
             CPLFree( pabyScanline );
-            VSIFCloseL( fpPBM );
+            CPL_IGNORE_RET_VAL(VSIFCloseL( fpPBM ));
             return NULL;
         }
 
@@ -405,7 +405,8 @@ XPMCreateCopy( const char * pszFilename,
 /*      cleanup                                                         */
 /* -------------------------------------------------------------------- */
     bOK &= VSIFPrintfL( fpPBM, "};\n" ) >= 0;
-    VSIFCloseL( fpPBM );
+    if( VSIFCloseL( fpPBM ) != 0 )
+        bOK = false;
 
     if( !bOK )
         return NULL;
@@ -432,7 +433,7 @@ void GDALRegister_XPM()
     if( GDALGetDriverByName( "XPM" ) != NULL )
         return;
 
-    GDALDriver	*poDriver = new GDALDriver();
+    GDALDriver *poDriver = new GDALDriver();
 
     poDriver->SetDescription( "XPM" );
     poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
@@ -520,7 +521,7 @@ ParseXPM( const char *pszInput,
             pszNext++;
     }
 
-    if( CSLCount(papszXPMList) < 3 || *pszNext != '}' )
+    if( papszXPMList == NULL || CSLCount(papszXPMList) < 3 || *pszNext != '}' )
     {
         CSLDestroy( papszXPMList );
         return NULL;

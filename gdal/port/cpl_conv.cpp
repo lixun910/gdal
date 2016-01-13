@@ -646,6 +646,8 @@ const char *CPLReadLine2L( VSILFILE * fp, int nMaxCars,
     size_t nChunkBytesRead = 0;
     int nBufLength = 0;
     size_t nChunkBytesConsumed = 0;
+    
+    szChunk[0] = 0;
 
     while( true )
     {
@@ -660,7 +662,7 @@ const char *CPLReadLine2L( VSILFILE * fp, int nMaxCars,
             return NULL;
         }
 
-        pszRLBuffer = CPLReadLineBuffer( nBufLength + nChunkSize + 1 );
+        pszRLBuffer = CPLReadLineBuffer( static_cast<int>(nBufLength + nChunkSize + 1) );
         if( pszRLBuffer == NULL )
             return NULL;
 
@@ -1956,6 +1958,9 @@ const char *CPLDecToDMS( double dfAngle, const char * pszAxis,
 
 {
     VALIDATE_POINTER1( pszAxis, "CPLDecToDMS", "" );
+    
+    if( CPLIsNan(dfAngle) )
+        return "Invalid angle";
 
     const double dfEpsilon = (0.5/3600.0) * pow(0.1,nPrecision);
     const double dfABSAngle = ABS(dfAngle) + dfEpsilon;
@@ -2255,7 +2260,13 @@ void CPLCloseShared( FILE * fp )
 /*      Close the file, and remove the information.                     */
 /* -------------------------------------------------------------------- */
     if( pasSharedFileList[i].bLarge )
-        VSIFCloseL( reinterpret_cast<VSILFILE *>( pasSharedFileList[i].fp ) );
+    {
+        if( VSIFCloseL( reinterpret_cast<VSILFILE *>( pasSharedFileList[i].fp ) ) != 0 )
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "Error while closing %s",
+                     pasSharedFileList[i].pszFilename );
+        }
+    }
     else
         VSIFClose( pasSharedFileList[i].fp );
 
@@ -2462,7 +2473,7 @@ int CPLCopyFile( const char *pszNewPath, const char *pszOldPath )
     VSILFILE *fpNew = VSIFOpenL( pszNewPath, "wb" );
     if( fpNew == NULL )
     {
-        VSIFCloseL( fpOld );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpOld ));
         return -1;
     }
 
@@ -2474,8 +2485,8 @@ int CPLCopyFile( const char *pszNewPath, const char *pszOldPath )
         = reinterpret_cast<GByte *>( VSI_MALLOC_VERBOSE(nBufferSize) );
     if( pabyBuffer == NULL )
     {
-        VSIFCloseL( fpNew );
-        VSIFCloseL( fpOld );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpNew ));
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fpOld ));
         return -1;
     }
 
@@ -2497,8 +2508,9 @@ int CPLCopyFile( const char *pszNewPath, const char *pszOldPath )
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
 /* -------------------------------------------------------------------- */
-    VSIFCloseL( fpNew );
-    VSIFCloseL( fpOld );
+    if( VSIFCloseL( fpNew ) != 0 )
+        nRet = -1;
+    CPL_IGNORE_RET_VAL(VSIFCloseL( fpOld ));
 
     CPLFree( pabyBuffer );
 

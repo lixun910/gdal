@@ -1010,7 +1010,6 @@ static void OGRMongoDBReaderSetField( OGRLayer* poLayer,
             for(int i=0;i<nSize;i++)
             {
                 BSONElement& elt = oArray[i];
-                eBSONType = elt.type();
                 papszValues[i] = CPLStrdup(Stringify(elt));
             }
             poFeature->SetField( nField, papszValues );
@@ -1984,6 +1983,7 @@ OGRMongoDBDataSource::OGRMongoDBDataSource()
     m_bJSonField = FALSE;
     m_bUseOGRMetadata = TRUE;
     m_bBulkInsert = TRUE;
+    m_bFlattenNestedAttributes = TRUE;
 }
 
 /************************************************************************/

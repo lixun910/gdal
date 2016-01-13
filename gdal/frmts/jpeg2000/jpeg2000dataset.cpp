@@ -28,18 +28,15 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include "cpl_string.h"
+#include "gdal_frmts.h"
 #include "gdaljp2abstractdataset.h"
 #include "gdaljp2metadata.h"
-#include "cpl_string.h"
 
 #include <jasper/jasper.h>
 #include "jpeg2000_vsil_io.h"
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void    GDALRegister_JPEG2000(void);
-CPL_C_END
 
 // XXX: Part of code below extracted from the JasPer internal headers and
 // must be in sync with JasPer version (this one works with JasPer 1.900.1)
@@ -647,7 +644,7 @@ GDALDataset *JPEG2000Dataset::Open( GDALOpenInfo * poOpenInfo )
                 /* ISO/IEC 15444-1:2004 I.5.3.1 specifies that 255 means that all */
                 /* components have not the same bit depth and/or sign and that a */
                 /* BPCC box must then follow to specify them for each component */
-                if ( box->data.ihdr.bpc != 255 )
+                if ( box->data.ihdr.bpc != 255 && paiDepth == NULL && pabSignedness == NULL )
                 {
                     paiDepth = (int *)CPLMalloc(poDS->nBands * sizeof(int));
                     pabSignedness = (int *)CPLMalloc(poDS->nBands * sizeof(int));
@@ -712,12 +709,16 @@ GDALDataset *JPEG2000Dataset::Open( GDALOpenInfo * poOpenInfo )
         {
             delete poDS;
             CPLDebug( "JPEG2000", "Unable to read JP2 header boxes.\n" );
+            CPLFree( paiDepth );
+            CPLFree( pabSignedness );
             return NULL;
         }
         if ( jas_stream_rewind( poDS->psStream ) < 0 )
         {
             delete poDS;
             CPLDebug( "JPEG2000", "Unable to rewind input stream.\n" );
+            CPLFree( paiDepth );
+            CPLFree( pabSignedness );
             return NULL;
         }
     }
@@ -775,10 +776,8 @@ GDALDataset *JPEG2000Dataset::Open( GDALOpenInfo * poOpenInfo )
 
     }
 
-    if ( paiDepth )
-        CPLFree( paiDepth );
-    if ( pabSignedness )
-        CPLFree( pabSignedness );
+    CPLFree( paiDepth );
+    CPLFree( pabSignedness );
 
     poDS->LoadJP2Metadata(poOpenInfo);
 
@@ -893,6 +892,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     {
         CPLError( CE_Failure, CPLE_OutOfMemory, "Unable to create image %s.\n", 
                   pszFilename );
+        jas_stream_close( psStream );
         return NULL;
     }
 
@@ -914,6 +914,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                   "Unable to create matrix with size %dx%d.\n", 1, nYSize );
         CPLFree( sComps );
         jas_image_destroy( psImage );
+        jas_stream_close( psStream );
         return NULL;
     }
     paiScanline = (GUInt32 *) CPLMalloc( nXSize *
@@ -963,6 +964,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                 CPLFree( paiScanline );
                 CPLFree( sComps );
                 jas_image_destroy( psImage );
+                jas_stream_close( psStream );
                 return NULL;
             }
 
@@ -1153,6 +1155,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                 CPLFree( paiScanline );
                 CPLFree( sComps );
                 jas_image_destroy( psImage );
+                jas_stream_close( psStream );
                 return NULL;
             }
             jp2_box_destroy( box );
@@ -1168,6 +1171,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                 CPLFree( paiScanline );
                 CPLFree( sComps );
                 jas_image_destroy( psImage );
+                jas_stream_close( psStream );
                 return NULL;
             }
 #ifdef HAVE_JASPER_UUID
@@ -1184,6 +1188,7 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
             CPLFree( paiScanline );
             CPLFree( sComps );
             jas_image_destroy( psImage );
+            jas_stream_close( psStream );
             return NULL;
         }
     }
@@ -1344,36 +1349,35 @@ JPEG2000CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 void GDALRegister_JPEG2000()
 
 {
-    GDALDriver  *poDriver;
-
-    if (! GDAL_CHECK_VERSION("JPEG2000 driver"))
+    if( !GDAL_CHECK_VERSION( "JPEG2000 driver" ) )
         return;
 
-    if( GDALGetDriverByName( "JPEG2000" ) == NULL )
-    {
-        poDriver = new GDALDriver();
+    if( GDALGetDriverByName( "JPEG2000" ) != NULL )
+        return;
 
-        poDriver->SetDescription( "JPEG2000" );
-        poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
-        poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
-        poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
-                                   "JPEG-2000 part 1 (ISO/IEC 15444-1), based on Jasper library" );
-        poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_jpeg2000.html" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
-                                   "Byte Int16 UInt16 Int32 UInt32" );
-        poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/jp2" );
-        poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "jp2" );
+    GDALDriver *poDriver = new GDALDriver();
 
-        poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetDescription( "JPEG2000" );
+    poDriver->SetMetadataItem( GDAL_DCAP_RASTER, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_VECTOR, "YES" );
+    poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
+                               "JPEG-2000 part 1 (ISO/IEC 15444-1), "
+                               "based on Jasper library" );
+    poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_jpeg2000.html" );
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
+                               "Byte Int16 UInt16 Int32 UInt32" );
+    poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/jp2" );
+    poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "jp2" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST, 
+    poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+
+    poDriver->SetMetadataItem( GDAL_DMD_OPENOPTIONLIST,
 "<OpenOptionList>"
 "   <Option name='1BIT_ALPHA_PROMOTION' type='boolean' description='Whether a 1-bit alpha channel should be promoted to 8-bit' default='YES'/>"
 "   <Option name='OPEN_REMOTE_GML' type='boolean' description='Whether to load remote vector layers referenced by a link in a GMLJP2 v2 box' default='NO'/>"
 "</OpenOptionList>" );
 
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
+    poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
 "<CreationOptionList>"
 "   <Option name='FORMAT' type='string-select' default='according to file extension. If unknown, default to J2K'>"
 "       <Value>JP2</Value>"
@@ -1409,10 +1413,9 @@ void GDALRegister_JPEG2000()
 "   <Option name='numgbits' type='string' />"
 "</CreationOptionList>"  );
 
-        poDriver->pfnIdentify = JPEG2000Dataset::Identify;
-        poDriver->pfnOpen = JPEG2000Dataset::Open;
-        poDriver->pfnCreateCopy = JPEG2000CreateCopy;
+    poDriver->pfnIdentify = JPEG2000Dataset::Identify;
+    poDriver->pfnOpen = JPEG2000Dataset::Open;
+    poDriver->pfnCreateCopy = JPEG2000CreateCopy;
 
-        GetGDALDriverManager()->RegisterDriver( poDriver );
-    }
+    GetGDALDriverManager()->RegisterDriver( poDriver );
 }

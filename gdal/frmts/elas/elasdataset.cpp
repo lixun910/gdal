@@ -28,6 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include "gdal_frmts.h"
 #include "gdal_pam.h"
 
 #include <algorithm>
@@ -35,10 +36,6 @@
 using std::fill;
 
 CPL_CVSID("$Id$");
-
-CPL_C_START
-void	GDALRegister_ELAS(void);
-CPL_C_END
 
 typedef struct ELASHeader {
     ELASHeader();
@@ -283,7 +280,7 @@ ELASDataset::~ELASDataset()
 
     if( fp != NULL )
     {
-        VSIFCloseL( fp );
+        CPL_IGNORE_RET_VAL(VSIFCloseL( fp ));
     }
 }
 
@@ -680,7 +677,7 @@ CPLErr ELASDataset::SetGeoTransform( double * padfTransform )
 
 
 /************************************************************************/
-/*                          GDALRegister_ELAS()                        */
+/*                          GDALRegister_ELAS()                         */
 /************************************************************************/
 
 void GDALRegister_ELAS()
