@@ -4005,8 +4005,8 @@ void OGRFeature::SetField( int iField, OGRField * puValue )
 
 {
     UpdateFields();
-    OGRFieldDefn        *poFDefn = poDefn->GetFieldDefn( iField );
-    //SetFieldInternal( iField, puValue );
+    //OGRFieldDefn        *poFDefn = poDefn->GetFieldDefn( iField );
+    SetFieldInternal( iField, puValue );
 }
 
 bool OGRFeature::SetFieldInternal( int iField, OGRField * puValue )
