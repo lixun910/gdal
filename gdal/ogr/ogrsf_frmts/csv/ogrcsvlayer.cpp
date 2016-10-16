@@ -2289,9 +2289,15 @@ OGRErr OGRCSVLayer::ICreateFeature( OGRFeature *poNewFeature )
         }
         else
         {
+	    if( poNewFeature->IsFieldSet(iField) )
+	    {
             pszEscaped =
                 CPLEscapeString( poNewFeature->GetFieldAsString(iField),
                                 -1, CPLES_CSV );
+	    } else {
+		// undefined
+		pszEscaped = CPLStrdup("");
+	    }
         }
 
         int nLen = (int)strlen(pszEscaped);
