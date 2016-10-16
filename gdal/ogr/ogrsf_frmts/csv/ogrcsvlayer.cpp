@@ -1987,6 +1987,9 @@ OGRErr OGRCSVLayer::ICreateFeature( OGRFeature *poNewFeature )
         }
         else if (poFeatureDefn->GetFieldDefn(iField)->GetType() == OFTReal)
         {
+            if( poNewFeature->IsFieldSet(iField) ) 
+	    {
+		    
             /* Use user setup number locale */
             const char* field_string =  poNewFeature->GetFieldAsString(iField);
             const char* decimal_point = CPLGetConfigOption("GDAL_LOCALE_DECIMAL", ".");
@@ -2014,6 +2017,10 @@ OGRErr OGRCSVLayer::ICreateFeature( OGRFeature *poNewFeature )
             } else {
                 pszEscaped = CPLStrdup(poNewFeature->GetFieldAsString(iField));
             }
+	    } else {
+		// undefined
+                pszEscaped = CPLStrdup("");
+	    }
         }
         else
         {
