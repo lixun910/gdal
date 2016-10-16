@@ -2307,7 +2307,9 @@ OGRErr OGRCSVLayer::ICreateFeature( OGRFeature *poNewFeature )
             bAddDoubleQuote = TRUE;
         if( bAddDoubleQuote )
             bRet &= VSIFWriteL( "\"", 1, 1, fpCSV ) > 0;
-        bRet &= VSIFWriteL( pszEscaped, nLen, 1, fpCSV ) > 0;
+        if ( poNewFeature->IsFieldSet(iField) )
+            bRet &= VSIFWriteL( pszEscaped, nLen, 1, fpCSV ) > 0;
+
         if( bAddDoubleQuote )
             bRet &= VSIFWriteL( "\"", 1, 1, fpCSV ) > 0;
         CPLFree( pszEscaped );
