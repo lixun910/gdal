@@ -1836,6 +1836,9 @@ OGRErr OGRCSVLayer::CreateField( OGRFieldDefn *poNewField, int bApproxOK )
       case OFTInteger64:
       case OFTReal:
       case OFTString:
+      case OFTDate:
+      case OFTTime:
+      case OFTDateTime:
         // these types are OK.
         break;
 
