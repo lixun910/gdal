@@ -663,9 +663,9 @@ void GDALDriverManager::AutoLoadDrivers()
 
 {
     const char *pszGDAL_DRIVER_PATH = 
-        CPLGetConfigOption( "GDAL_DRIVER_PATH", NULL );
+        CPLGetConfigOption( "GEODA_GDAL_DRIVER_PATH", NULL );
     if( pszGDAL_DRIVER_PATH == NULL )
-        pszGDAL_DRIVER_PATH = CPLGetConfigOption( "OGR_DRIVER_PATH", NULL );
+        pszGDAL_DRIVER_PATH = CPLGetConfigOption( "GEODA_OGR_DRIVER_PATH", NULL );
 
 /* -------------------------------------------------------------------- */
 /*      Allow applications to completely disable this search by         */
